@@ -1,0 +1,19 @@
+{
+  "name": "barbearia-bot",
+  "version": "1.0.0",
+  "description": "Chatbot de IA para agendamento em barbearias, com painel web de administracao",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node --env-file=.env src/server.js",
+    "dev": "node --watch --env-file=.env src/server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.68.0",
+    "express": "^4.21.2",
+    "express-session": "^1.18.1"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}
