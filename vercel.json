@@ -1,6 +1,7 @@
 {
   "framework": null,
   "buildCommand": "npm run build",
+  "regions": ["gru1"],
   "functions": {
     "api/index.js": {
       "includeFiles": "webroot/**"
