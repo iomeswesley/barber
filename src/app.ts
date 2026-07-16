@@ -28,6 +28,13 @@ const PgSession = connectPgSimple(session);
 export function createApp() {
   const app = express();
 
+  // O Vercel termina TLS na borda; a função em si recebe HTTP puro. Sem
+  // confiar no proxy, req.secure fica false e o cookie de sessão com
+  // "secure: true" (isProduction) é descartado silenciosamente pelo
+  // express-session — o login parecia funcionar (200 ok) mas nenhum
+  // Set-Cookie chegava ao navegador.
+  app.set("trust proxy", 1);
+
   app.use(express.json());
   app.use(
     session({
@@ -83,12 +90,6 @@ export function createApp() {
     }
     await sendDailyReminders();
     res.json({ ok: true });
-  });
-
-  // TEMPORARIO: diagnostico de Set-Cookie no ambiente serverless.
-  app.get("/api/debug/cookie-test", (req, res) => {
-    res.cookie("debug_test", "123", { httpOnly: true });
-    res.json({ ok: true, sessionID: req.sessionID, sessionUser: req.session.user || null });
   });
 
   /* ---------------- Rotas da API ---------------- */
