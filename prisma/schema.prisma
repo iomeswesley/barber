@@ -287,6 +287,21 @@ model PushSubscription {
   @@map("push_subscriptions")
 }
 
+// Histórico de conversa do chat de IA, persistido no banco em vez de em
+// memória do processo: em ambiente serverless (Vercel), duas mensagens
+// consecutivas do mesmo cliente podem cair em instâncias diferentes, e um
+// Map em memória perderia o contexto no meio da conversa (ex: o bot lista
+// serviços numerados, e a próxima mensagem "1" chega numa instância sem
+// memória da lista, então o bot não entende a resposta).
+model ChatSession {
+  sessionId    String   @id @map("session_id")
+  barbershopId Int      @map("barbershop_id")
+  messages     Json
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("chat_sessions")
+}
+
 // Placeholder para a próxima fase (billing/Stripe) — schema já preparado,
 // sem lógica de cobrança implementada nesta passada.
 model Subscription {

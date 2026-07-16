@@ -28,8 +28,12 @@ chatRouter.post("/api/chat", chatRateLimiter, async (req, res, next) => {
   }
 });
 
-chatRouter.post("/api/chat/reset", (req, res) => {
-  const { sessionId } = req.body || {};
-  if (sessionId) resetSession(sessionId);
-  res.json({ ok: true });
+chatRouter.post("/api/chat/reset", async (req, res, next) => {
+  try {
+    const { sessionId } = req.body || {};
+    if (sessionId) await resetSession(sessionId);
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
 });

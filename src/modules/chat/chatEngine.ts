@@ -17,7 +17,8 @@ import { markReviewPrompted } from "@/modules/appointments/appointments.reposito
 import { createReview } from "@/modules/reviews/reviews.repository.js";
 import { createEscalation } from "@/modules/escalations/escalations.repository.js";
 import { notifyNewAppointment } from "@/modules/push/push.service.js";
-import type { Barbershop } from "@prisma/client";
+import { prisma } from "@/lib/prisma.js";
+import type { Barbershop, Prisma } from "@prisma/client";
 
 const client = new Anthropic();
 const MODEL = "claude-sonnet-5";
@@ -27,8 +28,6 @@ interface ChatSession {
   barbershopId: number;
   messages: Anthropic.MessageParam[];
 }
-
-const sessions = new Map<string, ChatSession>();
 
 const WEEKDAYS = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
 
@@ -277,8 +276,22 @@ async function executeTool(barbershop: Barbershop, name: string, input: any, cus
   }
 }
 
-export function resetSession(sessionId: string) {
-  sessions.delete(sessionId);
+export async function resetSession(sessionId: string) {
+  await prisma.chatSession.deleteMany({ where: { sessionId } });
+}
+
+async function loadSession(sessionId: string, barbershopId: number): Promise<ChatSession> {
+  const row = await prisma.chatSession.findUnique({ where: { sessionId } });
+  if (!row || row.barbershopId !== barbershopId) return { barbershopId, messages: [] };
+  return { barbershopId, messages: row.messages as unknown as Anthropic.MessageParam[] };
+}
+
+async function saveSession(sessionId: string, session: ChatSession) {
+  await prisma.chatSession.upsert({
+    where: { sessionId },
+    create: { sessionId, barbershopId: session.barbershopId, messages: session.messages as unknown as Prisma.InputJsonValue },
+    update: { barbershopId: session.barbershopId, messages: session.messages as unknown as Prisma.InputJsonValue },
+  });
 }
 
 export async function sendMessage(
@@ -292,11 +305,10 @@ export async function sendMessage(
   if (!barbershop) throw new Error("Barbearia não encontrada");
   if (!customerPhone) throw new Error("Telefone do remetente (WhatsApp) é obrigatório");
 
-  let session = sessions.get(sessionId);
-  if (!session || session.barbershopId !== barbershopId) {
-    session = { barbershopId, messages: [] };
-    sessions.set(sessionId, session);
-  }
+  // Persistido no banco (não num Map em memória): em ambiente serverless,
+  // mensagens consecutivas do mesmo cliente podem cair em instâncias
+  // diferentes, e um Map local perderia o histórico no meio da conversa.
+  const session = await loadSession(sessionId, barbershopId);
 
   session.messages.push({ role: "user", content: userText });
 
@@ -311,43 +323,50 @@ export async function sendMessage(
     { type: "text", text: buildDynamicContext({ existingClient, pushName }, pendingReview) },
   ];
 
-  for (let i = 0; i < MAX_ITERATIONS; i++) {
-    const response = await client.messages.create({
-      model: MODEL,
-      max_tokens: 1024,
-      system,
-      tools,
-      messages: session.messages,
-    });
+  try {
+    for (let i = 0; i < MAX_ITERATIONS; i++) {
+      const response = await client.messages.create({
+        model: MODEL,
+        max_tokens: 1024,
+        system,
+        tools,
+        messages: session.messages,
+      });
 
-    session.messages.push({ role: "assistant", content: response.content });
+      session.messages.push({ role: "assistant", content: response.content });
 
-    if (response.stop_reason !== "tool_use") {
-      const text = response.content
-        .filter((b): b is Anthropic.TextBlock => b.type === "text")
-        .map((b) => b.text)
-        .join("\n")
-        .trim();
-      return text || "Desculpe, pode repetir?";
-    }
-
-    const toolResults: Anthropic.ToolResultBlockParam[] = [];
-    for (const block of response.content) {
-      if (block.type !== "tool_use") continue;
-      try {
-        const result = await executeTool(barbershop, block.name, block.input, customerPhone);
-        toolResults.push({ type: "tool_result", tool_use_id: block.id, content: JSON.stringify(result) });
-      } catch (err) {
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: block.id,
-          content: `Erro: ${(err as Error).message}`,
-          is_error: true,
-        });
+      if (response.stop_reason !== "tool_use") {
+        const text = response.content
+          .filter((b): b is Anthropic.TextBlock => b.type === "text")
+          .map((b) => b.text)
+          .join("\n")
+          .trim();
+        return text || "Desculpe, pode repetir?";
       }
-    }
-    session.messages.push({ role: "user", content: toolResults });
-  }
 
-  return "Desculpe, tive um problema para processar seu pedido. Pode tentar novamente?";
+      const toolResults: Anthropic.ToolResultBlockParam[] = [];
+      for (const block of response.content) {
+        if (block.type !== "tool_use") continue;
+        try {
+          const result = await executeTool(barbershop, block.name, block.input, customerPhone);
+          toolResults.push({ type: "tool_result", tool_use_id: block.id, content: JSON.stringify(result) });
+        } catch (err) {
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: block.id,
+            content: `Erro: ${(err as Error).message}`,
+            is_error: true,
+          });
+        }
+      }
+      session.messages.push({ role: "user", content: toolResults });
+    }
+
+    return "Desculpe, tive um problema para processar seu pedido. Pode tentar novamente?";
+  } finally {
+    // Salva o que foi acumulado até aqui mesmo se um erro interromper o
+    // loop no meio — melhor manter o progresso parcial da conversa do que
+    // perder tudo silenciosamente.
+    await saveSession(sessionId, session);
+  }
 }
