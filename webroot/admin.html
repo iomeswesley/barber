@@ -1527,7 +1527,7 @@ async function loadReviews() {
   document.getElementById("review-avg-stars").textContent = data.stats.avgRating
     ? starString(data.stats.avgRating)
     : "";
-  document.getElementById("review-count").textContent = `${data.stats.count} avaliação${data.stats.count === 1 ? "" : "ões"}`;
+  document.getElementById("review-count").textContent = `${data.stats.count} ${data.stats.count === 1 ? "avaliação" : "avaliações"}`;
 
   const list = document.getElementById("review-list");
   if (data.recent.length === 0) {

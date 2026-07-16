@@ -2,7 +2,6 @@ import express from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { env, isProduction } from "@/config/env.js";
 import { errorHandler, notFoundHandler } from "@/middleware/errorHandler.js";
 import "@/middleware/session.js";
@@ -20,8 +19,6 @@ import { auditLogRouter } from "@/modules/auditLog/auditLog.routes.js";
 import { pushRouter } from "@/modules/push/push.routes.js";
 import { dashboardRouter } from "@/modules/dashboard/dashboard.routes.js";
 import { chatRouter } from "@/modules/chat/chat.routes.js";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const PgSession = connectPgSimple(session);
 
