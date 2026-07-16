@@ -25,7 +25,14 @@ authRouter.post("/api/auth/login", loginRateLimiter, async (req, res, next) => {
       barberId: user.barberId,
       name: user.name,
     };
-    res.json({ ok: true, redirect: user.role === "owner" ? "/admin.html" : "/barber.html" });
+    // Salva explicitamente e só responde depois: sem isso, uma falha no
+    // store de sessão (ex: banco indisponível) responderia 200 "ok" sem
+    // nenhum cookie de sessão ser de fato emitido, e o login pareceria
+    // funcionar mas nunca autentica nas próximas requisições.
+    req.session.save((err) => {
+      if (err) return next(err);
+      res.json({ ok: true, redirect: user.role === "owner" ? "/admin.html" : "/barber.html" });
+    });
   } catch (err) {
     next(err);
   }

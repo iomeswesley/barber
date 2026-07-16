@@ -34,7 +34,12 @@ export function createApp() {
       // Usa DIRECT_URL (não o pooler em modo transaction) — connect-pg-simple
       // depende de comportamento (locks, prepared statements) que o modo
       // transaction do pgbouncer não garante.
-      store: new PgSession({ conString: env.DIRECT_URL, tableName: "session", createTableIfMissing: true }),
+      store: new PgSession({
+        conString: env.DIRECT_URL,
+        tableName: "session",
+        createTableIfMissing: true,
+        errorLog: (err) => console.error("[SESSION STORE ERROR]", err),
+      }),
       secret: env.SESSION_SECRET,
       resave: false,
       saveUninitialized: false,
