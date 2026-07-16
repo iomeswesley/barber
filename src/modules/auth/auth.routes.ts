@@ -1,0 +1,41 @@
+import { Router } from "express";
+import { verifyPassword } from "@/lib/auth.js";
+import { loginRateLimiter } from "@/middleware/rateLimiter.js";
+import { requireAuth } from "@/middleware/auth.js";
+import { AppError } from "@/middleware/errorHandler.js";
+import { getUserByUsername } from "./users.repository.js";
+import { getBarbershop } from "@/modules/barbershops/barbershops.repository.js";
+
+export const authRouter = Router();
+
+authRouter.post("/api/auth/login", loginRateLimiter, async (req, res, next) => {
+  try {
+    const { username, password } = req.body || {};
+    if (!username || !password) throw new AppError("username e password são obrigatórios");
+
+    const user = await getUserByUsername(username);
+    if (!user || !verifyPassword(password, user.passwordHash)) {
+      throw new AppError("Usuário ou senha inválidos", 401);
+    }
+
+    req.session.user = {
+      id: user.id,
+      role: user.role,
+      barbershopId: user.barbershopId,
+      barberId: user.barberId,
+      name: user.name,
+    };
+    res.json({ ok: true, redirect: user.role === "owner" ? "/admin.html" : "/barber.html" });
+  } catch (err) {
+    next(err);
+  }
+});
+
+authRouter.post("/api/auth/logout", (req, res) => {
+  req.session.destroy(() => res.json({ ok: true }));
+});
+
+authRouter.get("/api/auth/me", requireAuth, async (req, res) => {
+  const shop = await getBarbershop(req.session.user!.barbershopId);
+  res.json({ ...req.session.user, barbershopName: shop?.name || null });
+});

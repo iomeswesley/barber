@@ -1,0 +1,307 @@
+// Schema Prisma — modelo de dados multi-tenant para a plataforma.
+//
+// Convenção de isolamento de tenant: toda tabela que pertence a uma barbearia
+// tem uma coluna `barbershopId` com índice. `Client` é a única entidade global
+// (identificada pelo telefone, como no WhatsApp), e seu vínculo com uma
+// barbearia específica é verificado via existência de Appointment — igual ao
+// comportamento original em barbearia-bot/src/db.js (clientBelongsToShop).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Pooler em modo transaction (porta 6543) — usado pela aplicação em runtime.
+  url       = env("DATABASE_URL")
+  // Conexão direta / pooler em modo session (porta 5432) — usada só pelo
+  // Prisma Migrate, que precisa de recursos (prepared statements, advisory
+  // locks) que o modo transaction do pgbouncer não suporta.
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  owner
+  barber
+}
+
+enum AppointmentStatus {
+  confirmed
+  cancelled
+  no_show
+}
+
+enum SubscriptionStatus {
+  trialing
+  active
+  past_due
+  canceled
+}
+
+model Barbershop {
+  id        Int      @id @default(autoincrement())
+  name      String
+  address   String?
+  phone     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  barbers          Barber[]
+  services         Service[]
+  appointments     Appointment[]
+  users            User[]
+  timeBlocks       TimeBlock[]
+  reviews          Review[]
+  products         Product[]
+  productSales     ProductSale[]
+  auditLogs        AuditLog[]
+  businessHours    BusinessHours[]
+  escalations      Escalation[]
+  pushSubscriptions PushSubscription[]
+  subscription     Subscription?
+
+  @@map("barbershops")
+}
+
+model Barber {
+  id                Int     @id @default(autoincrement())
+  barbershopId      Int     @map("barbershop_id")
+  name              String
+  active            Boolean @default(true)
+  commissionPercent Decimal @default(40) @map("commission_percent") @db.Decimal(5, 2)
+  monthlyGoalCents  Int     @default(0) @map("monthly_goal_cents")
+
+  barbershop   Barbershop    @relation(fields: [barbershopId], references: [id])
+  appointments Appointment[]
+  users        User[]
+  timeBlocks   TimeBlock[]
+  reviews      Review[]
+
+  @@index([barbershopId])
+  @@map("barbers")
+}
+
+model Service {
+  id           Int     @id @default(autoincrement())
+  barbershopId Int     @map("barbershop_id")
+  name         String
+  priceCents   Int     @map("price_cents")
+  durationMin  Int     @map("duration_min")
+  active       Boolean @default(true)
+
+  barbershop   Barbershop    @relation(fields: [barbershopId], references: [id])
+  appointments Appointment[]
+
+  @@index([barbershopId])
+  @@map("services")
+}
+
+// Global — não tem barbershopId. O vínculo com uma barbearia é feito via
+// Appointment (ver clientBelongsToShop no service layer).
+model Client {
+  id       Int       @id @default(autoincrement())
+  name     String
+  phone    String    @unique
+  birthday DateTime? @db.Date
+
+  appointments Appointment[]
+  reviews      Review[]
+  productSales ProductSale[]
+  escalations  Escalation[]
+
+  @@map("clients")
+}
+
+model Appointment {
+  id               Int               @id @default(autoincrement())
+  barbershopId     Int               @map("barbershop_id")
+  barberId         Int               @map("barber_id")
+  serviceId        Int               @map("service_id")
+  clientId         Int               @map("client_id")
+  date             DateTime          @db.Date
+  startTime        String            @map("start_time")
+  endTime           String            @map("end_time")
+  status           AppointmentStatus @default(confirmed)
+  reminderSentAt   DateTime?         @map("reminder_sent_at")
+  reviewPromptedAt DateTime?         @map("review_prompted_at")
+  createdAt        DateTime          @default(now()) @map("created_at")
+
+  barbershop   Barbershop    @relation(fields: [barbershopId], references: [id])
+  barber       Barber        @relation(fields: [barberId], references: [id])
+  service      Service       @relation(fields: [serviceId], references: [id])
+  client       Client        @relation(fields: [clientId], references: [id])
+  review       Review?
+  productSales ProductSale[]
+
+  @@index([barbershopId])
+  @@index([barberId, date])
+  @@map("appointments")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  barbershopId Int      @map("barbershop_id")
+  barberId     Int?     @map("barber_id")
+  role         UserRole
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  name         String
+
+  barbershop        Barbershop         @relation(fields: [barbershopId], references: [id])
+  barber            Barber?            @relation(fields: [barberId], references: [id])
+  pushSubscriptions PushSubscription[]
+
+  @@index([barbershopId])
+  @@map("users")
+}
+
+model TimeBlock {
+  id           Int      @id @default(autoincrement())
+  barbershopId Int      @map("barbershop_id")
+  barberId     Int?     @map("barber_id")
+  type         String
+  label        String?
+  date         DateTime? @db.Date
+  startTime    String   @map("start_time")
+  endTime      String   @map("end_time")
+  recurring    Boolean  @default(false)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id])
+  barber     Barber?    @relation(fields: [barberId], references: [id])
+
+  @@index([barbershopId])
+  @@map("time_blocks")
+}
+
+model Review {
+  id            Int      @id @default(autoincrement())
+  appointmentId Int      @unique @map("appointment_id")
+  barbershopId  Int      @map("barbershop_id")
+  barberId      Int      @map("barber_id")
+  clientId      Int      @map("client_id")
+  rating        Int
+  comment       String?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+  barbershop  Barbershop  @relation(fields: [barbershopId], references: [id])
+  barber      Barber      @relation(fields: [barberId], references: [id])
+  client      Client      @relation(fields: [clientId], references: [id])
+
+  @@index([barbershopId])
+  @@map("reviews")
+}
+
+model Product {
+  id                Int     @id @default(autoincrement())
+  barbershopId      Int     @map("barbershop_id")
+  name              String
+  priceCents        Int     @map("price_cents")
+  active            Boolean @default(true)
+  stockQuantity     Int     @default(0) @map("stock_quantity")
+  lowStockThreshold Int     @default(5) @map("low_stock_threshold")
+
+  barbershop   Barbershop    @relation(fields: [barbershopId], references: [id])
+  productSales ProductSale[]
+
+  @@index([barbershopId])
+  @@map("products")
+}
+
+model ProductSale {
+  id            Int      @id @default(autoincrement())
+  barbershopId  Int      @map("barbershop_id")
+  clientId      Int      @map("client_id")
+  productId     Int      @map("product_id")
+  quantity      Int      @default(1)
+  date          DateTime @db.Date
+  appointmentId Int?     @map("appointment_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  barbershop  Barbershop   @relation(fields: [barbershopId], references: [id])
+  client      Client       @relation(fields: [clientId], references: [id])
+  product     Product      @relation(fields: [productId], references: [id])
+  appointment Appointment? @relation(fields: [appointmentId], references: [id])
+
+  @@index([barbershopId])
+  @@map("product_sales")
+}
+
+model AuditLog {
+  id           Int      @id @default(autoincrement())
+  barbershopId Int      @map("barbershop_id")
+  userName     String   @map("user_name")
+  action       String
+  details      String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id])
+
+  @@index([barbershopId])
+  @@map("audit_log")
+}
+
+model BusinessHours {
+  id           Int     @id @default(autoincrement())
+  barbershopId Int     @map("barbershop_id")
+  weekday      Int
+  opensAt      String  @map("opens_at")
+  closesAt     String  @map("closes_at")
+  closed       Boolean @default(false)
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id])
+
+  @@unique([barbershopId, weekday])
+  @@map("business_hours")
+}
+
+model Escalation {
+  id           Int      @id @default(autoincrement())
+  barbershopId Int      @map("barbershop_id")
+  clientId     Int?     @map("client_id")
+  clientPhone  String   @map("client_phone")
+  reason       String
+  resolved     Boolean  @default(false)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id])
+  client     Client?    @relation(fields: [clientId], references: [id])
+
+  @@index([barbershopId])
+  @@map("escalations")
+}
+
+model PushSubscription {
+  id           Int      @id @default(autoincrement())
+  barbershopId Int      @map("barbershop_id")
+  userId       Int      @map("user_id")
+  endpoint     String   @unique
+  p256dh       String
+  auth         String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id])
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@index([barbershopId])
+  @@map("push_subscriptions")
+}
+
+// Placeholder para a próxima fase (billing/Stripe) — schema já preparado,
+// sem lógica de cobrança implementada nesta passada.
+model Subscription {
+  id                   Int                @id @default(autoincrement())
+  barbershopId         Int                @unique @map("barbershop_id")
+  status               SubscriptionStatus @default(trialing)
+  plan                 String             @default("starter")
+  trialEndsAt          DateTime?          @map("trial_ends_at")
+  currentPeriodEnd     DateTime?          @map("current_period_end")
+  stripeCustomerId     String?            @map("stripe_customer_id")
+  stripeSubscriptionId String?            @map("stripe_subscription_id")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id])
+
+  @@map("subscriptions")
+}

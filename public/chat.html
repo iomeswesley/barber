@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Simulador WhatsApp - Barbearia Bot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --wa-bg: #e5ddd5;
+    --wa-header: #075e54;
+    --wa-green: #dcf8c6;
+    --wa-white: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Open Sans", "Segoe UI", Helvetica, Arial, sans-serif;
+    background: #0b1a17;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .phone {
+    width: 400px;
+    height: 720px;
+    background: var(--wa-bg);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+  }
+  .header {
+    background: var(--wa-header);
+    color: white;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .header .avatar {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: #128c7e;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold;
+  }
+  .header .title { font-weight: 600; font-size: 16px; }
+  .header .subtitle { font-size: 12px; opacity: 0.85; }
+  .shop-picker {
+    padding: 10px 14px;
+    background: #f0f0f0;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .shop-picker select {
+    flex: 1;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+  }
+  .shop-picker button {
+    border: none;
+    background: #128c7e;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .identity-bar {
+    padding: 8px 14px 10px;
+    background: #eef6f3;
+    border-bottom: 1px solid #ddd;
+    font-size: 11px;
+  }
+  .identity-bar .identity-hint {
+    color: #567;
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+  .identity-row { display: flex; gap: 6px; align-items: center; }
+  .identity-row input {
+    flex: 1;
+    min-width: 0;
+    padding: 5px 8px;
+    border-radius: 6px;
+    border: 1px solid #cdd;
+    font-size: 12px;
+  }
+  .identity-row button {
+    border: none;
+    background: #ddd;
+    color: #333;
+    padding: 5px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  .identity-row label {
+    font-size: 10px;
+    color: #789;
+    display: block;
+    margin-bottom: 1px;
+  }
+  .identity-field { flex: 1; min-width: 0; }
+  .messages {
+    flex: 1;
+    padding: 14px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .bubble {
+    max-width: 78%;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 14px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+  }
+  .bubble a { color: #1b6ec2; }
+  .bot {
+    align-self: flex-start;
+    background: var(--wa-white);
+    border-top-left-radius: 2px;
+  }
+  .user {
+    align-self: flex-end;
+    background: var(--wa-green);
+    border-top-right-radius: 2px;
+  }
+  .typing {
+    align-self: flex-start;
+    background: var(--wa-white);
+    border-top-left-radius: 2px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #667;
+    font-style: italic;
+  }
+  .input-bar {
+    display: flex;
+    padding: 10px;
+    background: #f0f0f0;
+    gap: 8px;
+  }
+  .input-bar input {
+    flex: 1;
+    padding: 10px 14px;
+    border-radius: 20px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+  }
+  .input-bar button {
+    background: var(--wa-header);
+    color: white;
+    border: none;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  .link-bar {
+    text-align: center;
+    padding: 6px;
+    font-size: 12px;
+  }
+  .link-bar a { color: #aaddcc; }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="header">
+      <div class="avatar">💈</div>
+      <div>
+        <div class="title" id="shop-name">Barbearia Bot</div>
+        <div class="subtitle">online</div>
+      </div>
+    </div>
+    <div class="shop-picker">
+      <select id="shop-select"></select>
+      <button id="reset-btn">Nova conversa</button>
+    </div>
+    <div class="identity-bar">
+      <div class="identity-hint">📱 Simula o que o WhatsApp já entrega de graça (telefone + nome de perfil) — a IA não precisa perguntar isso.</div>
+      <div class="identity-row">
+        <div class="identity-field">
+          <label>Telefone (wa_id)</label>
+          <input id="wa-phone" type="text" placeholder="5511999998888" />
+        </div>
+        <div class="identity-field">
+          <label>Nome no WhatsApp</label>
+          <input id="wa-push-name" type="text" placeholder="Nome de perfil" />
+        </div>
+        <button id="new-person-btn" title="Simular outra pessoa mandando mensagem">🎲</button>
+      </div>
+    </div>
+    <div class="messages" id="messages"></div>
+    <div class="input-bar">
+      <input id="msg-input" type="text" placeholder="Digite uma mensagem" />
+      <button id="send-btn">➤</button>
+    </div>
+  </div>
+  <div style="position:fixed; bottom:10px; left:10px; display:flex; flex-direction:column; gap:4px;">
+    <a href="/admin.html" style="color:#8fd; font-family: sans-serif; font-size: 13px;">Ir para o painel do dono →</a>
+    <a href="/minha-conta.html" style="color:#8fd; font-family: sans-serif; font-size: 13px;">Cancelar/remarcar sem o chat →</a>
+  </div>
+
+<script>
+let sessionId = sessionStorage.getItem("sessionId");
+if (!sessionId) {
+  sessionId = crypto.randomUUID();
+  sessionStorage.setItem("sessionId", sessionId);
+}
+
+const messagesEl = document.getElementById("messages");
+const shopSelect = document.getElementById("shop-select");
+const shopNameEl = document.getElementById("shop-name");
+const input = document.getElementById("msg-input");
+const waPhoneInput = document.getElementById("wa-phone");
+const waPushNameInput = document.getElementById("wa-push-name");
+
+const FIRST_NAMES = ["Bruno", "Carla", "Diego", "Elaine", "Fábio", "Gustavo", "Helena", "Igor", "Juliana", "Kaique", "Larissa", "Marcos"];
+const LAST_NAMES = ["Almeida", "Barros", "Costa", "Duarte", "Esteves", "Farias", "Gonçalves", "Henrique", "Ibrahim", "Junqueira"];
+
+function randomDigits(n) {
+  let s = "";
+  for (let i = 0; i < n; i++) s += Math.floor(Math.random() * 10);
+  return s;
+}
+
+function generateIdentity() {
+  const name = `${FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)]} ${LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)]}`;
+  const phone = "5511" + randomDigits(9);
+  return { phone, name };
+}
+
+function loadIdentity() {
+  let phone = localStorage.getItem("waPhone");
+  let name = localStorage.getItem("waPushName");
+  if (!phone || !name) {
+    const fresh = generateIdentity();
+    phone = fresh.phone;
+    name = fresh.name;
+    localStorage.setItem("waPhone", phone);
+    localStorage.setItem("waPushName", name);
+  }
+  waPhoneInput.value = phone;
+  waPushNameInput.value = name;
+}
+
+waPhoneInput.addEventListener("change", () => localStorage.setItem("waPhone", waPhoneInput.value.trim()));
+waPushNameInput.addEventListener("change", () => localStorage.setItem("waPushName", waPushNameInput.value.trim()));
+
+document.getElementById("new-person-btn").addEventListener("click", async () => {
+  const fresh = generateIdentity();
+  localStorage.setItem("waPhone", fresh.phone);
+  localStorage.setItem("waPushName", fresh.name);
+  waPhoneInput.value = fresh.phone;
+  waPushNameInput.value = fresh.name;
+  sessionId = crypto.randomUUID();
+  sessionStorage.setItem("sessionId", sessionId);
+  messagesEl.innerHTML = "";
+  addBubble(`👤 Simulando uma nova pessoa: ${fresh.name} (${fresh.phone})`, "bot");
+});
+
+function addBubble(text, who) {
+  const div = document.createElement("div");
+  div.className = "bubble " + who;
+  div.innerHTML = linkify(text);
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function linkify(text) {
+  const escaped = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  return escaped.replace(/(\/api\/appointments\/\d+\/ics|https?:\/\/\S+)/g, (url) => {
+    return `<a href="${url}" target="_blank">${url}</a>`;
+  });
+}
+
+function showTyping() {
+  const div = document.createElement("div");
+  div.className = "typing";
+  div.id = "typing-indicator";
+  div.textContent = "digitando...";
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function hideTyping() {
+  const el = document.getElementById("typing-indicator");
+  if (el) el.remove();
+}
+
+async function loadShops() {
+  const res = await fetch("/api/barbershops");
+  const shops = await res.json();
+  shopSelect.innerHTML = shops
+    .map((s) => `<option value="${s.id}">${s.name}</option>`)
+    .join("");
+  const savedShop = localStorage.getItem("barbershopId");
+  if (savedShop && shops.some((s) => String(s.id) === savedShop)) {
+    shopSelect.value = savedShop;
+  }
+  updateShopName();
+}
+
+function updateShopName() {
+  const opt = shopSelect.options[shopSelect.selectedIndex];
+  shopNameEl.textContent = opt ? opt.textContent : "Barbearia Bot";
+  localStorage.setItem("barbershopId", shopSelect.value);
+}
+
+shopSelect.addEventListener("change", () => {
+  updateShopName();
+  messagesEl.innerHTML = "";
+  addBubble("Olá! 👋 Bem-vindo(a) à " + shopSelect.options[shopSelect.selectedIndex].textContent + ". Como posso ajudar? Você pode dizer, por exemplo, \"quero cortar o cabelo amanhã\".", "bot");
+});
+
+document.getElementById("reset-btn").addEventListener("click", async () => {
+  await fetch("/api/chat/reset", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId }),
+  });
+  messagesEl.innerHTML = "";
+  addBubble("Conversa reiniciada. Como posso ajudar?", "bot");
+});
+
+async function sendMessage() {
+  const text = input.value.trim();
+  if (!text) return;
+  addBubble(text, "user");
+  input.value = "";
+  showTyping();
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        barbershopId: Number(shopSelect.value),
+        sessionId,
+        message: text,
+        customerPhone: waPhoneInput.value.trim(),
+        pushName: waPushNameInput.value.trim(),
+      }),
+    });
+    const data = await res.json();
+    hideTyping();
+    if (data.error) {
+      addBubble("⚠️ " + data.error + (data.detail ? "\n" + data.detail : ""), "bot");
+    } else {
+      addBubble(data.reply, "bot");
+    }
+  } catch (err) {
+    hideTyping();
+    addBubble("⚠️ Erro de conexão com o servidor.", "bot");
+  }
+}
+
+document.getElementById("send-btn").addEventListener("click", sendMessage);
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") sendMessage();
+});
+
+loadIdentity();
+loadShops().then(() => {
+  addBubble("Olá! 👋 Bem-vindo(a). Como posso ajudar? Você pode dizer, por exemplo, \"quero cortar o cabelo amanhã\".", "bot");
+});
+</script>
+</body>
+</html>
