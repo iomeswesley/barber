@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { env, isProduction } from "@/config/env.js";
 import { errorHandler, notFoundHandler } from "@/middleware/errorHandler.js";
 import "@/middleware/session.js";
+import { checkAndSendReminders } from "@/jobs/reminders.js";
 
 import { authRouter } from "@/modules/auth/auth.routes.js";
 import { barbershopsRouter } from "@/modules/barbershops/barbershops.routes.js";
@@ -62,6 +63,18 @@ export function createApp() {
   });
 
   app.use(express.static(path.join(__dirname, "..", "public")));
+
+  // Acionado pelo Vercel Cron (ver vercel.json) em vez do setInterval de
+  // startReminderScheduler(), que não sobrevive entre invocações serverless.
+  // O Vercel envia "Authorization: Bearer <CRON_SECRET>" automaticamente
+  // quando CRON_SECRET está configurado nas env vars do projeto.
+  app.post("/api/cron/reminders", async (req, res) => {
+    if (env.CRON_SECRET && req.headers.authorization !== `Bearer ${env.CRON_SECRET}`) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+    await checkAndSendReminders();
+    res.json({ ok: true });
+  });
 
   /* ---------------- Rotas da API ---------------- */
 

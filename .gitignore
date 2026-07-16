@@ -5,3 +5,6 @@ dist/
 data/
 backups/
 .DS_Store
+
+.vercel
+.env*

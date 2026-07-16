@@ -46,7 +46,7 @@ function buildReminderText(appointment: AppointmentDTO): string {
   );
 }
 
-async function checkAndSendReminders() {
+export async function checkAndSendReminders() {
   const appointments = await getAppointmentsNeedingReminder();
   for (const appointment of appointments) {
     sendWhatsAppMessage(appointment.clientPhone, buildReminderText(appointment));

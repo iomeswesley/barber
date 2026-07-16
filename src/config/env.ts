@@ -12,6 +12,9 @@ const envSchema = z.object({
   // pooler em modo session (porta 5432), não a de modo transaction (6543).
   DIRECT_URL: z.string().min(1, "DIRECT_URL é obrigatório"),
   SESSION_SECRET: z.string().min(1, "SESSION_SECRET é obrigatório"),
+  // Usado para autenticar chamadas do Vercel Cron ao endpoint de lembretes
+  // (o Vercel envia "Authorization: Bearer <CRON_SECRET>" automaticamente).
+  CRON_SECRET: z.string().optional(),
   SEED_DEMO_DATA: z
     .string()
     .default("false")
