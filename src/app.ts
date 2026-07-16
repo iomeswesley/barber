@@ -35,13 +35,21 @@ export function createApp() {
   app.use(express.json());
   app.use(
     session({
-      // Usa DIRECT_URL (não o pooler em modo transaction) — connect-pg-simple
-      // depende de comportamento (locks, prepared statements) que o modo
-      // transaction do pgbouncer não garante.
+      // Usa DATABASE_URL (pooler em modo transaction, porta 6543), não
+      // DIRECT_URL: o "session pooler" do Supabase (DIRECT_URL) mantém uma
+      // conexão real de Postgres por cliente e tem um teto baixo de conexões
+      // simultâneas (ex: 15) — cada instância serverless do Vercel abre seu
+      // próprio pool, e um único carregamento do painel já dispara ~9
+      // chamadas de API em paralelo, esgotando esse limite rapidamente
+      // (erro "EMAXCONNSESSION"). connect-pg-simple só faz queries
+      // parametrizadas simples (sem locks, sem transação multi-statement),
+      // então é seguro no modo transaction, que multiplexa muito mais
+      // conexões lógicas sobre poucas conexões reais.
       store: new PgSession({
-        conString: env.DIRECT_URL,
+        conString: env.DATABASE_URL,
         tableName: "session",
         createTableIfMissing: true,
+        pruneSessionInterval: false, // evita um timer de fundo (setInterval) que não faz sentido em serverless
         errorLog: (err) => console.error("[SESSION STORE ERROR]", err),
       }),
       secret: env.SESSION_SECRET,
