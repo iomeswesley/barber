@@ -9,7 +9,15 @@ const execFileAsync = promisify(execFile);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const backupsDir = path.join(__dirname, "..", "..", "data", "backups");
-fs.mkdirSync(backupsDir, { recursive: true });
+
+// Criação do diretório é preguiçosa (não roda no carregamento do módulo):
+// em ambiente serverless (Vercel) o filesystem do deployment é somente
+// leitura fora de /tmp, e este módulo é importado por dashboard.routes.ts
+// mesmo quando ninguém aciona backup — mkdirSync aqui no topo derrubaria
+// a função inteira antes de processar qualquer rota.
+function ensureBackupsDir() {
+  fs.mkdirSync(backupsDir, { recursive: true });
+}
 
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // a cada 24h
 const RETENTION_COUNT = 14; // mantém as últimas 14 cópias
@@ -77,6 +85,7 @@ export interface BackupInfo {
 // compactado, restaurável com pg_restore — exige o cliente `pg_dump` do Postgres
 // instalado no host que roda o backend (mesma versão major do servidor, idealmente).
 export async function runBackup(): Promise<BackupInfo> {
+  ensureBackupsDir();
   const filename = `barbearia-${timestampForFilename()}.dump`;
   const filePath = path.join(backupsDir, filename);
   await execFileAsync("pg_dump", [env.DIRECT_URL, "-Fc", "-f", filePath]);
@@ -96,6 +105,7 @@ function pruneOldBackups() {
 }
 
 export function listBackups(): BackupInfo[] {
+  ensureBackupsDir();
   return fs
     .readdirSync(backupsDir)
     .filter((f) => f.endsWith(".dump"))

@@ -122,8 +122,12 @@ dashboardRouter.post("/api/manage/clients/:id/nudge", requireAuth, requireOwner,
 
 /* ---------------- Backup do banco (owner only) ---------------- */
 
-dashboardRouter.get("/api/manage/backups", requireAuth, requireOwner, async (_req, res) => {
-  res.json(await listBackups());
+dashboardRouter.get("/api/manage/backups", requireAuth, requireOwner, async (_req, res, next) => {
+  try {
+    res.json(await listBackups());
+  } catch (err) {
+    next(err);
+  }
 });
 
 dashboardRouter.post("/api/manage/backups", requireAuth, requireOwner, async (req, res, next) => {
