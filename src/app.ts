@@ -97,17 +97,6 @@ export function createApp() {
     res.json({ ok: true });
   });
 
-  // TEMPORARIO: diagnostico de timezone no ambiente serverless.
-  app.get("/api/debug/tz", (_req, res) => {
-    res.json({
-      TZ_env: process.env.TZ,
-      resolvedTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      nowString: new Date().toString(),
-      nowISO: new Date().toISOString(),
-      naiveParse_1747: new Date("2026-07-16T17:47:00").toString(),
-    });
-  });
-
   /* ---------------- Rotas da API ---------------- */
 
   app.use(authRouter);
