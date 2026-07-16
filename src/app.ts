@@ -85,6 +85,12 @@ export function createApp() {
     res.json({ ok: true });
   });
 
+  // TEMPORARIO: diagnostico de Set-Cookie no ambiente serverless.
+  app.get("/api/debug/cookie-test", (req, res) => {
+    res.cookie("debug_test", "123", { httpOnly: true });
+    res.json({ ok: true, sessionID: req.sessionID, sessionUser: req.session.user || null });
+  });
+
   /* ---------------- Rotas da API ---------------- */
 
   app.use(authRouter);
