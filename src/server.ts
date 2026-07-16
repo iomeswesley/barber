@@ -1,3 +1,4 @@
+import "@/lib/timezone.js";
 import { env } from "@/config/env.js";
 import { createApp } from "./app.js";
 import { startReminderScheduler } from "@/jobs/reminders.js";
