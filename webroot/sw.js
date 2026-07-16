@@ -1,11 +1,18 @@
 // Service Worker — Barbearia Bot PWA
-// Versão do cache — incrementar para forçar atualização
-const CACHE_NAME = "barbearia-bot-v1";
+// Versão do cache — incrementar para forçar atualização (v2: remove
+// admin.html/barber.html do pré-cache, ver comentário abaixo)
+const CACHE_NAME = "barbearia-bot-v2";
 
-// Assets do shell a colocar em cache para funcionamento offline
+// Assets do shell a colocar em cache para funcionamento offline.
+// admin.html e barber.html NÃO entram aqui: são rotas protegidas por sessão
+// (app.ts redireciona pra /login.html se não houver sessão válida) e o
+// install roda na primeira visita, antes de qualquer login — pré-cachear
+// essas URLs captura o REDIRECT 302 pro login, não a página real. Depois,
+// com o usuário já logado, o fetch handler (cache-first) serve esse
+// redirect obsoleto em vez de ir à rede, e o Chrome não sabe processar um
+// redirect cacheado como resposta de navegação — resultado: net::ERR_FAILED
+// ao tentar abrir o painel.
 const SHELL_ASSETS = [
-  "/admin.html",
-  "/barber.html",
   "/login.html",
   "/manifest.json",
 ];
