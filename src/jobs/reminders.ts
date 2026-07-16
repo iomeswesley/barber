@@ -1,4 +1,4 @@
-import { getAppointmentsNeedingReminder } from "@/modules/appointments/appointments.service.js";
+import { getAppointmentsNeedingReminder, getTodaysAppointmentsForReminder } from "@/modules/appointments/appointments.service.js";
 import { markReminderSent } from "@/modules/appointments/appointments.repository.js";
 import type { AppointmentDTO } from "@/modules/appointments/appointments.types.js";
 
@@ -48,6 +48,16 @@ function buildReminderText(appointment: AppointmentDTO): string {
 
 export async function checkAndSendReminders() {
   const appointments = await getAppointmentsNeedingReminder();
+  for (const appointment of appointments) {
+    sendWhatsAppMessage(appointment.clientPhone, buildReminderText(appointment));
+    await markReminderSent(appointment.id);
+  }
+}
+
+// Usado pelo Vercel Cron (roda 1x/dia no plano Hobby): avisa de manhã sobre
+// todos os agendamentos de hoje, em vez do lembrete ~1h antes de cada um.
+export async function sendDailyReminders() {
+  const appointments = await getTodaysAppointmentsForReminder();
   for (const appointment of appointments) {
     sendWhatsAppMessage(appointment.clientPhone, buildReminderText(appointment));
     await markReminderSent(appointment.id);

@@ -272,6 +272,19 @@ export async function getAppointmentsNeedingReminder(windowStartMin = 55, window
     });
 }
 
+// Usado pelo cron diário (Vercel Cron roda no máximo 1x/dia no plano Hobby):
+// pega todos os agendamentos de hoje ainda não avisados, em vez da janela
+// de 55–65 min usada por getAppointmentsNeedingReminder (pensada pra um
+// scheduler contínuo de 1 em 1 minuto).
+export async function getTodaysAppointmentsForReminder(): Promise<AppointmentDTO[]> {
+  const today = localDateStr(new Date());
+  const appointments = await prisma.appointment.findMany({
+    where: { status: { not: "cancelled" }, reminderSentAt: null, date: new Date(`${today}T00:00:00`) },
+    include: appointmentInclude,
+  });
+  return appointments.map((a) => toAppointmentDTO(a as AppointmentWithRelations));
+}
+
 export async function getUnreviewedCompletedAppointment(clientPhone: string, barbershopId: number): Promise<AppointmentDTO | null> {
   const client = await getClientByPhone(normalizePhone(clientPhone) ? clientPhone : clientPhone);
   if (!client) return null;

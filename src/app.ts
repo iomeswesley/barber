@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { env, isProduction } from "@/config/env.js";
 import { errorHandler, notFoundHandler } from "@/middleware/errorHandler.js";
 import "@/middleware/session.js";
-import { checkAndSendReminders } from "@/jobs/reminders.js";
+import { sendDailyReminders } from "@/jobs/reminders.js";
 
 import { authRouter } from "@/modules/auth/auth.routes.js";
 import { barbershopsRouter } from "@/modules/barbershops/barbershops.routes.js";
@@ -72,7 +72,7 @@ export function createApp() {
     if (env.CRON_SECRET && req.headers.authorization !== `Bearer ${env.CRON_SECRET}`) {
       return res.status(401).json({ error: "unauthorized" });
     }
-    await checkAndSendReminders();
+    await sendDailyReminders();
     res.json({ ok: true });
   });
 
