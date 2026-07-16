@@ -62,7 +62,11 @@ export function createApp() {
     return res.redirect("/login.html");
   });
 
-  app.use(express.static(path.join(__dirname, "..", "public")));
+  // Usa process.cwd() em vez de __dirname: __dirname fica em profundidades
+  // diferentes conforme o modo (src/ no dev via tsx, dist/src/ compilado),
+  // mas o processo sempre roda a partir da raiz do projeto em todos os
+  // ambientes (dev, npm start, função serverless do Vercel).
+  app.use(express.static(path.join(process.cwd(), "webroot")));
 
   // Acionado pelo Vercel Cron (ver vercel.json) em vez do setInterval de
   // startReminderScheduler(), que não sobrevive entre invocações serverless.

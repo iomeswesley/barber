@@ -1,8 +1,9 @@
 {
+  "framework": null,
   "buildCommand": "npm run build",
   "functions": {
     "api/index.js": {
-      "includeFiles": "public/**"
+      "includeFiles": "webroot/**"
     }
   },
   "rewrites": [

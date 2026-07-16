@@ -14,7 +14,7 @@ Reestruturação do [barbearia-bot](../barbearia-bot) como uma base de código p
 | Seed de demonstração | sempre roda se o banco estiver vazio | só roda via `npm run seed`, e só se `SEED_DEMO_DATA=true` |
 | Isolamento entre tenants | checagem manual em cada rota | mesma checagem, centralizada em `belongsToSession()` |
 
-Frontend (`public/*.html`) foi copiado como está — a reescrita do frontend fica para uma fase seguinte (ver "Próximos passos").
+Frontend (`webroot/*.html`) foi copiado como está — a reescrita do frontend fica para uma fase seguinte (ver "Próximos passos").
 
 ## Arquitetura
 
@@ -71,5 +71,5 @@ Esta passada cobriu arquitetura e isolamento de tenant. Ficou de fora, para uma 
 1. **Onboarding self-service** — hoje uma barbearia nova só existe via `prisma/seed.ts`; falta uma tela + rota para cadastro de dono/barbearia sem intervenção manual.
 2. **Cobrança** — o modelo `Subscription` já está no schema (status trialing/active/past_due/canceled, campos para Stripe) mas sem nenhuma lógica de billing implementada ainda.
 3. **LGPD** — política de privacidade e endpoint de exclusão de dados de cliente a pedido.
-4. **Reescrita do frontend** — `public/*.html` continua em HTML/JS puro, copiado do projeto original; migrar para um framework (ou ao menos modularizar) é uma iniciativa separada.
+4. **Reescrita do frontend** — `webroot/*.html` continua em HTML/JS puro, copiado do projeto original; migrar para um framework (ou ao menos modularizar) é uma iniciativa separada.
 5. **Auditoria de isolamento nas rotas públicas** — `/api/public/*` e `/api/chat` continuam recebendo `barbershopId` do próprio cliente (sem sessão, já que é o fluxo de WhatsApp/autoatendimento); vale uma revisão de segurança dedicada antes de escalar para múltiplos clientes reais.

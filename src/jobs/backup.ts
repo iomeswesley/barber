@@ -1,14 +1,15 @@
 import path from "node:path";
 import fs from "node:fs";
-import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { env } from "@/config/env.js";
 
 const execFileAsync = promisify(execFile);
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const backupsDir = path.join(__dirname, "..", "..", "data", "backups");
+// process.cwd() em vez de __dirname: __dirname fica em profundidades
+// diferentes conforme o modo (src/jobs no dev via tsx, dist/src/jobs
+// compilado), mas o processo sempre roda a partir da raiz do projeto.
+const backupsDir = path.join(process.cwd(), "data", "backups");
 
 // Criação do diretório é preguiçosa (não roda no carregamento do módulo):
 // em ambiente serverless (Vercel) o filesystem do deployment é somente
