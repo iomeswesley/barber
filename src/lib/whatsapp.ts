@@ -27,6 +27,41 @@ export async function sendWhatsappText(phoneNumberId: string, to: string, text: 
   }
 }
 
+// Envia uma mensagem via Message Template aprovado — necessário pra
+// mensagens iniciadas pela barbearia (não em resposta direta a uma
+// mensagem do cliente) fora da janela de 24h da última interação, quando
+// texto livre é rejeitado pela Cloud API. `params` preenche os
+// placeholders {{1}}, {{2}}... do corpo do template, na ordem.
+export async function sendWhatsappTemplate(
+  phoneNumberId: string,
+  to: string,
+  templateName: string,
+  params: string[],
+  languageCode = "pt_BR"
+): Promise<void> {
+  const res = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${phoneNumberId}/messages`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.WHATSAPP_ACCESS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to,
+      type: "template",
+      template: {
+        name: templateName,
+        language: { code: languageCode },
+        components: [{ type: "body", parameters: params.map((text) => ({ type: "text", text })) }],
+      },
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Falha ao enviar template WhatsApp "${templateName}" (${res.status}): ${body}`);
+  }
+}
+
 // Verifica a assinatura HMAC-SHA256 que a Meta envia no header
 // "X-Hub-Signature-256", garantindo que a requisição do webhook realmente
 // veio da Meta (usando o App Secret) e não de terceiros.

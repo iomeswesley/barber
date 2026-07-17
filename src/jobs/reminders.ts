@@ -1,7 +1,7 @@
 import { getAppointmentsNeedingReminder, getTodaysAppointmentsForReminder } from "@/modules/appointments/appointments.service.js";
 import { markReminderSent } from "@/modules/appointments/appointments.repository.js";
 import { getBarbershop } from "@/modules/barbershops/barbershops.repository.js";
-import { sendWhatsappText, whatsappConfigured } from "@/lib/whatsapp.js";
+import { sendWhatsappText, sendWhatsappTemplate, whatsappConfigured } from "@/lib/whatsapp.js";
 import type { AppointmentDTO } from "@/modules/appointments/appointments.types.js";
 
 const CHECK_INTERVAL_MS = 60 * 1000; // varre a cada minuto
@@ -21,6 +21,40 @@ export async function sendWhatsAppMessage(barbershopId: number, phone: string, t
     }
   }
   console.log(`\n[LEMBRETE WHATSAPP - STUB] Para: ${phone}\n${text}\n`);
+}
+
+// Igual sendWhatsAppMessage, mas via Message Template aprovado — usado pras
+// mensagens iniciadas pela barbearia (não em resposta direta a uma mensagem
+// do cliente), que a Cloud API só aceita como template fora da janela de
+// 24h desde a última interação do cliente. `fallbackText` é só pro stub de
+// log (ex: template ainda "PENDING" de aprovação na Meta).
+async function sendWhatsAppTemplateMessage(
+  barbershopId: number,
+  phone: string,
+  templateName: string,
+  params: string[],
+  fallbackText: string
+) {
+  const barbershop = whatsappConfigured ? await getBarbershop(barbershopId) : null;
+  if (barbershop?.whatsappPhoneNumberId) {
+    try {
+      await sendWhatsappTemplate(barbershop.whatsappPhoneNumberId, phone, templateName, params);
+      return;
+    } catch (err) {
+      console.error(`[WHATSAPP] Falha ao enviar template "${templateName}", caindo pro stub:`, (err as Error).message);
+    }
+  }
+  console.log(`\n[LEMBRETE WHATSAPP - STUB] Para: ${phone}\n${fallbackText}\n`);
+}
+
+export async function sendRescheduleNotice(barbershopId: number, appointment: AppointmentDTO) {
+  await sendWhatsAppTemplateMessage(
+    barbershopId,
+    appointment.clientPhone,
+    "appointment_reschedule_notice",
+    [appointment.clientName, appointment.serviceName, appointment.barberName, appointment.startTime, appointment.date],
+    buildRescheduleNoticeText(appointment)
+  );
 }
 
 export function buildRescheduleNoticeText(appointment: AppointmentDTO): string {
@@ -54,10 +88,20 @@ function buildReminderText(appointment: AppointmentDTO): string {
   );
 }
 
+function reminderTemplateParams(appointment: AppointmentDTO): string[] {
+  return [appointment.clientName, appointment.serviceName, appointment.barberName, appointment.startTime];
+}
+
 export async function checkAndSendReminders() {
   const appointments = await getAppointmentsNeedingReminder();
   for (const appointment of appointments) {
-    await sendWhatsAppMessage(appointment.barbershopId, appointment.clientPhone, buildReminderText(appointment));
+    await sendWhatsAppTemplateMessage(
+      appointment.barbershopId,
+      appointment.clientPhone,
+      "appointment_reminder",
+      reminderTemplateParams(appointment),
+      buildReminderText(appointment)
+    );
     await markReminderSent(appointment.id);
   }
 }
@@ -67,7 +111,13 @@ export async function checkAndSendReminders() {
 export async function sendDailyReminders() {
   const appointments = await getTodaysAppointmentsForReminder();
   for (const appointment of appointments) {
-    await sendWhatsAppMessage(appointment.barbershopId, appointment.clientPhone, buildReminderText(appointment));
+    await sendWhatsAppTemplateMessage(
+      appointment.barbershopId,
+      appointment.clientPhone,
+      "appointment_reminder",
+      reminderTemplateParams(appointment),
+      buildReminderText(appointment)
+    );
     await markReminderSent(appointment.id);
   }
 }

@@ -4,7 +4,7 @@ import { AppError } from "@/middleware/errorHandler.js";
 import { logAudit } from "@/modules/auditLog/auditLog.repository.js";
 import { getBarber } from "@/modules/barbers/barbers.repository.js";
 import { getAffectedAppointments } from "@/modules/appointments/appointments.service.js";
-import { sendWhatsAppMessage, buildRescheduleNoticeText } from "@/jobs/reminders.js";
+import { sendRescheduleNotice } from "@/jobs/reminders.js";
 import { toApiTimeBlock } from "@/lib/apiMappers.js";
 import {
   createTimeBlock,
@@ -34,7 +34,7 @@ async function notifyAffectedAppointments(
   if (recurring || !date) return [];
   const affected = await getAffectedAppointments(barbershopId, barberId, date, startTime, endTime);
   for (const appointment of affected) {
-    await sendWhatsAppMessage(barbershopId, appointment.clientPhone, buildRescheduleNoticeText(appointment));
+    await sendRescheduleNotice(barbershopId, appointment);
   }
   return affected;
 }
