@@ -1390,8 +1390,19 @@ function starString(rating) {
   return "★".repeat(full) + "☆".repeat(5 - full);
 }
 
+// Datas "ingênuas" vindas do banco como texto (ex: "2026-07-17 14:30:00")
+// não carregam fuso e precisam do "Z" forçado pra virar UTC. Já datas
+// serializadas a partir de um Date do Prisma (JSON.stringify -> toISOString)
+// chegam com fuso embutido — forçar outro "Z" nelas gera "...000ZZ",
+// uma data inválida. Detecta qual é qual antes de parsear.
+function parseServerDate(dateStr) {
+  if (typeof dateStr !== "string") return new Date(dateStr);
+  if (/[zZ]|[+-]\d{2}:\d{2}$/.test(dateStr)) return new Date(dateStr);
+  return new Date(dateStr.replace(" ", "T") + "Z");
+}
+
 function timeAgo(dateStr) {
-  const then = new Date(dateStr.replace(" ", "T") + "Z");
+  const then = parseServerDate(dateStr);
   const now = new Date();
   // Compare local calendar dates (not raw elapsed hours) — otherwise something from
   // yesterday evening shows as "hoje" just because fewer than 24h have passed.
@@ -2374,7 +2385,7 @@ document.getElementById("save-product-btn").addEventListener("click", async () =
 
 /* ---------------- Log de auditoria ---------------- */
 function timeAgoFull(dateStr) {
-  const then = new Date(dateStr.replace(" ", "T") + "Z");
+  const then = parseServerDate(dateStr);
   return then.toLocaleString("pt-BR");
 }
 
