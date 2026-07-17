@@ -5,6 +5,7 @@ import path from "node:path";
 import { env, isProduction } from "@/config/env.js";
 import { errorHandler, notFoundHandler } from "@/middleware/errorHandler.js";
 import "@/middleware/session.js";
+import "@/middleware/rawBody.js";
 import { sendDailyReminders } from "@/jobs/reminders.js";
 
 import { authRouter } from "@/modules/auth/auth.routes.js";
@@ -19,6 +20,7 @@ import { auditLogRouter } from "@/modules/auditLog/auditLog.routes.js";
 import { pushRouter } from "@/modules/push/push.routes.js";
 import { dashboardRouter } from "@/modules/dashboard/dashboard.routes.js";
 import { chatRouter } from "@/modules/chat/chat.routes.js";
+import { whatsappRouter } from "@/modules/whatsapp/whatsapp.routes.js";
 
 const PgSession = connectPgSimple(session);
 
@@ -32,7 +34,10 @@ export function createApp() {
   // Set-Cookie chegava ao navegador.
   app.set("trust proxy", 1);
 
-  app.use(express.json());
+  // Guarda o corpo bruto da requisição em req.rawBody: o webhook do
+  // WhatsApp precisa dele (não do JSON já parseado) pra validar a
+  // assinatura HMAC que a Meta envia no header X-Hub-Signature-256.
+  app.use(express.json({ verify: (req, _res, buf) => { (req as express.Request).rawBody = buf; } }));
   app.use(
     session({
       // Usa DATABASE_URL (pooler em modo transaction, porta 6543), não
@@ -111,6 +116,7 @@ export function createApp() {
   app.use(pushRouter);
   app.use(dashboardRouter);
   app.use(chatRouter);
+  app.use(whatsappRouter);
 
   app.use("/api", notFoundHandler);
   app.use(errorHandler);

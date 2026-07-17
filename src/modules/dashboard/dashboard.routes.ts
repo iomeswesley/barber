@@ -113,7 +113,7 @@ dashboardRouter.post("/api/manage/clients/:id/nudge", requireAuth, requireOwner,
     const client = await getClientById(clientId);
     const shop = await getBarbershop(barbershopId);
     const lastAppointment = await getClientLastAppointment(clientId, barbershopId);
-    sendWhatsAppMessage(client!.phone, buildComeBackText(client!.name, shop?.name || "nossa barbearia", lastAppointment));
+    await sendWhatsAppMessage(barbershopId, client!.phone, buildComeBackText(client!.name, shop?.name || "nossa barbearia", lastAppointment));
     res.json({ ok: true });
   } catch (err) {
     next(err);

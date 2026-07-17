@@ -39,11 +39,15 @@ enum SubscriptionStatus {
 }
 
 model Barbershop {
-  id        Int      @id @default(autoincrement())
-  name      String
-  address   String?
-  phone     String?
-  createdAt DateTime @default(now()) @map("created_at")
+  id                    Int      @id @default(autoincrement())
+  name                  String
+  address               String?
+  phone                 String?
+  // ID numérico que a Meta atribui ao número de telefone do WhatsApp
+  // Business (Cloud API) dessa barbearia — usado pra rotear mensagens
+  // recebidas no webhook pra barbearia certa (um número por barbearia).
+  whatsappPhoneNumberId String?  @unique @map("whatsapp_phone_number_id")
+  createdAt             DateTime @default(now()) @map("created_at")
 
   barbers          Barber[]
   services         Service[]

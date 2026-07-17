@@ -1,17 +1,25 @@
 import { getAppointmentsNeedingReminder, getTodaysAppointmentsForReminder } from "@/modules/appointments/appointments.service.js";
 import { markReminderSent } from "@/modules/appointments/appointments.repository.js";
+import { getBarbershop } from "@/modules/barbershops/barbershops.repository.js";
+import { sendWhatsappText, whatsappConfigured } from "@/lib/whatsapp.js";
 import type { AppointmentDTO } from "@/modules/appointments/appointments.types.js";
 
 const CHECK_INTERVAL_MS = 60 * 1000; // varre a cada minuto
 
-/**
- * Stub de envio — ainda não há uma integração real com WhatsApp conectada
- * (Cloud API da Meta ou whatsapp-web.js). Quando essa integração existir,
- * troque o corpo desta função para chamar o envio de mensagem de verdade;
- * o resto do sistema de lembretes (detecção da janela de 1h, deduplicação
- * via reminderSentAt) já funciona de ponta a ponta.
- */
-export function sendWhatsAppMessage(phone: string, text: string) {
+// Envia via WhatsApp Cloud API quando a barbearia tem um número configurado
+// (whatsappPhoneNumberId) e as credenciais da Meta estão no .env; caso
+// contrário cai no stub de sempre (só loga no console), pra continuar
+// funcionando em barbearias/ambientes sem WhatsApp real conectado.
+export async function sendWhatsAppMessage(barbershopId: number, phone: string, text: string) {
+  const barbershop = whatsappConfigured ? await getBarbershop(barbershopId) : null;
+  if (barbershop?.whatsappPhoneNumberId) {
+    try {
+      await sendWhatsappText(barbershop.whatsappPhoneNumberId, phone, text);
+      return;
+    } catch (err) {
+      console.error(`[WHATSAPP] Falha ao enviar mensagem real, caindo pro stub:`, (err as Error).message);
+    }
+  }
   console.log(`\n[LEMBRETE WHATSAPP - STUB] Para: ${phone}\n${text}\n`);
 }
 
@@ -49,7 +57,7 @@ function buildReminderText(appointment: AppointmentDTO): string {
 export async function checkAndSendReminders() {
   const appointments = await getAppointmentsNeedingReminder();
   for (const appointment of appointments) {
-    sendWhatsAppMessage(appointment.clientPhone, buildReminderText(appointment));
+    await sendWhatsAppMessage(appointment.barbershopId, appointment.clientPhone, buildReminderText(appointment));
     await markReminderSent(appointment.id);
   }
 }
@@ -59,7 +67,7 @@ export async function checkAndSendReminders() {
 export async function sendDailyReminders() {
   const appointments = await getTodaysAppointmentsForReminder();
   for (const appointment of appointments) {
-    sendWhatsAppMessage(appointment.clientPhone, buildReminderText(appointment));
+    await sendWhatsAppMessage(appointment.barbershopId, appointment.clientPhone, buildReminderText(appointment));
     await markReminderSent(appointment.id);
   }
 }

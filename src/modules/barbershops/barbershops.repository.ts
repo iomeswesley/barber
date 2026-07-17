@@ -9,6 +9,10 @@ export function getBarbershop(id: number) {
   return prisma.barbershop.findUnique({ where: { id } });
 }
 
+export function getBarbershopByWhatsappPhoneNumberId(phoneNumberId: string) {
+  return prisma.barbershop.findUnique({ where: { whatsappPhoneNumberId: phoneNumberId } });
+}
+
 export function getBusinessHours(barbershopId: number) {
   return prisma.businessHours.findMany({
     where: { barbershopId },

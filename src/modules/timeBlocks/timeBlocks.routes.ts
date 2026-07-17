@@ -34,7 +34,7 @@ async function notifyAffectedAppointments(
   if (recurring || !date) return [];
   const affected = await getAffectedAppointments(barbershopId, barberId, date, startTime, endTime);
   for (const appointment of affected) {
-    sendWhatsAppMessage(appointment.clientPhone, buildRescheduleNoticeText(appointment));
+    await sendWhatsAppMessage(barbershopId, appointment.clientPhone, buildRescheduleNoticeText(appointment));
   }
   return affected;
 }

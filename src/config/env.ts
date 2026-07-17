@@ -20,6 +20,11 @@ const envSchema = z.object({
     .default("false")
     .transform((v) => v === "true"),
   ANTHROPIC_API_KEY: z.string().optional(),
+  // WhatsApp Cloud API (Meta) — todos opcionais: sem eles, o envio real de
+  // WhatsApp fica desligado (stub que só loga no console, igual antes).
+  WHATSAPP_ACCESS_TOKEN: z.string().optional(),
+  WHATSAPP_VERIFY_TOKEN: z.string().optional(),
+  WHATSAPP_APP_SECRET: z.string().optional(),
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().optional(),
