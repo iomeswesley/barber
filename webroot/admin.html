@@ -9,94 +9,11 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300..800;1,300..800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/theme.css">
+<script src="/assets/modal.js" defer></script>
+<script src="/assets/theme-toggle.js" defer></script>
 <style>
-  :root {
-    --bg-page: #0a0c11;
-    --bg-page-2: #10131a;
-    --card-bg: rgba(255,255,255,0.035);
-    --card-bg-solid: #12141c;
-    --card-border: rgba(255,255,255,0.08);
-    --card-border-hover: rgba(212,175,106,0.35);
-    --text-primary: #f3f4f7;
-    --text-secondary: #a2a8b4;
-    --text-muted: #6b7280;
-    --gold: #d4af6a;
-    --gold-soft: rgba(212,175,106,0.14);
-    --gold-chart: #b8863a;
-    --blue: #5b9dff;
-    --blue-soft: rgba(91,157,255,0.14);
-    --blue-chart: #4f8cff;
-    --teal-chart: #0d9488;
-    --coral-chart: #e2593f;
-    --good: #22c55e;
-    --good-soft: rgba(34,197,94,0.14);
-    --warn: #fab219;
-    --warn-soft: rgba(250,178,25,0.16);
-    --danger: #f04747;
-    --danger-soft: rgba(240,71,71,0.14);
-    --shadow-card: 0 10px 40px -12px rgba(0,0,0,0.55);
-    --shadow-hover: 0 16px 50px -14px rgba(0,0,0,0.65);
-    --radius: 18px;
-    --divider: rgba(255,255,255,0.07);
-  }
-
-  html[data-theme="light"] {
-    --bg-page: #eef0f3;
-    --bg-page-2: #e6e8ec;
-    --card-bg: rgba(255,255,255,0.72);
-    --card-bg-solid: #ffffff;
-    --card-border: rgba(20,22,28,0.07);
-    --card-border-hover: rgba(154,110,20,0.35);
-    --text-primary: #14161c;
-    --text-secondary: #565c68;
-    --text-muted: #878d99;
-    --gold: #9c6b1f;
-    --gold-soft: rgba(156,107,31,0.10);
-    --gold-chart: #9c6b1f;
-    --blue: #2a5fc9;
-    --blue-soft: rgba(42,95,201,0.10);
-    --blue-chart: #2a5fc9;
-    --teal-chart: #0d8a76;
-    --coral-chart: #c2401f;
-    --good: #0ca30c;
-    --good-soft: rgba(12,163,12,0.12);
-    --warn: #a9760a;
-    --warn-soft: rgba(169,118,10,0.14);
-    --danger: #c2401f;
-    --danger-soft: rgba(194,64,31,0.12);
-    --shadow-card: 0 10px 30px -14px rgba(20,22,28,0.18);
-    --shadow-hover: 0 16px 40px -16px rgba(20,22,28,0.24);
-    --divider: rgba(20,22,28,0.06);
-  }
-
-  * { box-sizing: border-box; }
-  html, body {
-    margin: 0;
-    padding: 0;
-    font-family: "Open Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-    text-transform: uppercase;
-    overflow-x: hidden;
-    width: 100%;
-  }
-  /* Browsers reset text-transform to "none" on form controls in their UA stylesheet,
-     so they don't inherit uppercase from body like normal text does — force it here. */
-  button, input, select, textarea, option {
-    text-transform: uppercase;
-    font-family: inherit;
-  }
-  body {
-    background:
-      radial-gradient(1200px 600px at 90% -10%, rgba(212,175,106,0.07), transparent 60%),
-      radial-gradient(900px 500px at 0% 0%, rgba(91,157,255,0.06), transparent 55%),
-      var(--bg-page);
-    color: var(--text-primary);
-    min-height: 100vh;
-    transition: background-color .4s ease, color .4s ease;
-  }
-
-  a { color: inherit; }
-
   /* ---------- Header ---------- */
   header.topbar {
     position: sticky;
@@ -108,25 +25,27 @@
     flex-wrap: wrap;
     gap: 12px 16px;
     padding: 14px 24px;
-    background: rgba(10,12,17,0.6);
-    backdrop-filter: blur(18px) saturate(140%);
+    background: rgb(var(--color-bg) / 0.55);
+    backdrop-filter: blur(20px) saturate(160%);
     border-bottom: 1px solid var(--divider);
+    /* Fio dourado sutil na base do header — costura com o resto do tema. */
+    box-shadow: 0 1px 0 rgb(var(--color-primary) / 0.10);
     transition: background-color .4s ease, border-color .4s ease;
   }
-  html[data-theme="light"] header.topbar { background: rgba(238,240,243,0.7); }
+  html[data-theme="light"] header.topbar { background: rgb(var(--color-bg) / 0.7); }
   header.topbar .page-tabs { margin: 0; }
 
 
   .brand { display: flex; align-items: center; gap: 12px; }
   .brand .logo {
-    width: 42px; height: 42px; border-radius: 12px;
+    width: 42px; height: 42px; border-radius: 13px;
     display: flex; align-items: center; justify-content: center;
     font-size: 20px;
-    background: linear-gradient(145deg, var(--gold), #8a6a2f);
-    box-shadow: 0 0 0 1px rgba(255,255,255,0.15) inset, 0 6px 18px -6px rgba(212,175,106,0.6);
+    background: linear-gradient(145deg, #e8c76a, var(--gold) 55%, #8a6a2f);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.2) inset, 0 0 26px -4px rgb(var(--color-primary) / 0.55);
   }
-  .brand .titles h1 { font-size: 16px; margin: 0; font-weight: 700; letter-spacing: .2px; }
-  .brand .titles p { margin: 0; font-size: 11.5px; color: var(--text-muted); letter-spacing: .4px; text-transform: uppercase; }
+  .brand .titles h1 { font-size: 16px; margin: 0; font-weight: 700; letter-spacing: -0.01em; }
+  .brand .titles p { margin: 0; font-size: 10.5px; color: var(--text-muted); letter-spacing: 1.6px; text-transform: uppercase; }
 
   .topbar-right { display: flex; align-items: center; gap: 14px; }
 
@@ -149,53 +68,26 @@
   }
   select.shop-select:hover { border-color: var(--card-border-hover); }
 
-  /* theme toggle switch */
-  .theme-switch {
-    position: relative;
-    width: 56px; height: 30px;
-    border-radius: 20px;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid var(--card-border);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    padding: 3px;
-    transition: background-color .3s ease;
-  }
-  html[data-theme="light"] .theme-switch { background: rgba(20,22,28,0.06); }
-  .theme-switch .knob {
-    width: 22px; height: 22px; border-radius: 50%;
-    background: linear-gradient(145deg, var(--gold), #a9822f);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.35);
-    transform: translateX(0);
-    transition: transform .3s cubic-bezier(.4,0,.2,1), background .3s ease;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 12px;
-  }
-  html[data-theme="light"] .theme-switch .knob { transform: translateX(26px); }
-
-  .link-back {
-    font-size: 12.5px;
-    color: var(--text-secondary);
-    text-decoration: none;
-    padding: 8px 12px;
-    border-radius: 10px;
-    border: 1px solid var(--card-border);
-    transition: all .2s ease;
-    white-space: nowrap;
-  }
-  .link-back:hover { color: var(--gold); border-color: var(--card-border-hover); }
-
   /* ---------- Layout ---------- */
   main { padding: 22px; max-width: 1360px; margin: 0 auto; }
 
   .section-title {
-    font-size: 12px;
+    font-size: 11.5px;
     text-transform: uppercase;
-    letter-spacing: 1.2px;
+    letter-spacing: 2px;
     color: var(--text-muted);
-    margin: 30px 2px 12px;
+    margin: 34px 2px 12px;
     font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  /* Traço dourado antes do rótulo — recurso editorial que amarra as seções. */
+  .section-title::before {
+    content: "";
+    width: 22px; height: 2px; border-radius: 2px;
+    background: linear-gradient(90deg, var(--gold), rgb(var(--color-primary) / 0));
+    flex-shrink: 0;
   }
   .section-title:first-child { margin-top: 4px; }
 
@@ -237,32 +129,54 @@
   .kpi-card-compact .kpi-top { margin-bottom: 6px; }
   .kpi-card-compact .kpi-value { font-size: 21px; }
 
-  .card {
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius);
-    backdrop-filter: blur(16px) saturate(140%);
-    box-shadow: var(--shadow-card);
-    transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease, background-color .4s ease;
+  /* ---------- Scrollbar customizada ---------- */
+  .ranking-list, .appt-list, #review-list, .modal-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--color-border)) transparent;
   }
-  .card:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); border-color: var(--card-border-hover); }
+  .ranking-list::-webkit-scrollbar, .appt-list::-webkit-scrollbar, #review-list::-webkit-scrollbar, .modal-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  .ranking-list::-webkit-scrollbar-track, .appt-list::-webkit-scrollbar-track, #review-list::-webkit-scrollbar-track, .modal-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .ranking-list::-webkit-scrollbar-thumb, .appt-list::-webkit-scrollbar-thumb, #review-list::-webkit-scrollbar-thumb, .modal-scroll::-webkit-scrollbar-thumb {
+    background: rgb(var(--color-border));
+    border-radius: 999px;
+  }
+  .ranking-list::-webkit-scrollbar-thumb:hover, .appt-list::-webkit-scrollbar-thumb:hover, #review-list::-webkit-scrollbar-thumb:hover, .modal-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--color-primary) / 0.6);
+  }
 
-  .kpi-card { padding: 18px 20px; position: relative; overflow: hidden; }
+  .kpi-card { padding: 20px 22px; position: relative; overflow: hidden; }
+  /* Fio dourado que desvanece — assinatura visual dos cartões de métrica. */
   .kpi-card::before {
     content: "";
-    position: absolute; inset: 0 0 auto 0; height: 3px;
-    background: linear-gradient(90deg, var(--gold), var(--blue));
-    opacity: .8;
+    position: absolute; inset: 0 0 auto 0; height: 2px;
+    background: linear-gradient(90deg, rgb(var(--color-primary) / 0.95), rgb(var(--color-primary) / 0));
+  }
+  /* Brilho dourado difuso no canto superior, atrás do conteúdo. */
+  .kpi-card::after {
+    content: "";
+    position: absolute; top: -40px; right: -40px;
+    width: 140px; height: 140px; border-radius: 50%;
+    background: radial-gradient(circle, rgb(var(--color-primary) / 0.13), transparent 70%);
+    pointer-events: none;
   }
   .kpi-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
   .kpi-icon {
-    width: 34px; height: 34px; border-radius: 10px;
+    width: 36px; height: 36px; border-radius: 12px;
     display: flex; align-items: center; justify-content: center;
     font-size: 16px;
     background: var(--gold-soft);
+    box-shadow: inset 0 0 0 1px rgb(var(--color-primary) / 0.25);
   }
-  .kpi-label { font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
-  .kpi-value { font-size: 25px; font-weight: 800; letter-spacing: -.5px; margin-top: 2px; }
+  .kpi-label { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 1.4px; }
+  .kpi-value {
+    font-family: "Sora", "Inter", sans-serif;
+    font-size: 30px; font-weight: 800; letter-spacing: -0.03em; margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+  }
   .kpi-sub { font-size: 12px; color: var(--text-secondary); margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 
   .delta {
@@ -299,7 +213,8 @@
   html[data-theme="light"] .tabs { background: rgba(20,22,28,0.04); }
   .tabs button {
     border: none; background: transparent; color: var(--text-secondary);
-    padding: 7px 14px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
+    padding: 7px 14px; border-radius: 999px; font-size: 11.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .8px;
     cursor: pointer; transition: all .2s ease;
   }
   .tabs button.active {
@@ -463,45 +378,6 @@
   .icon-btn:hover { border-color: var(--card-border-hover); color: var(--gold); }
   .icon-btn.danger:hover { color: var(--danger); }
 
-  .btn-primary {
-    border: none; padding: 9px 16px; border-radius: 10px; font-size: 13px; font-weight: 700;
-    background: linear-gradient(135deg, var(--gold), #a9822f); color: #17130a; cursor: pointer;
-  }
-  .btn-secondary {
-    border: 1px solid var(--card-border); background: transparent; color: var(--text-secondary);
-    padding: 9px 16px; border-radius: 10px; font-size: 13px; cursor: pointer;
-  }
-
-  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-  .form-grid.full { grid-template-columns: 1fr; }
-  .form-field label { font-size: 11.5px; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 4px; }
-  .form-field input, .form-field select {
-    width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--card-border);
-    background: rgba(255,255,255,0.02); color: var(--text-primary); font-size: 13px;
-  }
-  /* Native <select> popups ignore transparent backgrounds and fall back to the
-     browser's default (white) surface — give select + its options a solid,
-     theme-aware background so the option list stays legible in dark mode. */
-  .form-field select {
-    background-color: var(--card-bg-solid);
-    color-scheme: light dark;
-  }
-  .form-field select option {
-    background-color: var(--card-bg-solid);
-    color: var(--text-primary);
-  }
-  .form-field.checkbox {
-    grid-column: 1 / -1;
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 12px;
-    border-radius: 10px;
-    border: 1px solid var(--card-border);
-    background: rgba(255,255,255,0.02);
-  }
-  .form-field.checkbox input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--gold); cursor: pointer; flex-shrink: 0; }
-  .form-field.checkbox label { margin: 0; font-size: 12.5px; color: var(--text-secondary); font-weight: 600; cursor: pointer; }
-  .form-actions { display: flex; gap: 8px; margin-top: 12px; }
-
   .add-toggle { font-size: 12.5px; color: var(--gold); cursor: pointer; font-weight: 700; margin-top: 4px; display: inline-block; }
   .inline-form { display: none; margin-top: 10px; padding-top: 12px; border-top: 1px dashed var(--divider); }
   .inline-form.open { display: block; margin-bottom: 16px; }
@@ -611,6 +487,12 @@
 </style>
 </head>
 <body>
+
+<div class="bg-blobs" aria-hidden="true">
+  <div class="blob blob-a"></div>
+  <div class="blob blob-b"></div>
+  <div class="blob blob-c"></div>
+</div>
 
 <header class="topbar">
   <div class="brand">
@@ -1018,24 +900,10 @@ function deltaBadge(percent) {
 }
 
 /* ---------------- Theme ---------------- */
-const themeSwitch = document.getElementById("theme-switch");
-const themeKnob = document.getElementById("theme-knob");
-
-function applyTheme(theme) {
-  document.documentElement.setAttribute("data-theme", theme);
-  themeKnob.textContent = theme === "light" ? "☀️" : "🌙";
-  localStorage.setItem("theme", theme);
-  refreshChartsTheme();
-}
-
-themeSwitch.addEventListener("click", () => {
-  const current = document.documentElement.getAttribute("data-theme");
-  applyTheme(current === "light" ? "dark" : "light");
-});
-
-const savedTheme = localStorage.getItem("theme") || "dark";
-document.documentElement.setAttribute("data-theme", savedTheme);
-themeKnob.textContent = savedTheme === "light" ? "☀️" : "🌙";
+// Toggle (persistência + click handler) mora em assets/theme-toggle.js,
+// compartilhado com as outras páginas. Aqui só reagimos à troca pra
+// recolorir os gráficos do Chart.js.
+document.addEventListener("themechange", refreshChartsTheme);
 
 /* ---------------- State ---------------- */
 let currentRange = "week";
@@ -1124,28 +992,30 @@ async function loadRevenueChart() {
   const gridColor = isDark() ? "rgba(255,255,255,0.06)" : "rgba(20,22,28,0.06)";
   const tickColor = cssVar("--text-muted") || "#888";
 
+  // Gradiente vertical: dourado cheio em cima, esvaece pra base — mesma
+  // assinatura visual do fio dourado dos KPI cards, só que em forma de barra.
   const gradient = ctx.createLinearGradient(0, 0, 0, 260);
-  gradient.addColorStop(0, isDark() ? "rgba(212,175,106,0.45)" : "rgba(156,107,31,0.30)");
-  gradient.addColorStop(1, "rgba(212,175,106,0.0)");
+  gradient.addColorStop(0, isDark() ? "#f0d585" : "#c99a3a");
+  gradient.addColorStop(1, gold);
+  const hoverGradient = ctx.createLinearGradient(0, 0, 0, 260);
+  hoverGradient.addColorStop(0, "#f5d061");
+  hoverGradient.addColorStop(1, "#f0d585");
 
   if (revenueChart) revenueChart.destroy();
   revenueChart = new Chart(ctx, {
-    type: "line",
+    type: "bar",
     data: {
       labels,
       datasets: [{
         label: "Faturamento",
         data: values,
-        borderColor: gold,
         backgroundColor: gradient,
-        fill: true,
-        tension: 0.35,
-        borderWidth: 2.5,
-        pointRadius: values.length > 40 ? 0 : 3,
-        pointBackgroundColor: gold,
-        pointBorderColor: isDark() ? "#0a0c11" : "#ffffff",
-        pointBorderWidth: 1.5,
-        pointHoverRadius: 6,
+        hoverBackgroundColor: hoverGradient,
+        borderRadius: 6,
+        borderSkipped: "bottom",
+        barPercentage: 0.62,
+        categoryPercentage: 0.75,
+        maxBarThickness: 34,
       }],
     },
     options: {
@@ -1174,6 +1044,7 @@ async function loadRevenueChart() {
           ticks: { color: tickColor, maxRotation: 0, autoSkip: true, maxTicksLimit: 10, font: { size: 11 } },
         },
         y: {
+          beginAtZero: true,
           grid: { color: gridColor },
           ticks: {
             color: tickColor,
@@ -1191,26 +1062,30 @@ function renderMiniChart(canvasId, values, labels) {
   const canvas = document.getElementById(canvasId);
   const ctx = canvas.getContext("2d");
   const gold = cssVar("--gold-chart") || "#b8863a";
+  const h = canvas.height || 60;
 
-  const gradient = ctx.createLinearGradient(0, 0, 0, 60);
-  gradient.addColorStop(0, isDark() ? "rgba(212,175,106,0.45)" : "rgba(156,107,31,0.30)");
-  gradient.addColorStop(1, "rgba(212,175,106,0.0)");
+  // Mesma linguagem visual do gráfico principal (barras com gradiente
+  // dourado), só que em miniatura — sem eixos, pra caber no KPI card.
+  const gradient = ctx.createLinearGradient(0, 0, 0, h);
+  gradient.addColorStop(0, isDark() ? "#f0d585" : "#c99a3a");
+  gradient.addColorStop(1, gold);
+  const hoverGradient = ctx.createLinearGradient(0, 0, 0, h);
+  hoverGradient.addColorStop(0, "#f5d061");
+  hoverGradient.addColorStop(1, "#f0d585");
 
   if (miniCharts[canvasId]) miniCharts[canvasId].destroy();
   miniCharts[canvasId] = new Chart(ctx, {
-    type: "line",
+    type: "bar",
     data: {
       labels,
       datasets: [{
         data: values,
-        borderColor: gold,
         backgroundColor: gradient,
-        fill: true,
-        tension: 0.35,
-        borderWidth: 2,
-        pointRadius: 0,
-        pointHoverRadius: 4,
-        pointBackgroundColor: gold,
+        hoverBackgroundColor: hoverGradient,
+        borderRadius: 3,
+        borderSkipped: "bottom",
+        barPercentage: 0.6,
+        categoryPercentage: 0.85,
       }],
     },
     options: {
@@ -1233,7 +1108,7 @@ function renderMiniChart(canvasId, values, labels) {
       },
       scales: {
         x: { display: false },
-        y: { display: false },
+        y: { display: false, beginAtZero: true },
       },
     },
   });
@@ -1442,11 +1317,11 @@ function wireApptEditHandlers(container, onSaved) {
   container.querySelectorAll("[data-delete-appt]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const id = btn.dataset.deleteAppt;
-      if (!confirm("Excluir este agendamento? Essa ação não pode ser desfeita.")) return;
+      if (!(await showConfirmModal("Excluir este agendamento? Essa ação não pode ser desfeita."))) return;
       const res = await fetch(`/api/appointments/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const err = await res.json();
-        alert(err.error || "Erro ao excluir agendamento");
+        await showAlertModal(err.error || "Erro ao excluir agendamento");
         return;
       }
       onSaved();
@@ -1481,7 +1356,7 @@ function wireApptEditHandlers(container, onSaved) {
       });
       if (!res.ok) {
         const err = await res.json();
-        alert(err.error || "Erro ao salvar agendamento");
+        await showAlertModal(err.error || "Erro ao salvar agendamento");
         return;
       }
       onSaved();
@@ -1515,8 +1390,19 @@ function starString(rating) {
   return "★".repeat(full) + "☆".repeat(5 - full);
 }
 
+// Datas "ingênuas" vindas do banco como texto (ex: "2026-07-17 14:30:00")
+// não carregam fuso e precisam do "Z" forçado pra virar UTC. Já datas
+// serializadas a partir de um Date do Prisma (JSON.stringify -> toISOString)
+// chegam com fuso embutido — forçar outro "Z" nelas gera "...000ZZ",
+// uma data inválida. Detecta qual é qual antes de parsear.
+function parseServerDate(dateStr) {
+  if (typeof dateStr !== "string") return new Date(dateStr);
+  if (/[zZ]|[+-]\d{2}:\d{2}$/.test(dateStr)) return new Date(dateStr);
+  return new Date(dateStr.replace(" ", "T") + "Z");
+}
+
 function timeAgo(dateStr) {
-  const then = new Date(dateStr.replace(" ", "T") + "Z");
+  const then = parseServerDate(dateStr);
   const now = new Date();
   // Compare local calendar dates (not raw elapsed hours) — otherwise something from
   // yesterday evening shows as "hoje" just because fewer than 24h have passed.
@@ -1904,7 +1790,7 @@ async function loadTimeBlocks() {
       const endTime = document.getElementById(`edit-block-end-${id}`).value;
       const label = document.getElementById(`edit-block-label-${id}`).value;
       if (!recurring && !date) {
-        alert("Escolha uma data, ou marque como recorrente.");
+        await showAlertModal("Escolha uma data, ou marque como recorrente.");
         return;
       }
       const res = await fetch(`/api/manage/time-blocks/${id}`, {
@@ -1914,7 +1800,7 @@ async function loadTimeBlocks() {
       });
       if (!res.ok) {
         const err = await res.json();
-        alert(err.error || "Erro ao salvar bloqueio");
+        await showAlertModal(err.error || "Erro ao salvar bloqueio");
         return;
       }
       loadTimeBlocks();
@@ -1980,10 +1866,10 @@ document.getElementById("hours-save-btn").addEventListener("click", async () => 
   });
   if (!res.ok) {
     const err = await res.json();
-    alert(err.error || "Erro ao salvar horário");
+    await showAlertModal(err.error || "Erro ao salvar horário");
     return;
   }
-  alert("Horário de funcionamento atualizado.");
+  await showAlertModal("Horário de funcionamento atualizado.", { variant: "success" });
 });
 
 document.getElementById("block-save-btn").addEventListener("click", async () => {
@@ -1996,7 +1882,7 @@ document.getElementById("block-save-btn").addEventListener("click", async () => 
   const label = document.getElementById("block-label").value;
 
   if (!recurring && !date) {
-    alert("Escolha uma data, ou marque como recorrente.");
+    await showAlertModal("Escolha uma data, ou marque como recorrente.");
     return;
   }
   const res = await fetch("/api/manage/time-blocks", {
@@ -2006,7 +1892,7 @@ document.getElementById("block-save-btn").addEventListener("click", async () => 
   });
   if (!res.ok) {
     const err = await res.json();
-    alert(err.error || "Erro ao criar bloqueio");
+    await showAlertModal(err.error || "Erro ao criar bloqueio");
     return;
   }
   document.getElementById("block-label").value = "";
@@ -2343,7 +2229,7 @@ function renderClientsTable() {
       } else {
         btn.disabled = false;
         const data = await res.json().catch(() => null);
-        alert(data?.error || "Erro ao enviar mensagem");
+        await showAlertModal(data?.error || "Erro ao enviar mensagem");
       }
     });
   });
@@ -2499,7 +2385,7 @@ document.getElementById("save-product-btn").addEventListener("click", async () =
 
 /* ---------------- Log de auditoria ---------------- */
 function timeAgoFull(dateStr) {
-  const then = new Date(dateStr.replace(" ", "T") + "Z");
+  const then = parseServerDate(dateStr);
   return then.toLocaleString("pt-BR");
 }
 
@@ -2561,7 +2447,7 @@ document.getElementById("backup-now-btn").addEventListener("click", async (e) =>
   btn.textContent = "Fazer backup agora";
   if (!res.ok) {
     const err = await res.json();
-    alert(err.error || "Erro ao gerar backup");
+    await showAlertModal(err.error || "Erro ao gerar backup");
     return;
   }
   loadBackups();
@@ -2745,7 +2631,7 @@ async function setupPush() {
       });
     } else {
       const { key } = await (await fetch("/api/push/vapid-public-key")).json();
-      if (!key) return alert("Push não configurado no servidor.");
+      if (!key) { await showAlertModal("Push não configurado no servidor."); return; }
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(key),
