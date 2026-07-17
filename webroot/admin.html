@@ -992,28 +992,30 @@ async function loadRevenueChart() {
   const gridColor = isDark() ? "rgba(255,255,255,0.06)" : "rgba(20,22,28,0.06)";
   const tickColor = cssVar("--text-muted") || "#888";
 
+  // Gradiente vertical: dourado cheio em cima, esvaece pra base — mesma
+  // assinatura visual do fio dourado dos KPI cards, só que em forma de barra.
   const gradient = ctx.createLinearGradient(0, 0, 0, 260);
-  gradient.addColorStop(0, isDark() ? "rgba(212,175,106,0.45)" : "rgba(156,107,31,0.30)");
-  gradient.addColorStop(1, "rgba(212,175,106,0.0)");
+  gradient.addColorStop(0, isDark() ? "#f0d585" : "#c99a3a");
+  gradient.addColorStop(1, gold);
+  const hoverGradient = ctx.createLinearGradient(0, 0, 0, 260);
+  hoverGradient.addColorStop(0, "#f5d061");
+  hoverGradient.addColorStop(1, "#f0d585");
 
   if (revenueChart) revenueChart.destroy();
   revenueChart = new Chart(ctx, {
-    type: "line",
+    type: "bar",
     data: {
       labels,
       datasets: [{
         label: "Faturamento",
         data: values,
-        borderColor: gold,
         backgroundColor: gradient,
-        fill: true,
-        tension: 0.35,
-        borderWidth: 2.5,
-        pointRadius: values.length > 40 ? 0 : 3,
-        pointBackgroundColor: gold,
-        pointBorderColor: isDark() ? "#0a0c11" : "#ffffff",
-        pointBorderWidth: 1.5,
-        pointHoverRadius: 6,
+        hoverBackgroundColor: hoverGradient,
+        borderRadius: 6,
+        borderSkipped: "bottom",
+        barPercentage: 0.62,
+        categoryPercentage: 0.75,
+        maxBarThickness: 34,
       }],
     },
     options: {
@@ -1042,6 +1044,7 @@ async function loadRevenueChart() {
           ticks: { color: tickColor, maxRotation: 0, autoSkip: true, maxTicksLimit: 10, font: { size: 11 } },
         },
         y: {
+          beginAtZero: true,
           grid: { color: gridColor },
           ticks: {
             color: tickColor,
@@ -1059,26 +1062,30 @@ function renderMiniChart(canvasId, values, labels) {
   const canvas = document.getElementById(canvasId);
   const ctx = canvas.getContext("2d");
   const gold = cssVar("--gold-chart") || "#b8863a";
+  const h = canvas.height || 60;
 
-  const gradient = ctx.createLinearGradient(0, 0, 0, 60);
-  gradient.addColorStop(0, isDark() ? "rgba(212,175,106,0.45)" : "rgba(156,107,31,0.30)");
-  gradient.addColorStop(1, "rgba(212,175,106,0.0)");
+  // Mesma linguagem visual do gráfico principal (barras com gradiente
+  // dourado), só que em miniatura — sem eixos, pra caber no KPI card.
+  const gradient = ctx.createLinearGradient(0, 0, 0, h);
+  gradient.addColorStop(0, isDark() ? "#f0d585" : "#c99a3a");
+  gradient.addColorStop(1, gold);
+  const hoverGradient = ctx.createLinearGradient(0, 0, 0, h);
+  hoverGradient.addColorStop(0, "#f5d061");
+  hoverGradient.addColorStop(1, "#f0d585");
 
   if (miniCharts[canvasId]) miniCharts[canvasId].destroy();
   miniCharts[canvasId] = new Chart(ctx, {
-    type: "line",
+    type: "bar",
     data: {
       labels,
       datasets: [{
         data: values,
-        borderColor: gold,
         backgroundColor: gradient,
-        fill: true,
-        tension: 0.35,
-        borderWidth: 2,
-        pointRadius: 0,
-        pointHoverRadius: 4,
-        pointBackgroundColor: gold,
+        hoverBackgroundColor: hoverGradient,
+        borderRadius: 3,
+        borderSkipped: "bottom",
+        barPercentage: 0.6,
+        categoryPercentage: 0.85,
       }],
     },
     options: {
@@ -1101,7 +1108,7 @@ function renderMiniChart(canvasId, values, labels) {
       },
       scales: {
         x: { display: false },
-        y: { display: false },
+        y: { display: false, beginAtZero: true },
       },
     },
   });
