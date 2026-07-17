@@ -31,6 +31,10 @@ interface ChatSession {
 
 const WEEKDAYS = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
 
+function formatPrice(cents: number): string {
+  return `R$ ${Math.round(cents / 100)}`;
+}
+
 function buildStableSystemPrompt(barbershop: Barbershop & { opensAt?: string; closesAt?: string }): string {
   return `Você é o assistente virtual de agendamentos da "${barbershop.name}", conversando por WhatsApp com clientes.
 
@@ -195,7 +199,7 @@ async function executeTool(barbershop: Barbershop, name: string, input: any, cus
   switch (name) {
     case "listar_servicos": {
       const services = await getServices(barbershop.id);
-      return services.map((s) => ({ id: s.id, nome: s.name, preco: `R$ ${(s.priceCents / 100).toFixed(2)}`, duracao_min: s.durationMin }));
+      return services.map((s) => ({ id: s.id, nome: s.name, preco: formatPrice(s.priceCents), duracao_min: s.durationMin }));
     }
     case "listar_barbeiros": {
       const barbers = await getBarbers(barbershop.id);
@@ -231,7 +235,7 @@ async function executeTool(barbershop: Barbershop, name: string, input: any, cus
         agendamento_id: appointment.id,
         confirmado: true,
         resumo: `${appointment.serviceName} com ${appointment.barberName} em ${appointment.date} às ${appointment.startTime}`,
-        preco: `R$ ${(appointment.priceCents / 100).toFixed(2)}`,
+        preco: formatPrice(appointment.priceCents),
         ics_url: `/api/appointments/${appointment.id}/ics`,
       };
     }
@@ -243,7 +247,7 @@ async function executeTool(barbershop: Barbershop, name: string, input: any, cus
         barbeiro: a.barberName,
         data: a.date,
         horario: a.startTime,
-        preco: `R$ ${(a.priceCents / 100).toFixed(2)}`,
+        preco: formatPrice(a.priceCents),
       }));
     }
     case "cancelar_agendamento": {

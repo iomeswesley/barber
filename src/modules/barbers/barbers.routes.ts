@@ -39,7 +39,7 @@ barbersRouter.put("/api/manage/barbers/:id", requireAuth, requireOwner, async (r
       req.session.user!.barbershopId,
       req.session.user!.name,
       "Editou barbeiro",
-      `${updated.name} · comissão ${updated.commissionPercent}% · meta R$ ${(updated.monthlyGoalCents / 100).toFixed(2)}`
+      `${updated.name} · comissão ${updated.commissionPercent}% · meta R$ ${Math.round(updated.monthlyGoalCents / 100)}`
     );
     res.json(toApiBarber(updated));
   } catch (err) {

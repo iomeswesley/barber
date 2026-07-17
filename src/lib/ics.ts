@@ -25,9 +25,9 @@ export function generateIcs(appointment: AppointmentDTO): string {
   const dtStamp = now.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
 
   const summary = `${appointment.serviceName} - ${appointment.barbershopName}`;
-  const description = `Agendamento com ${appointment.barberName}. Serviço: ${appointment.serviceName}. Valor: R$ ${(
+  const description = `Agendamento com ${appointment.barberName}. Serviço: ${appointment.serviceName}. Valor: R$ ${Math.round(
     appointment.priceCents / 100
-  ).toFixed(2)}`;
+  )}`;
 
   const lines = [
     "BEGIN:VCALENDAR",

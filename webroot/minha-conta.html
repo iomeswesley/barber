@@ -109,7 +109,7 @@
 </div>
 
 <script>
-function currency(v) { return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0); }
+function currency(v) { return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v || 0); }
 
 let currentPhone = "";
 let currentShopId = "";

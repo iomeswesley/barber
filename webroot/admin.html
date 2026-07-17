@@ -983,16 +983,16 @@ const AVATAR_COLORS_LIGHT = ["#9c6b1f", "#2a5fc9", "#0d8a76", "#c2401f", "#6a5ac
 function isDark() { return document.documentElement.getAttribute("data-theme") !== "light"; }
 
 function currency(v) {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
-}
-
-// No decimals — used in small spaces (calendar day cells) where "R$ 350,00" doesn't fit.
-function currencyCompact(v) {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
     maximumFractionDigits: 0,
   }).format(v || 0);
+}
+
+// Mantido como alias — currency() já não usa casas decimais.
+function currencyCompact(v) {
+  return currency(v);
 }
 
 function avatarColor(name) {
