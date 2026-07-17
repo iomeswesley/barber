@@ -10,6 +10,7 @@ import {
   getBarberOwnSummary,
   getAppointmentsInRange,
   getHistory,
+  getOccupancyByHour,
 } from "./dashboardStats.service.js";
 import { getClientStats, getClientVisitHistory } from "./clientStats.service.js";
 import { listReviews, getReviewStats } from "@/modules/reviews/reviews.repository.js";
@@ -36,6 +37,12 @@ dashboardRouter.get("/api/dashboard/revenue", requireAuth, requireOwner, async (
 
 dashboardRouter.get("/api/dashboard/revenue-trend", requireAuth, requireOwner, async (req, res) => {
   res.json(await getMonthlyFinancialTrend(req.session.user!.barbershopId, 6));
+});
+
+dashboardRouter.get("/api/dashboard/occupancy-by-hour", requireAuth, requireOwner, async (req, res) => {
+  const range = ["week", "month", "3months"].includes(req.query.range as string) ? (req.query.range as string) : "month";
+  const rows = await getOccupancyByHour(req.session.user!.barbershopId, range);
+  res.json(rows.map((r) => ({ hour: r.hour, occupancy_percent: r.occupancyPercent })));
 });
 
 dashboardRouter.get("/api/dashboard/barbers", requireAuth, requireOwner, async (req, res) => {

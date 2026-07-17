@@ -720,6 +720,22 @@
     <div class="chart-wrap"><canvas id="revenue-chart"></canvas></div>
   </div>
 
+  <div class="section-title">Taxa de ocupação por horário</div>
+  <div class="card chart-card">
+    <div class="chart-head">
+      <div>
+        <h2>Ocupação por hora do dia</h2>
+        <div class="hint">Média de ocupação de cada horário, somando todos os dias (horários fechados não entram)</div>
+      </div>
+      <div class="tabs" id="occupancy-range-tabs">
+        <button data-range="week" class="active">Esta semana</button>
+        <button data-range="month">Este mês</button>
+        <button data-range="3months">Últimos 3 meses</button>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="occupancy-chart"></canvas></div>
+  </div>
+
   <div class="grid-two overview-grid-two">
     <div class="card panel">
       <h2>Análise por barbeiro</h2>
@@ -1028,7 +1044,9 @@ document.addEventListener("themechange", refreshChartsTheme);
 
 /* ---------------- State ---------------- */
 let currentRange = "week";
+let currentOccupancyRange = "week";
 let revenueChart = null;
+let occupancyChart = null;
 let barberChart = null;
 const miniCharts = {};
 
@@ -1178,6 +1196,85 @@ async function loadRevenueChart() {
   });
 }
 
+/* ---------------- Taxa de ocupação por horário ---------------- */
+async function loadOccupancyChart() {
+  const res = await fetch(`/api/dashboard/occupancy-by-hour?range=${currentOccupancyRange}`);
+  const data = await res.json();
+
+  const labels = data.map((d) => `${d.hour}h`);
+  const values = data.map((d) => d.occupancy_percent);
+
+  const ctx = document.getElementById("occupancy-chart").getContext("2d");
+  const gold = cssVar("--gold-chart") || "#b8863a";
+  const gridColor = isDark() ? "rgba(255,255,255,0.06)" : "rgba(20,22,28,0.06)";
+  const tickColor = cssVar("--text-muted") || "#888";
+
+  // Mesma assinatura visual do gráfico de faturamento (barras com gradiente
+  // dourado) — os dois ficam lado a lado na mesma seção da página.
+  const gradient = ctx.createLinearGradient(0, 0, 0, 260);
+  gradient.addColorStop(0, isDark() ? "#f0d585" : "#c99a3a");
+  gradient.addColorStop(1, gold);
+  const hoverGradient = ctx.createLinearGradient(0, 0, 0, 260);
+  hoverGradient.addColorStop(0, "#f5d061");
+  hoverGradient.addColorStop(1, "#f0d585");
+
+  if (occupancyChart) occupancyChart.destroy();
+  occupancyChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        label: "Ocupação",
+        data: values,
+        backgroundColor: gradient,
+        hoverBackgroundColor: hoverGradient,
+        borderRadius: 6,
+        borderSkipped: "bottom",
+        barPercentage: 0.62,
+        categoryPercentage: 0.75,
+        maxBarThickness: 34,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: isDark() ? "#1a1d26" : "#ffffff",
+          titleColor: cssVar("--text-primary"),
+          bodyColor: cssVar("--text-secondary"),
+          borderColor: cssVar("--card-border"),
+          borderWidth: 1,
+          padding: 10,
+          cornerRadius: 10,
+          displayColors: false,
+          callbacks: {
+            label: (item) => "  " + item.parsed.y + "% ocupado",
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { color: tickColor, maxRotation: 0, autoSkip: true, maxTicksLimit: 14, font: { size: 11 } },
+        },
+        y: {
+          beginAtZero: true,
+          max: 100,
+          grid: { color: gridColor },
+          ticks: {
+            color: tickColor,
+            font: { size: 11 },
+            callback: (v) => v + "%",
+          },
+        },
+      },
+    },
+  });
+}
+
 /* ---------------- Mini month-over-month charts (revenue KPI cards) ---------------- */
 function renderMiniChart(canvasId, values, labels) {
   const canvas = document.getElementById(canvasId);
@@ -1255,6 +1352,15 @@ document.querySelectorAll("#range-tabs button").forEach((btn) => {
     btn.classList.add("active");
     currentRange = btn.dataset.range;
     loadRevenueChart();
+  });
+});
+
+document.querySelectorAll("#occupancy-range-tabs button").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#occupancy-range-tabs button").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentOccupancyRange = btn.dataset.range;
+    loadOccupancyChart();
   });
 });
 
@@ -2816,6 +2922,7 @@ let meLoaded = false;
 function refreshChartsTheme() {
   if (meLoaded) {
     loadRevenueChart();
+    loadOccupancyChart();
     loadRevenueTrend();
     loadBarberPerformance();
     if (agendaLoaded) renderAgenda();
@@ -2901,6 +3008,7 @@ async function loadAll() {
   await Promise.all([
     loadSummary(),
     loadRevenueChart(),
+    loadOccupancyChart(),
     loadRevenueTrend(),
     loadBarberPerformance(),
     loadTodayAppointments(),

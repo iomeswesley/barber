@@ -2,7 +2,7 @@ import { getAppointments } from "@/modules/appointments/appointments.repository.
 import { getBarbers } from "@/modules/barbers/barbers.repository.js";
 import { getBusinessHours } from "@/modules/barbershops/barbershops.repository.js";
 import { getProductSalesRevenue } from "@/modules/products/products.repository.js";
-import { localDateStr, timeToMinutes } from "@/lib/time.js";
+import { localDateStr, timeToMinutes, weekdayForDateStr } from "@/lib/time.js";
 import type { AppointmentDTO } from "@/modules/appointments/appointments.types.js";
 
 function pad(n: number): string {
@@ -255,6 +255,84 @@ export async function getRevenueDaily(barbershopId: number, range: string) {
     d.setDate(d.getDate() - i);
     const ds = localDateStr(d);
     result.push({ date: ds, revenue: Math.round((byDate[ds] || 0) + (productsByDate[ds] || 0)) / 100 });
+  }
+  return result;
+}
+
+// Taxa de ocupação por hora do dia: pra cada bucket de 1h dentro do horário de
+// funcionamento, soma quantos minutos ficaram ocupados por agendamentos vs.
+// quantos minutos estavam disponíveis (nº de barbeiros ativos × horas abertas
+// naquele bucket, em todos os dias do período) — dá um % que já pondera dias
+// fechados e agendamentos mais curtos que 1h corretamente.
+export async function getOccupancyByHour(barbershopId: number, range: string) {
+  const now = new Date();
+  let days: number;
+  if (range === "week") days = 7;
+  else if (range === "3months") days = 90;
+  else days = 30; // "month"
+
+  const weekHours = await getBusinessHours(barbershopId);
+  const hoursByWeekday = new Map(weekHours.map((h) => [h.weekday, h]));
+  const barbers = await getBarbers(barbershopId);
+  const barberCount = Math.max(barbers.length, 1);
+
+  let minHour = 24;
+  let maxHour = 0;
+  for (const h of weekHours) {
+    if (h.closed) continue;
+    const openH = Math.floor(timeToMinutes(h.opensAt) / 60);
+    const closeMin = timeToMinutes(h.closesAt);
+    const closeH = closeMin % 60 > 0 ? Math.floor(closeMin / 60) + 1 : closeMin / 60;
+    minHour = Math.min(minHour, openH);
+    maxHour = Math.max(maxHour, closeH);
+  }
+  if (minHour >= maxHour) {
+    minHour = 8;
+    maxHour = 20;
+  }
+  const bucketCount = maxHour - minHour;
+
+  const dateList: string[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    dateList.push(localDateStr(d));
+  }
+
+  const occupiedByHour = new Array(bucketCount).fill(0);
+  const availableByHour = new Array(bucketCount).fill(0);
+
+  for (const dateStr of dateList) {
+    const bh = hoursByWeekday.get(weekdayForDateStr(dateStr));
+    if (!bh || bh.closed) continue;
+    const openMin = timeToMinutes(bh.opensAt);
+    const closeMin = timeToMinutes(bh.closesAt);
+    for (let h = minHour; h < maxHour; h++) {
+      const overlapMin = Math.max(0, Math.min((h + 1) * 60, closeMin) - Math.max(h * 60, openMin));
+      availableByHour[h - minHour] += overlapMin * barberCount;
+    }
+  }
+
+  const appts = (
+    await getAppointments({ barbershopId, dateFrom: dateList[0], dateTo: dateList[dateList.length - 1] })
+  ).filter((a) => a.status !== "no_show");
+  for (const a of appts) {
+    const startMin = timeToMinutes(a.startTime);
+    const endMin = timeToMinutes(a.endTime);
+    for (let h = minHour; h < maxHour; h++) {
+      const overlapMin = Math.max(0, Math.min(endMin, (h + 1) * 60) - Math.max(startMin, h * 60));
+      if (overlapMin > 0) occupiedByHour[h - minHour] += overlapMin;
+    }
+  }
+
+  const result = [];
+  for (let h = minHour; h < maxHour; h++) {
+    const idx = h - minHour;
+    if (availableByHour[idx] <= 0) continue; // fechado em todos os dias do período — não mostra a hora
+    result.push({
+      hour: h,
+      occupancyPercent: Math.min(100, Math.round((occupiedByHour[idx] / availableByHour[idx]) * 100)),
+    });
   }
   return result;
 }
