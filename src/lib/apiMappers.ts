@@ -12,6 +12,7 @@
 import type { AppointmentDTO } from "@/modules/appointments/appointments.types.js";
 import type { Barber, Service, Product, TimeBlock, Escalation, AuditLog, BusinessHours } from "@prisma/client";
 import type { ClientStatsRow } from "@/modules/dashboard/clientStats.service.js";
+import { localDateStr } from "@/lib/time.js";
 
 export function toApiAppointment(a: AppointmentDTO & { computedStatus?: string }) {
   return {
@@ -181,5 +182,30 @@ export function toApiClientStats(c: ClientStatsRow) {
     last_visit_date: c.lastVisitDate,
     avgFrequencyDays: c.avgFrequencyDays,
     dueStatus: c.dueStatus,
+  };
+}
+
+export function toApiClientVisit(a: {
+  id: number;
+  date: Date;
+  startTime: string;
+  status: string;
+  service: { name: string; priceCents: number };
+  barber: { name: string };
+  productSales: { quantity: number; product: { name: string; priceCents: number } }[];
+}) {
+  return {
+    id: a.id,
+    date: localDateStr(a.date),
+    start_time: a.startTime,
+    status: a.status,
+    service_name: a.service.name,
+    barber_name: a.barber.name,
+    price_cents: a.service.priceCents,
+    products: a.productSales.map((ps) => ({
+      name: ps.product.name,
+      quantity: ps.quantity,
+      price_cents: ps.product.priceCents,
+    })),
   };
 }

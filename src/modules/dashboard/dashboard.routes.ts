@@ -11,7 +11,7 @@ import {
   getAppointmentsInRange,
   getHistory,
 } from "./dashboardStats.service.js";
-import { getClientStats } from "./clientStats.service.js";
+import { getClientStats, getClientVisitHistory } from "./clientStats.service.js";
 import { listReviews, getReviewStats } from "@/modules/reviews/reviews.repository.js";
 import { clientBelongsToShop, updateClientBirthday, getClientById } from "@/modules/clients/clients.repository.js";
 import { getBarbershop } from "@/modules/barbershops/barbershops.repository.js";
@@ -19,7 +19,7 @@ import { getClientLastAppointment } from "@/modules/appointments/appointments.se
 import { sendComeBackMessage } from "@/jobs/reminders.js";
 import { listBackups, runBackup } from "@/jobs/backup.js";
 import { logAudit } from "@/modules/auditLog/auditLog.repository.js";
-import { toApiAppointment, toApiReview, toApiClientStats } from "@/lib/apiMappers.js";
+import { toApiAppointment, toApiReview, toApiClientStats, toApiClientVisit } from "@/lib/apiMappers.js";
 
 export const dashboardRouter = Router();
 
@@ -88,6 +88,20 @@ dashboardRouter.get("/api/dashboard/history", requireAuth, requireOwner, async (
 dashboardRouter.get("/api/dashboard/clients", requireAuth, requireOwner, async (req, res) => {
   const clients = await getClientStats(req.session.user!.barbershopId);
   res.json(clients.map(toApiClientStats));
+});
+
+dashboardRouter.get("/api/dashboard/clients/:id/visits", requireAuth, requireOwner, async (req, res, next) => {
+  try {
+    const clientId = Number(req.params.id);
+    const barbershopId = req.session.user!.barbershopId;
+    if (!(await clientBelongsToShop(clientId, barbershopId))) {
+      throw new AppError("Cliente não encontrado", 404);
+    }
+    const visits = await getClientVisitHistory(clientId, barbershopId, 5);
+    res.json(visits.map(toApiClientVisit));
+  } catch (err) {
+    next(err);
+  }
 });
 
 dashboardRouter.put("/api/manage/clients/:id/birthday", requireAuth, requireOwner, async (req, res, next) => {

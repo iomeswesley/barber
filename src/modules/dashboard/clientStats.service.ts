@@ -82,3 +82,16 @@ export async function getClientStats(barbershopId: number): Promise<ClientStatsR
 
   return result.sort((a, b) => (b.lastVisitDate || "").localeCompare(a.lastVisitDate || ""));
 }
+
+export async function getClientVisitHistory(clientId: number, barbershopId: number, limit = 5) {
+  return prisma.appointment.findMany({
+    where: { clientId, barbershopId, status: { not: "cancelled" } },
+    orderBy: [{ date: "desc" }, { startTime: "desc" }],
+    take: limit,
+    include: {
+      service: { select: { name: true, priceCents: true } },
+      barber: { select: { name: true } },
+      productSales: { include: { product: { select: { name: true, priceCents: true } } } },
+    },
+  });
+}
