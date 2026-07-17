@@ -1188,21 +1188,57 @@ async function loadRevenueChart() {
 }
 
 /* ---------------- Taxa de ocupação por horário (dividida por dia da semana) ---------------- */
+// Plugin custom: desenha uma linha vertical em cada troca de dia da semana
+// (atravessando o gráfico inteiro até a linha de rótulos dos dias, logo
+// abaixo dos rótulos de hora) e o nome do dia centralizado sob o grupo de
+// barras daquele dia — Chart.js não tem eixo de categoria "aninhado" pronto,
+// então isso é desenhado manualmente no afterDraw.
+const weekdayGroupLinesPlugin = {
+  id: "weekdayGroupLines",
+  afterDraw(chart) {
+    const opts = chart.options.plugins.weekdayGroupLines;
+    if (!opts || !opts.weekdaysByIndex || !opts.weekdaysByIndex.length) return;
+    const { weekdaysByIndex, lineColor, labelColor, font } = opts;
+    const { ctx, chartArea } = chart;
+    const meta = chart.getDatasetMeta(0);
+    const labelY = chartArea.bottom + 22;
+
+    ctx.save();
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = 1;
+    ctx.fillStyle = labelColor;
+    ctx.font = font;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    let groupStart = 0;
+    for (let i = 1; i <= weekdaysByIndex.length; i++) {
+      if (i < weekdaysByIndex.length && weekdaysByIndex[i] === weekdaysByIndex[groupStart]) continue;
+      const groupEnd = i - 1;
+      if (groupStart > 0) {
+        const lineX = (meta.data[groupStart - 1].x + meta.data[groupStart].x) / 2;
+        ctx.beginPath();
+        ctx.moveTo(lineX, chartArea.top);
+        ctx.lineTo(lineX, labelY + 8);
+        ctx.stroke();
+      }
+      const centerX = (meta.data[groupStart].x + meta.data[groupEnd].x) / 2;
+      ctx.fillText(WEEKDAY_LABELS[weekdaysByIndex[groupStart]], centerX, labelY);
+      groupStart = i;
+    }
+    ctx.restore();
+  },
+};
+Chart.register(weekdayGroupLinesPlugin);
+
 async function loadOccupancyChart() {
   const data = await (await fetch(`/api/dashboard/occupancy-by-hour?range=${currentRange}`)).json();
 
-  // Eixo X: hora dentro do horário de cada dia, dias concatenados na ordem
-  // Dom→Sáb. Só a primeira barra de cada dia leva o rótulo do dia (2ª linha
-  // do array vira 2ª linha do tick) — isso já lê como "divisórias" entre os
-  // grupos sem precisar de plugin extra pro Chart.js.
-  const labels = [];
-  let lastWeekday = null;
-  data.forEach((d) => {
-    const hourLabel = `${d.hour}h`;
-    labels.push(d.weekday !== lastWeekday ? [WEEKDAY_LABELS[d.weekday], hourLabel] : hourLabel);
-    lastWeekday = d.weekday;
-  });
+  // Eixo X mostra só a hora — o nome do dia da semana vira uma 2ª linha
+  // desenhada pelo plugin acima, centralizada sob cada grupo de barras.
+  const labels = data.map((d) => `${d.hour}h`);
   const values = data.map((d) => d.occupancy_percent);
+  const weekdaysByIndex = data.map((d) => d.weekday);
 
   const ctx = document.getElementById("occupancy-chart").getContext("2d");
   const gold = cssVar("--gold-chart") || "#b8863a";
@@ -1245,8 +1281,17 @@ async function loadOccupancyChart() {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
+      // Espaço extra embaixo pra 2ª linha (nome do dia) que o plugin desenha
+      // manualmente, abaixo dos rótulos de hora do eixo X.
+      layout: { padding: { bottom: 24 } },
       plugins: {
         legend: { display: false },
+        weekdayGroupLines: {
+          weekdaysByIndex,
+          lineColor: gridColor,
+          labelColor: tickColor,
+          font: "700 10.5px Inter, sans-serif",
+        },
         tooltip: {
           backgroundColor: isDark() ? "#1a1d26" : "#ffffff",
           titleColor: cssVar("--text-primary"),
@@ -1268,7 +1313,7 @@ async function loadOccupancyChart() {
       scales: {
         x: {
           grid: { display: false },
-          ticks: { color: tickColor, maxRotation: 0, minRotation: 0, autoSkip: false, font: { size: 10.5 } },
+          ticks: { color: tickColor, maxRotation: 0, minRotation: 0, autoSkip: true, font: { size: 10.5 } },
         },
         y: {
           beginAtZero: true,
