@@ -2342,7 +2342,8 @@ function renderClientsTable() {
         btn.outerHTML = `<span style="font-size:12px; color:var(--good);">Mensagem enviada ✓</span>`;
       } else {
         btn.disabled = false;
-        alert("Erro ao enviar mensagem");
+        const data = await res.json().catch(() => null);
+        alert(data?.error || "Erro ao enviar mensagem");
       }
     });
   });

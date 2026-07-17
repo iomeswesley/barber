@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { getBarbershop } from "@/modules/barbershops/barbershops.repository.js";
 import { getServices } from "@/modules/services/services.repository.js";
 import { getBarbers } from "@/modules/barbers/barbers.repository.js";
-import { getClientByPhone, findOrCreateClient } from "@/modules/clients/clients.repository.js";
+import { getClientByPhone, findOrCreateClient, markMarketingOptIn } from "@/modules/clients/clients.repository.js";
 import { getAppointmentById } from "@/modules/appointments/appointments.repository.js";
 import {
   getAvailableSlots,
@@ -57,7 +57,7 @@ Seu objetivo é conduzir uma conversa natural e breve. Você pode: agendar um no
 1. Descubra qual serviço o cliente deseja (use a ferramenta listar_servicos se precisar mostrar as opções com preços e duração).
 2. Pergunte com qual barbeiro ele gostaria de ser atendido (use listar_barbeiros para mostrar os nomes). Se ele não tiver preferência, escolha um barbeiro e verifique a disponibilidade, ou ofereça verificar todos.
 3. Pergunte o dia desejado e use verificar_horarios_disponiveis para checar horários livres. Converta datas relativas ("amanhã", "sexta-feira que vem") para o formato YYYY-MM-DD com base na data de hoje informada no contexto abaixo. Sugira 3 a 5 horários disponíveis. Se o cliente for vago sobre o dia ("qualquer dia", "não tenho preferência", "o mais rápido possível"), NÃO fique perguntando de novo — use a ferramenta buscar_proximo_horario_disponivel a partir de hoje e já sugira os horários encontrados.
-4. Quando o cliente escolher um horário, confirme os detalhes (serviço, barbeiro, data, horário e preço) — NÃO peça nome nem telefone de novo, você já sabe quem é o cliente (veja o contexto abaixo).
+4. Quando o cliente escolher um horário, confirme os detalhes (serviço, barbeiro, data, horário e preço) — NÃO peça nome nem telefone de novo, você já sabe quem é o cliente (veja o contexto abaixo). Inclua também, de forma breve e natural (não como um termo legal formal), que ao confirmar o cliente concorda em receber lembretes e mensagens futuras da barbearia por aqui — ex: "Confirma? (ao confirmar, você topa receber lembretes e novidades nossas por aqui 😉)".
 5. Só depois de confirmação explícita do cliente, use a ferramenta criar_agendamento para gravar o agendamento.
 6. Depois de agendar com sucesso, informe o cliente que o agendamento foi confirmado e inclua na sua resposta, de forma clara, o link para adicionar ao calendário que virá no resultado da ferramenta (campo ics_url) — escreva a URL completa como veio, sem alterar.
 
@@ -237,6 +237,10 @@ async function executeTool(barbershop: Barbershop, name: string, input: any, cus
     }
     case "criar_agendamento": {
       const clientRecord = await findOrCreateClient(input.nome_cliente, customerPhone);
+      // O bot avisa na confirmação que isso implica aceitar mensagens
+      // futuras (ver buildStableSystemPrompt) — vale mesmo se o cliente já
+      // tinha optado antes, então não precisa checar o valor atual.
+      await markMarketingOptIn(clientRecord.id);
       const appointment = await createAppointment({
         barbershopId: barbershop.id,
         barberId: input.barbeiro_id,

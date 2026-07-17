@@ -66,15 +66,37 @@ export function buildRescheduleNoticeText(appointment: AppointmentDTO): string {
   );
 }
 
+function comeBackServiceHint(lastAppointment: AppointmentDTO | null): string {
+  return lastAppointment
+    ? `Que tal já garantir um novo ${lastAppointment.serviceName} com ${lastAppointment.barberName}?`
+    : `Que tal já garantir seu próximo horário antes que a agenda fique cheia?`;
+}
+
 export function buildComeBackText(clientName: string, barbershopName: string, lastAppointment: AppointmentDTO | null = null): string {
-  const serviceHint = lastAppointment
-    ? `Que tal já garantir um novo ${lastAppointment.serviceName} com ${lastAppointment.barberName}? `
-    : `Que tal já garantir seu próximo horário antes que a agenda fique cheia? `;
   return (
     `Oi, ${clientName}! 👋 Faz um tempinho que a gente não te vê por aqui na ${barbershopName}... ` +
     `sentimos sua falta! ✂️😄\n\n` +
-    `${serviceHint}` +
+    `${comeBackServiceHint(lastAppointment)} ` +
     `É só responder aqui que a gente já encaixa você. Esperamos por você! 🙌`
+  );
+}
+
+// Mensagem de "reconquista" é categoria MARKETING na Meta — exige opt-in
+// explícito do cliente (diferente de lembrete/aviso transacional), que é
+// checado por quem chama esta função antes de enviar.
+export async function sendComeBackMessage(
+  barbershopId: number,
+  phone: string,
+  clientName: string,
+  barbershopName: string,
+  lastAppointment: AppointmentDTO | null
+) {
+  await sendWhatsAppTemplateMessage(
+    barbershopId,
+    phone,
+    "come_back_message",
+    [clientName, barbershopName, comeBackServiceHint(lastAppointment)],
+    buildComeBackText(clientName, barbershopName, lastAppointment)
   );
 }
 

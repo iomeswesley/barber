@@ -29,6 +29,13 @@ export async function clientBelongsToShop(clientId: number, barbershopId: number
   return !!appointment;
 }
 
+// Chamado quando o cliente confirma um agendamento — o bot avisa nesse
+// momento que confirmar implica aceitar receber mensagens de marketing
+// (ex: "reconquista" de cliente sumido), então isso conta como opt-in.
+export function markMarketingOptIn(clientId: number) {
+  return prisma.client.update({ where: { id: clientId }, data: { marketingOptIn: true } });
+}
+
 export function updateClientBirthday(clientId: number, birthday: string | null) {
   return prisma.client.update({
     where: { id: clientId },

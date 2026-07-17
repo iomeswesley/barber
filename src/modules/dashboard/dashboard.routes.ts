@@ -16,7 +16,7 @@ import { listReviews, getReviewStats } from "@/modules/reviews/reviews.repositor
 import { clientBelongsToShop, updateClientBirthday, getClientById } from "@/modules/clients/clients.repository.js";
 import { getBarbershop } from "@/modules/barbershops/barbershops.repository.js";
 import { getClientLastAppointment } from "@/modules/appointments/appointments.service.js";
-import { sendWhatsAppMessage, buildComeBackText } from "@/jobs/reminders.js";
+import { sendComeBackMessage } from "@/jobs/reminders.js";
 import { listBackups, runBackup } from "@/jobs/backup.js";
 import { logAudit } from "@/modules/auditLog/auditLog.repository.js";
 import { toApiAppointment, toApiReview, toApiClientStats } from "@/lib/apiMappers.js";
@@ -111,9 +111,15 @@ dashboardRouter.post("/api/manage/clients/:id/nudge", requireAuth, requireOwner,
       throw new AppError("Cliente não encontrado", 404);
     }
     const client = await getClientById(clientId);
+    // Mensagem de reconquista é categoria marketing na Meta — só pode ser
+    // enviada pra quem consentiu (opt-in dado ao confirmar um agendamento
+    // pelo chat, ver criar_agendamento em chatEngine.ts).
+    if (!client!.marketingOptIn) {
+      throw new AppError("Este cliente ainda não deu consentimento para mensagens de marketing.", 409);
+    }
     const shop = await getBarbershop(barbershopId);
     const lastAppointment = await getClientLastAppointment(clientId, barbershopId);
-    await sendWhatsAppMessage(barbershopId, client!.phone, buildComeBackText(client!.name, shop?.name || "nossa barbearia", lastAppointment));
+    await sendComeBackMessage(barbershopId, client!.phone, client!.name, shop?.name || "nossa barbearia", lastAppointment);
     res.json({ ok: true });
   } catch (err) {
     next(err);
