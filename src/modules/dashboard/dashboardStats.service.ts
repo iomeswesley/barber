@@ -259,17 +259,14 @@ export async function getRevenueDaily(barbershopId: number, range: string) {
   return result;
 }
 
-// Taxa de ocupação por hora do dia: pra cada bucket de 1h dentro do horário de
-// funcionamento, soma quantos minutos ficaram ocupados por agendamentos vs.
-// quantos minutos estavam disponíveis (nº de barbeiros ativos × horas abertas
-// naquele bucket, em todos os dias do período) — dá um % que já pondera dias
-// fechados e agendamentos mais curtos que 1h corretamente.
-//
-// `weekday` (0=Dom...6=Sáb) é opcional: se informado, considera só os dias do
-// período que caem naquele dia da semana (e usa o horário de funcionamento
-// específico dele pra definir o range de horas). Se aquele dia estiver
-// marcado como fechado nas configurações, devolve uma lista vazia.
-export async function getOccupancyByHour(barbershopId: number, range: string, weekday?: number) {
+// Taxa de ocupação por hora do dia, pra cada dia da semana. Pra cada bucket
+// de 1h dentro do horário de funcionamento daquele dia, soma quantos minutos
+// ficaram ocupados por agendamentos vs. quantos minutos estavam disponíveis
+// (nº de barbeiros ativos × horas abertas naquele bucket, somando todas as
+// ocorrências daquele dia da semana dentro do período) — dá um % que já
+// pondera agendamentos mais curtos que 1h corretamente. Dias marcados como
+// fechado nas configurações simplesmente não aparecem no resultado.
+export async function getOccupancyByHour(barbershopId: number, range: string) {
   const now = new Date();
   let days: number;
   if (range === "week") days = 7;
@@ -281,72 +278,72 @@ export async function getOccupancyByHour(barbershopId: number, range: string, we
   const barbers = await getBarbers(barbershopId);
   const barberCount = Math.max(barbers.length, 1);
 
-  const relevantHours = weekday === undefined ? weekHours : weekHours.filter((h) => h.weekday === weekday);
-
-  let minHour = 24;
-  let maxHour = 0;
-  for (const h of relevantHours) {
+  // Range de horas próprio de cada dia da semana (dias diferentes podem abrir
+  // em horários diferentes).
+  const hourRangeByWeekday = new Map<number, { min: number; max: number }>();
+  for (const h of weekHours) {
     if (h.closed) continue;
     const openH = Math.floor(timeToMinutes(h.opensAt) / 60);
     const closeMin = timeToMinutes(h.closesAt);
     const closeH = closeMin % 60 > 0 ? Math.floor(closeMin / 60) + 1 : closeMin / 60;
-    minHour = Math.min(minHour, openH);
-    maxHour = Math.max(maxHour, closeH);
+    hourRangeByWeekday.set(h.weekday, { min: openH, max: closeH });
   }
-  if (minHour >= maxHour) {
-    // weekday específico e fechado (ou sem nenhuma config nos 7 dias) — nada pra mostrar.
-    if (weekday !== undefined) return [];
-    minHour = 8;
-    maxHour = 20;
-  }
-  const bucketCount = maxHour - minHour;
 
   const dateList: string[] = [];
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
-    const ds = localDateStr(d);
-    if (weekday !== undefined && weekdayForDateStr(ds) !== weekday) continue;
-    dateList.push(ds);
+    dateList.push(localDateStr(d));
   }
+  if (dateList.length === 0 || hourRangeByWeekday.size === 0) return [];
 
-  const occupiedByHour = new Array(bucketCount).fill(0);
-  const availableByHour = new Array(bucketCount).fill(0);
+  const occupied = new Map<string, number>(); // key: "weekday-hour"
+  const available = new Map<string, number>();
 
   for (const dateStr of dateList) {
-    const bh = hoursByWeekday.get(weekdayForDateStr(dateStr));
-    if (!bh || bh.closed) continue;
+    const weekday = weekdayForDateStr(dateStr);
+    const bh = hoursByWeekday.get(weekday);
+    const hourRange = hourRangeByWeekday.get(weekday);
+    if (!bh || bh.closed || !hourRange) continue;
     const openMin = timeToMinutes(bh.opensAt);
     const closeMin = timeToMinutes(bh.closesAt);
-    for (let h = minHour; h < maxHour; h++) {
+    for (let h = hourRange.min; h < hourRange.max; h++) {
       const overlapMin = Math.max(0, Math.min((h + 1) * 60, closeMin) - Math.max(h * 60, openMin));
-      availableByHour[h - minHour] += overlapMin * barberCount;
+      const key = `${weekday}-${h}`;
+      available.set(key, (available.get(key) || 0) + overlapMin * barberCount);
     }
   }
-
-  if (dateList.length === 0) return [];
 
   const dateSet = new Set(dateList);
   const appts = (
     await getAppointments({ barbershopId, dateFrom: dateList[0], dateTo: dateList[dateList.length - 1] })
   ).filter((a) => a.status !== "no_show" && dateSet.has(a.date));
   for (const a of appts) {
+    const weekday = weekdayForDateStr(a.date);
+    const hourRange = hourRangeByWeekday.get(weekday);
+    if (!hourRange) continue;
     const startMin = timeToMinutes(a.startTime);
     const endMin = timeToMinutes(a.endTime);
-    for (let h = minHour; h < maxHour; h++) {
+    for (let h = hourRange.min; h < hourRange.max; h++) {
       const overlapMin = Math.max(0, Math.min(endMin, (h + 1) * 60) - Math.max(startMin, h * 60));
-      if (overlapMin > 0) occupiedByHour[h - minHour] += overlapMin;
+      if (overlapMin > 0) {
+        const key = `${weekday}-${h}`;
+        occupied.set(key, (occupied.get(key) || 0) + overlapMin);
+      }
     }
   }
 
-  const result = [];
-  for (let h = minHour; h < maxHour; h++) {
-    const idx = h - minHour;
-    if (availableByHour[idx] <= 0) continue; // fechado em todos os dias do período — não mostra a hora
-    result.push({
-      hour: h,
-      occupancyPercent: Math.min(100, Math.round((occupiedByHour[idx] / availableByHour[idx]) * 100)),
-    });
+  const result: { weekday: number; hour: number; occupancyPercent: number }[] = [];
+  for (let weekday = 0; weekday <= 6; weekday++) {
+    const hourRange = hourRangeByWeekday.get(weekday);
+    if (!hourRange) continue; // fechado — não aparece
+    for (let h = hourRange.min; h < hourRange.max; h++) {
+      const key = `${weekday}-${h}`;
+      const avail = available.get(key) || 0;
+      if (avail <= 0) continue;
+      const occ = occupied.get(key) || 0;
+      result.push({ weekday, hour: h, occupancyPercent: Math.min(100, Math.round((occ / avail) * 100)) });
+    }
   }
   return result;
 }

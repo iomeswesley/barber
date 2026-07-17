@@ -704,7 +704,7 @@
     <div class="occ-bar-track"><div class="occ-bar-fill" id="shop-goal-bar" style="width:0%"></div></div>
   </div>
 
-  <div class="section-title">Faturamento dia a dia</div>
+  <div class="section-title">Faturamento e ocupação dia a dia</div>
   <div class="card chart-card">
     <div class="chart-head">
       <div>
@@ -718,22 +718,13 @@
       </div>
     </div>
     <div class="chart-wrap"><canvas id="revenue-chart"></canvas></div>
-  </div>
 
-  <div class="section-title">Taxa de ocupação por horário</div>
-  <div class="card chart-card">
-    <div class="chart-head">
+    <div class="chart-head" style="margin-top:26px;">
       <div>
         <h2>Ocupação por hora do dia</h2>
-        <div class="hint" id="occupancy-hint">Média de ocupação de cada horário (horários fechados não entram)</div>
-      </div>
-      <div class="tabs" id="occupancy-range-tabs">
-        <button data-range="week" class="active">Esta semana</button>
-        <button data-range="month">Este mês</button>
-        <button data-range="3months">Últimos 3 meses</button>
+        <div class="hint">Média de ocupação de cada horário, dividida por dia da semana (horários fechados não entram)</div>
       </div>
     </div>
-    <div class="tabs" id="occupancy-weekday-tabs" style="margin-top:10px; flex-wrap:wrap;"></div>
     <div class="chart-wrap"><canvas id="occupancy-chart"></canvas></div>
   </div>
 
@@ -1045,7 +1036,6 @@ document.addEventListener("themechange", refreshChartsTheme);
 
 /* ---------------- State ---------------- */
 let currentRange = "week";
-let currentOccupancyRange = "week";
 let revenueChart = null;
 let occupancyChart = null;
 let barberChart = null;
@@ -1197,41 +1187,21 @@ async function loadRevenueChart() {
   });
 }
 
-/* ---------------- Taxa de ocupação por horário ---------------- */
-let currentOccupancyWeekday; // undefined = todos os dias somados
-let occupancyWeekdayTabsPopulated = false;
-
-async function populateOccupancyWeekdayTabs() {
-  if (occupancyWeekdayTabsPopulated) return;
-  const hours = await (await fetch("/api/manage/business-hours")).json();
-  const openWeekdays = hours.filter((h) => !h.closed).map((h) => h.weekday).sort((a, b) => a - b);
-  const container = document.getElementById("occupancy-weekday-tabs");
-  container.innerHTML =
-    `<button data-weekday="" class="active">Todos os dias</button>` +
-    openWeekdays.map((wd) => `<button data-weekday="${wd}">${WEEKDAY_LABELS[wd]}</button>`).join("");
-  container.querySelectorAll("button").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      container.querySelectorAll("button").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      currentOccupancyWeekday = btn.dataset.weekday === "" ? undefined : Number(btn.dataset.weekday);
-      loadOccupancyChart();
-    });
-  });
-  occupancyWeekdayTabsPopulated = true;
-}
-
+/* ---------------- Taxa de ocupação por horário (dividida por dia da semana) ---------------- */
 async function loadOccupancyChart() {
-  await populateOccupancyWeekdayTabs();
-  const params = new URLSearchParams({ range: currentOccupancyRange });
-  if (currentOccupancyWeekday !== undefined) params.set("weekday", currentOccupancyWeekday);
-  const data = await (await fetch(`/api/dashboard/occupancy-by-hour?${params}`)).json();
+  const data = await (await fetch(`/api/dashboard/occupancy-by-hour?range=${currentRange}`)).json();
 
-  document.getElementById("occupancy-hint").textContent =
-    currentOccupancyWeekday === undefined
-      ? "Média de ocupação de cada horário, somando todos os dias (horários fechados não entram)"
-      : `Média de ocupação de cada horário — ${WEEKDAY_FULL_LABELS[currentOccupancyWeekday]}`;
-
-  const labels = data.map((d) => `${d.hour}h`);
+  // Eixo X: hora dentro do horário de cada dia, dias concatenados na ordem
+  // Dom→Sáb. Só a primeira barra de cada dia leva o rótulo do dia (2ª linha
+  // do array vira 2ª linha do tick) — isso já lê como "divisórias" entre os
+  // grupos sem precisar de plugin extra pro Chart.js.
+  const labels = [];
+  let lastWeekday = null;
+  data.forEach((d) => {
+    const hourLabel = `${d.hour}h`;
+    labels.push(d.weekday !== lastWeekday ? [WEEKDAY_LABELS[d.weekday], hourLabel] : hourLabel);
+    lastWeekday = d.weekday;
+  });
   const values = data.map((d) => d.occupancy_percent);
 
   const ctx = document.getElementById("occupancy-chart").getContext("2d");
@@ -1240,13 +1210,19 @@ async function loadOccupancyChart() {
   const tickColor = cssVar("--text-muted") || "#888";
 
   // Mesma assinatura visual do gráfico de faturamento (barras com gradiente
-  // dourado) — os dois ficam lado a lado na mesma seção da página.
-  const gradient = ctx.createLinearGradient(0, 0, 0, 260);
-  gradient.addColorStop(0, isDark() ? "#f0d585" : "#c99a3a");
-  gradient.addColorStop(1, gold);
+  // dourado) — só que com duas variantes alternadas por dia da semana, pra
+  // reforçar visualmente onde um grupo termina e o outro começa.
+  const gradientA = ctx.createLinearGradient(0, 0, 0, 260);
+  gradientA.addColorStop(0, isDark() ? "#f0d585" : "#c99a3a");
+  gradientA.addColorStop(1, gold);
+  const gradientB = ctx.createLinearGradient(0, 0, 0, 260);
+  gradientB.addColorStop(0, isDark() ? "#c9a259" : "#a9822f");
+  gradientB.addColorStop(1, isDark() ? "#8a6a2f" : "#7a5f28");
   const hoverGradient = ctx.createLinearGradient(0, 0, 0, 260);
   hoverGradient.addColorStop(0, "#f5d061");
   hoverGradient.addColorStop(1, "#f0d585");
+
+  const barColors = data.map((d) => (d.weekday % 2 === 0 ? gradientA : gradientB));
 
   if (occupancyChart) occupancyChart.destroy();
   occupancyChart = new Chart(ctx, {
@@ -1256,13 +1232,13 @@ async function loadOccupancyChart() {
       datasets: [{
         label: "Ocupação",
         data: values,
-        backgroundColor: gradient,
+        backgroundColor: barColors,
         hoverBackgroundColor: hoverGradient,
         borderRadius: 6,
         borderSkipped: "bottom",
-        barPercentage: 0.62,
-        categoryPercentage: 0.75,
-        maxBarThickness: 34,
+        barPercentage: 0.7,
+        categoryPercentage: 0.85,
+        maxBarThickness: 22,
       }],
     },
     options: {
@@ -1281,6 +1257,10 @@ async function loadOccupancyChart() {
           cornerRadius: 10,
           displayColors: false,
           callbacks: {
+            title: (items) => {
+              const d = data[items[0].dataIndex];
+              return `${WEEKDAY_FULL_LABELS[d.weekday]} · ${d.hour}h`;
+            },
             label: (item) => "  " + item.parsed.y + "% ocupado",
           },
         },
@@ -1288,7 +1268,7 @@ async function loadOccupancyChart() {
       scales: {
         x: {
           grid: { display: false },
-          ticks: { color: tickColor, maxRotation: 0, autoSkip: true, maxTicksLimit: 14, font: { size: 11 } },
+          ticks: { color: tickColor, maxRotation: 0, minRotation: 0, autoSkip: false, font: { size: 10.5 } },
         },
         y: {
           beginAtZero: true,
@@ -1382,14 +1362,6 @@ document.querySelectorAll("#range-tabs button").forEach((btn) => {
     btn.classList.add("active");
     currentRange = btn.dataset.range;
     loadRevenueChart();
-  });
-});
-
-document.querySelectorAll("#occupancy-range-tabs button").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll("#occupancy-range-tabs button").forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
-    currentOccupancyRange = btn.dataset.range;
     loadOccupancyChart();
   });
 });
