@@ -16,7 +16,7 @@ import {
 import { markReviewPrompted } from "@/modules/appointments/appointments.repository.js";
 import { createReview } from "@/modules/reviews/reviews.repository.js";
 import { createEscalation } from "@/modules/escalations/escalations.repository.js";
-import { notifyNewAppointment } from "@/modules/push/push.service.js";
+import { notifyNewAppointment, notifyEscalation } from "@/modules/push/push.service.js";
 import { prisma } from "@/lib/prisma.js";
 import { env } from "@/config/env.js";
 import type { Barbershop, Prisma } from "@prisma/client";
@@ -230,6 +230,9 @@ async function executeTool(barbershop: Barbershop, name: string, input: any, cus
     case "escalar_atendimento_humano": {
       const clientRecord = await getClientByPhone(customerPhone);
       await createEscalation(barbershop.id, { clientId: clientRecord?.id, clientPhone: customerPhone, reason: input.motivo });
+      // Fire-and-forget: notificação é um "nice to have", não deve atrasar
+      // nem quebrar a resposta ao cliente se o envio falhar.
+      notifyEscalation(barbershop.id, clientRecord?.name ?? null, input.motivo).catch(() => {});
       return { escalado: true };
     }
     case "criar_agendamento": {

@@ -306,6 +306,18 @@ model ChatSession {
   @@map("chat_sessions")
 }
 
+// Deduplicação de mensagens do webhook do WhatsApp: a Meta reenvia o mesmo
+// evento (com o mesmo "wamid") se nossa resposta demorar demais ou se der
+// erro de rede — sem isso, o cliente receberia a mesma resposta da IA
+// duplicada. Registros mais antigos que a janela de retry da Meta (7 dias)
+// podem ser limpos, mas não há job de limpeza automática ainda.
+model ProcessedWhatsappMessage {
+  id          String   @id // wamid da mensagem, ex: "wamid.HBgLM..."
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@map("processed_whatsapp_messages")
+}
+
 // Placeholder para a próxima fase (billing/Stripe) — schema já preparado,
 // sem lógica de cobrança implementada nesta passada.
 model Subscription {
