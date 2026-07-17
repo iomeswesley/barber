@@ -76,6 +76,8 @@
     padding: 0;
     font-family: "Open Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
     text-transform: uppercase;
+    overflow-x: hidden;
+    width: 100%;
   }
   /* Browsers reset text-transform to "none" on form controls in their UA stylesheet,
      so they don't inherit uppercase from body like normal text does — force it here. */
@@ -114,16 +116,6 @@
   html[data-theme="light"] header.topbar { background: rgba(238,240,243,0.7); }
   header.topbar .page-tabs { margin: 0; }
 
-  @media (max-width: 560px) {
-    header.topbar { padding: 12px 14px; }
-    .brand .titles h1 { font-size: 14.5px; }
-    .brand .titles p { font-size: 10px; }
-    .brand .logo { width: 36px; height: 36px; font-size: 17px; }
-    .topbar-right { width: 100%; justify-content: space-between; }
-    select.shop-select { flex: 1; min-width: 0; }
-    .link-back span.full { display: none; }
-    main { padding: 16px 14px; }
-  }
 
   .brand { display: flex; align-items: center; gap: 12px; }
   .brand .logo {
@@ -570,6 +562,52 @@
   }
   .form-row-3 { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
   @media (max-width: 560px) { .form-row-3 { grid-template-columns: 1fr; } }
+
+  /* ---------- Mobile: cabeçalho reestruturado ----------
+     Fica por último no stylesheet de propósito: várias regras acima
+     (.topbar-right, .tabs, .page-tabs) são redefinidas depois de onde
+     apareciam antes, então um bloco de mesma especificidade posicionado
+     mais cedo no arquivo perderia a cascata pra elas. */
+  @media (max-width: 560px) {
+    header.topbar { padding: 10px 12px; gap: 8px; }
+    .brand { order: 1; gap: 8px; min-width: 0; flex-shrink: 1; }
+    .brand .titles { min-width: 0; }
+    .brand .titles h1 {
+      font-size: 12.5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .brand .titles p { font-size: 9px; }
+    .brand .logo { width: 30px; height: 30px; font-size: 15px; border-radius: 9px; flex-shrink: 0; }
+    /* Marca + controles (tema/chat/sair) ficam juntos na 1ª linha do
+       cabeçalho, alinhados à direita da página. Os tabs de página viram
+       uma 2ª linha, ocupando 100% da largura e quebrando em várias linhas
+       em vez de exigir scroll lateral. */
+    .topbar-right { order: 2; width: auto; margin-left: auto; flex-shrink: 0; gap: 5px; }
+    #push-btn.icon-btn { width: 26px; height: 26px; font-size: 12px; }
+    .theme-switch { width: 40px; height: 22px; }
+    .theme-switch .knob { width: 16px; height: 16px; font-size: 9px; }
+    html[data-theme="light"] .theme-switch .knob { transform: translateX(18px); }
+    .link-back { padding: 6px 8px; font-size: 11.5px; }
+    header.topbar .page-tabs {
+      order: 3;
+      flex-basis: 100%;
+      width: 100%;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      border-radius: 14px;
+    }
+    header.topbar .page-tabs button {
+      flex: 1 1 auto;
+      padding: 7px 6px;
+      font-size: 10.5px;
+      white-space: nowrap;
+    }
+    select.shop-select { flex: 1; min-width: 0; }
+    .link-back span.full { display: none; }
+    main { padding: 16px 14px; }
+  }
 </style>
 </head>
 <body>
