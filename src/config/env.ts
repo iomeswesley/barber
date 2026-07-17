@@ -20,6 +20,13 @@ const envSchema = z.object({
     .default("false")
     .transform((v) => v === "true"),
   ANTHROPIC_API_KEY: z.string().optional(),
+  // URL pública de onde o app é servido (ex: https://barbearia-saas-jet.vercel.app),
+  // sem barra no final. Usada só pra montar links absolutos em canais sem
+  // contexto de navegador (WhatsApp, SMS) — no chat.html (simulador dentro
+  // do navegador) um caminho relativo já funciona, então isso fica opcional;
+  // sem ela, os links caem de volta pra caminho relativo (só funciona no
+  // simulador, quebrado se mandado por WhatsApp de verdade).
+  PUBLIC_BASE_URL: z.string().optional(),
   // WhatsApp Cloud API (Meta) — todos opcionais: sem eles, o envio real de
   // WhatsApp fica desligado (stub que só loga no console, igual antes).
   WHATSAPP_ACCESS_TOKEN: z.string().optional(),

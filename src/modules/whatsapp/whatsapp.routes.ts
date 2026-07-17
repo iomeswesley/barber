@@ -52,7 +52,7 @@ whatsappRouter.post("/api/whatsapp/webhook", async (req, res) => {
         const value = change.value;
         const phoneNumberId = value?.metadata?.phone_number_id;
         const message = value?.messages?.[0];
-        if (!phoneNumberId || !message || message.type !== "text" || !message.text?.body) continue;
+        if (!phoneNumberId || !message) continue;
 
         const barbershop = await getBarbershopByWhatsappPhoneNumberId(phoneNumberId);
         if (!barbershop) {
@@ -62,6 +62,18 @@ whatsappRouter.post("/api/whatsapp/webhook", async (req, res) => {
 
         const from = message.from!;
         const pushName = value?.contacts?.[0]?.profile?.name;
+
+        // Áudio, foto, figurinha etc. não vão pra IA (só entende texto) —
+        // sem isso, o cliente mandaria algo e não receberia resposta
+        // nenhuma, parecendo que o bot travou.
+        if (message.type !== "text" || !message.text?.body) {
+          await sendWhatsappText(
+            phoneNumberId,
+            from,
+            "Por enquanto só consigo entender mensagens de texto 🙏 Pode escrever o que você precisa?"
+          );
+          continue;
+        }
 
         const reply = await sendMessage(barbershop.id, from, message.text.body, from, pushName);
         await sendWhatsappText(phoneNumberId, from, reply);

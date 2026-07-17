@@ -18,6 +18,7 @@ import { createReview } from "@/modules/reviews/reviews.repository.js";
 import { createEscalation } from "@/modules/escalations/escalations.repository.js";
 import { notifyNewAppointment } from "@/modules/push/push.service.js";
 import { prisma } from "@/lib/prisma.js";
+import { env } from "@/config/env.js";
 import type { Barbershop, Prisma } from "@prisma/client";
 
 const client = new Anthropic();
@@ -33,6 +34,10 @@ const WEEKDAYS = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "q
 
 function formatPrice(cents: number): string {
   return `R$ ${Math.round(cents / 100)}`;
+}
+
+function icsUrl(appointmentId: number): string {
+  return `${env.PUBLIC_BASE_URL || ""}/api/appointments/${appointmentId}/ics`;
 }
 
 // Rede de segurança: mesmo instruído a usar negrito de UM asterisco (sintaxe
@@ -244,7 +249,7 @@ async function executeTool(barbershop: Barbershop, name: string, input: any, cus
         confirmado: true,
         resumo: `${appointment.serviceName} com ${appointment.barberName} em ${appointment.date} às ${appointment.startTime}`,
         preco: formatPrice(appointment.priceCents),
-        ics_url: `/api/appointments/${appointment.id}/ics`,
+        ics_url: icsUrl(appointment.id),
       };
     }
     case "listar_meus_agendamentos": {
@@ -272,7 +277,7 @@ async function executeTool(barbershop: Barbershop, name: string, input: any, cus
         throw new Error("Agendamento não encontrado para este cliente.");
       }
       const updated = await rescheduleAppointment(input.agendamento_id, input.nova_data, input.novo_horario);
-      return { reagendado: true, agendamento_id: updated.id, nova_data: updated.date, novo_horario: updated.startTime, ics_url: `/api/appointments/${updated.id}/ics` };
+      return { reagendado: true, agendamento_id: updated.id, nova_data: updated.date, novo_horario: updated.startTime, ics_url: icsUrl(updated.id) };
     }
     case "registrar_avaliacao": {
       const appointment = await getAppointmentById(input.agendamento_id);
