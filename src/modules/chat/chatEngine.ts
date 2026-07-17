@@ -35,6 +35,13 @@ function formatPrice(cents: number): string {
   return `R$ ${Math.round(cents / 100)}`;
 }
 
+// Rede de segurança: mesmo instruído a usar negrito de UM asterisco (sintaxe
+// do WhatsApp), o modelo às vezes escorrega pro **negrito** padrão de
+// Markdown — que o WhatsApp não entende e mostra os asteriscos soltos.
+function normalizeWhatsappFormatting(text: string): string {
+  return text.replace(/\*\*(.+?)\*\*/g, "*$1*");
+}
+
 function buildStableSystemPrompt(barbershop: Barbershop & { opensAt?: string; closesAt?: string }): string {
   return `Você é o assistente virtual de agendamentos da "${barbershop.name}", conversando por WhatsApp com clientes.
 
@@ -60,7 +67,8 @@ Quando encaminhar para atendimento humano:
 Regras de estilo:
 - Seja cordial, direto e breve, como uma conversa real de WhatsApp — sem parágrafos longos.
 - Não invente serviços, barbeiros, preços, horários ou IDs de agendamento: sempre use as ferramentas para obter dados reais.
-- Se o cliente pedir algo fora do escopo que não seja uma reclamação séria ou emergência (ex: pergunta geral), responda educadamente e redirecione para o agendamento.`;
+- Se o cliente pedir algo fora do escopo que não seja uma reclamação séria ou emergência (ex: pergunta geral), responda educadamente e redirecione para o agendamento.
+- Formatação: isto é WhatsApp, não Markdown. Para negrito use UM asterisco de cada lado (*assim*), NUNCA dois (**assim** está errado e aparece quebrado pro cliente). Para itálico use underline (_assim_). Não use markdown de título (#), link ([]()) nem tabelas.`;
 }
 
 interface Identity {
@@ -345,7 +353,7 @@ export async function sendMessage(
           .map((b) => b.text)
           .join("\n")
           .trim();
-        return text || "Desculpe, pode repetir?";
+        return normalizeWhatsappFormatting(text) || "Desculpe, pode repetir?";
       }
 
       const toolResults: Anthropic.ToolResultBlockParam[] = [];
