@@ -725,7 +725,7 @@
     <div class="chart-head">
       <div>
         <h2>Ocupação por hora do dia</h2>
-        <div class="hint">Média de ocupação de cada horário, somando todos os dias (horários fechados não entram)</div>
+        <div class="hint" id="occupancy-hint">Média de ocupação de cada horário (horários fechados não entram)</div>
       </div>
       <div class="tabs" id="occupancy-range-tabs">
         <button data-range="week" class="active">Esta semana</button>
@@ -733,6 +733,7 @@
         <button data-range="3months">Últimos 3 meses</button>
       </div>
     </div>
+    <div class="tabs" id="occupancy-weekday-tabs" style="margin-top:10px; flex-wrap:wrap;"></div>
     <div class="chart-wrap"><canvas id="occupancy-chart"></canvas></div>
   </div>
 
@@ -1197,9 +1198,38 @@ async function loadRevenueChart() {
 }
 
 /* ---------------- Taxa de ocupação por horário ---------------- */
+let currentOccupancyWeekday; // undefined = todos os dias somados
+let occupancyWeekdayTabsPopulated = false;
+
+async function populateOccupancyWeekdayTabs() {
+  if (occupancyWeekdayTabsPopulated) return;
+  const hours = await (await fetch("/api/manage/business-hours")).json();
+  const openWeekdays = hours.filter((h) => !h.closed).map((h) => h.weekday).sort((a, b) => a - b);
+  const container = document.getElementById("occupancy-weekday-tabs");
+  container.innerHTML =
+    `<button data-weekday="" class="active">Todos os dias</button>` +
+    openWeekdays.map((wd) => `<button data-weekday="${wd}">${WEEKDAY_LABELS[wd]}</button>`).join("");
+  container.querySelectorAll("button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      container.querySelectorAll("button").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentOccupancyWeekday = btn.dataset.weekday === "" ? undefined : Number(btn.dataset.weekday);
+      loadOccupancyChart();
+    });
+  });
+  occupancyWeekdayTabsPopulated = true;
+}
+
 async function loadOccupancyChart() {
-  const res = await fetch(`/api/dashboard/occupancy-by-hour?range=${currentOccupancyRange}`);
-  const data = await res.json();
+  await populateOccupancyWeekdayTabs();
+  const params = new URLSearchParams({ range: currentOccupancyRange });
+  if (currentOccupancyWeekday !== undefined) params.set("weekday", currentOccupancyWeekday);
+  const data = await (await fetch(`/api/dashboard/occupancy-by-hour?${params}`)).json();
+
+  document.getElementById("occupancy-hint").textContent =
+    currentOccupancyWeekday === undefined
+      ? "Média de ocupação de cada horário, somando todos os dias (horários fechados não entram)"
+      : `Média de ocupação de cada horário — ${WEEKDAY_FULL_LABELS[currentOccupancyWeekday]}`;
 
   const labels = data.map((d) => `${d.hour}h`);
   const values = data.map((d) => d.occupancy_percent);

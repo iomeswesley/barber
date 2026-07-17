@@ -41,7 +41,10 @@ dashboardRouter.get("/api/dashboard/revenue-trend", requireAuth, requireOwner, a
 
 dashboardRouter.get("/api/dashboard/occupancy-by-hour", requireAuth, requireOwner, async (req, res) => {
   const range = ["week", "month", "3months"].includes(req.query.range as string) ? (req.query.range as string) : "month";
-  const rows = await getOccupancyByHour(req.session.user!.barbershopId, range);
+  const weekdayRaw = req.query.weekday;
+  const weekday =
+    weekdayRaw !== undefined && /^[0-6]$/.test(String(weekdayRaw)) ? Number(weekdayRaw) : undefined;
+  const rows = await getOccupancyByHour(req.session.user!.barbershopId, range, weekday);
   res.json(rows.map((r) => ({ hour: r.hour, occupancy_percent: r.occupancyPercent })));
 });
 

@@ -264,7 +264,12 @@ export async function getRevenueDaily(barbershopId: number, range: string) {
 // quantos minutos estavam disponíveis (nº de barbeiros ativos × horas abertas
 // naquele bucket, em todos os dias do período) — dá um % que já pondera dias
 // fechados e agendamentos mais curtos que 1h corretamente.
-export async function getOccupancyByHour(barbershopId: number, range: string) {
+//
+// `weekday` (0=Dom...6=Sáb) é opcional: se informado, considera só os dias do
+// período que caem naquele dia da semana (e usa o horário de funcionamento
+// específico dele pra definir o range de horas). Se aquele dia estiver
+// marcado como fechado nas configurações, devolve uma lista vazia.
+export async function getOccupancyByHour(barbershopId: number, range: string, weekday?: number) {
   const now = new Date();
   let days: number;
   if (range === "week") days = 7;
@@ -276,9 +281,11 @@ export async function getOccupancyByHour(barbershopId: number, range: string) {
   const barbers = await getBarbers(barbershopId);
   const barberCount = Math.max(barbers.length, 1);
 
+  const relevantHours = weekday === undefined ? weekHours : weekHours.filter((h) => h.weekday === weekday);
+
   let minHour = 24;
   let maxHour = 0;
-  for (const h of weekHours) {
+  for (const h of relevantHours) {
     if (h.closed) continue;
     const openH = Math.floor(timeToMinutes(h.opensAt) / 60);
     const closeMin = timeToMinutes(h.closesAt);
@@ -287,6 +294,8 @@ export async function getOccupancyByHour(barbershopId: number, range: string) {
     maxHour = Math.max(maxHour, closeH);
   }
   if (minHour >= maxHour) {
+    // weekday específico e fechado (ou sem nenhuma config nos 7 dias) — nada pra mostrar.
+    if (weekday !== undefined) return [];
     minHour = 8;
     maxHour = 20;
   }
@@ -296,7 +305,9 @@ export async function getOccupancyByHour(barbershopId: number, range: string) {
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
-    dateList.push(localDateStr(d));
+    const ds = localDateStr(d);
+    if (weekday !== undefined && weekdayForDateStr(ds) !== weekday) continue;
+    dateList.push(ds);
   }
 
   const occupiedByHour = new Array(bucketCount).fill(0);
@@ -313,9 +324,12 @@ export async function getOccupancyByHour(barbershopId: number, range: string) {
     }
   }
 
+  if (dateList.length === 0) return [];
+
+  const dateSet = new Set(dateList);
   const appts = (
     await getAppointments({ barbershopId, dateFrom: dateList[0], dateTo: dateList[dateList.length - 1] })
-  ).filter((a) => a.status !== "no_show");
+  ).filter((a) => a.status !== "no_show" && dateSet.has(a.date));
   for (const a of appts) {
     const startMin = timeToMinutes(a.startTime);
     const endMin = timeToMinutes(a.endTime);
