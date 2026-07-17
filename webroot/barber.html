@@ -29,11 +29,11 @@
   .brand p { margin: 0; font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.6px; }
   .topbar-right { display: flex; align-items: center; gap: 10px; }
   button.logout {
-    border: 1px solid var(--card-border); background: var(--card-bg); color: var(--text-secondary);
+    border: 1px solid rgb(var(--color-bg) / 0); background: var(--danger-soft); color: var(--danger);
     padding: 8px 14px; border-radius: 10px; font-size: 12.5px; cursor: pointer;
-    transition: color .2s ease, border-color .2s ease;
+    transition: color .2s ease, border-color .2s ease, background-color .2s ease;
   }
-  button.logout:hover { color: var(--danger); border-color: var(--danger); }
+  button.logout:hover { color: #fff; background: var(--danger); border-color: var(--danger); }
 
   main { padding: 22px; max-width: 900px; margin: 0 auto; position: relative; z-index: 0; }
   .section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-muted); margin: 26px 2px 12px; font-weight: 700; }
