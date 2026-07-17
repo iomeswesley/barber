@@ -481,8 +481,9 @@
     transition: box-shadow .15s ease, transform .15s ease, z-index 0s;
   }
   .gcal-event:hover { box-shadow: 0 6px 18px -6px rgba(0,0,0,0.5); transform: translateY(-1px); z-index: 4; }
-  .gcal-event .gcal-event-time { display: block; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .gcal-event .gcal-event-client { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .85; }
+  .gcal-event { display: flex; align-items: baseline; gap: 5px; white-space: nowrap; }
+  .gcal-event .gcal-event-time { flex-shrink: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .gcal-event .gcal-event-client { overflow: hidden; text-overflow: ellipsis; opacity: .85; }
   .gcal-event.em_andamento { border-left-color: var(--warn); background: var(--warn-soft); }
   .gcal-event.concluido { border-left-color: var(--good); background: var(--good-soft); }
   .gcal-event.nao_compareceu { border-left-color: var(--danger); background: var(--danger-soft); opacity: .8; }
