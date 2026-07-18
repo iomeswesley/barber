@@ -163,6 +163,12 @@ model User {
   emailVerificationToken      String?   @unique @map("email_verification_token")
   emailVerificationExpiresAt  DateTime? @map("email_verification_expires_at")
 
+  // "Esqueci minha senha" — token separado do de verificação de e-mail (um
+  // pedido de reset não pode invalidar um convite de verificação pendente,
+  // e vice-versa).
+  passwordResetToken      String?   @unique @map("password_reset_token")
+  passwordResetExpiresAt  DateTime? @map("password_reset_expires_at")
+
   barbershop        Barbershop         @relation(fields: [barbershopId], references: [id])
   barber            Barber?            @relation(fields: [barberId], references: [id])
   pushSubscriptions PushSubscription[]

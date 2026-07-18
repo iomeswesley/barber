@@ -1,9 +1,12 @@
 import { Router } from "express";
-import { verifyPassword } from "@/lib/auth.js";
-import { loginRateLimiter } from "@/middleware/rateLimiter.js";
+import { verifyPassword, hashPassword } from "@/lib/auth.js";
+import { loginRateLimiter, selfServiceRateLimiter } from "@/middleware/rateLimiter.js";
 import { requireAuth } from "@/middleware/auth.js";
 import { AppError } from "@/middleware/errorHandler.js";
-import { getUserByUsername, getUserById } from "./users.repository.js";
+import { prisma } from "@/lib/prisma.js";
+import { generateVerificationToken, passwordResetTokenExpiry, sendPasswordResetEmail } from "@/lib/email.js";
+import { env } from "@/config/env.js";
+import { getUserByUsername, getUserById, getUserByEmail } from "./users.repository.js";
 import { getBarbershop } from "@/modules/barbershops/barbershops.repository.js";
 
 export const authRouter = Router();
@@ -40,6 +43,60 @@ authRouter.post("/api/auth/login", loginRateLimiter, async (req, res, next) => {
 
 authRouter.post("/api/auth/logout", (req, res) => {
   req.session.destroy(() => res.json({ ok: true }));
+});
+
+// Sempre responde { ok: true }, exista ou não o e-mail — evita que a rota
+// vire uma forma de descobrir se um e-mail está cadastrado no sistema
+// (enumeração de contas).
+authRouter.post("/api/auth/forgot-password", selfServiceRateLimiter, async (req, res, next) => {
+  try {
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    if (!email) throw new AppError("E-mail é obrigatório");
+
+    const user = await getUserByEmail(email);
+    if (user) {
+      const token = generateVerificationToken();
+      const expiresAt = passwordResetTokenExpiry();
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { passwordResetToken: token, passwordResetExpiresAt: expiresAt },
+      });
+      const resetUrl = `${env.PUBLIC_BASE_URL || ""}/redefinir-senha.html?token=${token}`;
+      try {
+        await sendPasswordResetEmail(user.email!, user.name, resetUrl);
+      } catch (err) {
+        console.error("[EMAIL] Falha ao enviar redefinição de senha:", err);
+      }
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+authRouter.post("/api/auth/reset-password", selfServiceRateLimiter, async (req, res, next) => {
+  try {
+    const { token, password } = req.body || {};
+    if (!token || !password) throw new AppError("Token e nova senha são obrigatórios");
+    if (String(password).length < 8) throw new AppError("A senha precisa ter pelo menos 8 caracteres");
+
+    const user = await prisma.user.findUnique({ where: { passwordResetToken: String(token) } });
+    if (!user || !user.passwordResetExpiresAt || user.passwordResetExpiresAt < new Date()) {
+      throw new AppError("Link inválido ou expirado. Peça uma nova redefinição.", 400);
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash: hashPassword(String(password)),
+        passwordResetToken: null,
+        passwordResetExpiresAt: null,
+      },
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
 });
 
 authRouter.get("/api/auth/me", requireAuth, async (req, res) => {

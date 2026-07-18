@@ -41,3 +41,31 @@ export async function sendVerificationEmail(to: string, ownerName: string, verif
   });
   if (error) throw new Error(`Resend: ${error.message}`);
 }
+
+// Reset de senha usa o mesmo formato de token, mas expira bem mais rápido
+// (1h) — é uma ação sensível (troca de senha), diferente da confirmação de
+// cadastro que não tranca nada enquanto pendente.
+export function passwordResetTokenExpiry(): Date {
+  const d = new Date();
+  d.setHours(d.getHours() + 1);
+  return d;
+}
+
+export async function sendPasswordResetEmail(to: string, name: string, resetUrl: string): Promise<void> {
+  if (!resend) {
+    console.log(`[EMAIL] (stub, RESEND_API_KEY não configurado) Redefinição de senha para ${to}: ${resetUrl}`);
+    return;
+  }
+  const { error } = await resend.emails.send({
+    from: env.EMAIL_FROM,
+    to,
+    subject: "Redefinir sua senha — Painel da Barbearia",
+    html: `
+      <p>Oi, ${name}!</p>
+      <p>Pediram a redefinição da senha da sua conta. Se foi você, clique no link abaixo:</p>
+      <p><a href="${resetUrl}">${resetUrl}</a></p>
+      <p>Esse link expira em 1 hora. Se não foi você, pode ignorar este e-mail.</p>
+    `,
+  });
+  if (error) throw new Error(`Resend: ${error.message}`);
+}
