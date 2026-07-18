@@ -1248,36 +1248,32 @@ async function loadOccupancyChart() {
   const gridColor = isDark() ? "rgba(255,255,255,0.06)" : "rgba(20,22,28,0.06)";
   const tickColor = cssVar("--text-muted") || "#888";
 
-  // Mesma assinatura visual do gráfico de faturamento (barras com gradiente
-  // dourado) — só que com duas variantes alternadas por dia da semana, pra
-  // reforçar visualmente onde um grupo termina e o outro começa.
-  const gradientA = ctx.createLinearGradient(0, 0, 0, 260);
-  gradientA.addColorStop(0, isDark() ? "#f0d585" : "#c99a3a");
-  gradientA.addColorStop(1, gold);
-  const gradientB = ctx.createLinearGradient(0, 0, 0, 260);
-  gradientB.addColorStop(0, isDark() ? "#c9a259" : "#a9822f");
-  gradientB.addColorStop(1, isDark() ? "#8a6a2f" : "#7a5f28");
-  const hoverGradient = ctx.createLinearGradient(0, 0, 0, 260);
-  hoverGradient.addColorStop(0, "#f5d061");
-  hoverGradient.addColorStop(1, "#f0d585");
-
-  const barColors = data.map((d) => (d.weekday % 2 === 0 ? gradientA : gradientB));
+  // Curva com área preenchida — o mesmo estilo que o gráfico de faturamento
+  // usava antes de virar barra. As linhas verticais do plugin de dia da
+  // semana são desenhadas por cima (afterDraw), então "cortam" visualmente
+  // a curva bem na troca de um dia pro outro.
+  const gradient = ctx.createLinearGradient(0, 0, 0, 260);
+  gradient.addColorStop(0, isDark() ? "rgba(212,175,106,0.45)" : "rgba(156,107,31,0.30)");
+  gradient.addColorStop(1, "rgba(212,175,106,0.0)");
 
   if (occupancyChart) occupancyChart.destroy();
   occupancyChart = new Chart(ctx, {
-    type: "bar",
+    type: "line",
     data: {
       labels,
       datasets: [{
         label: "Ocupação",
         data: values,
-        backgroundColor: barColors,
-        hoverBackgroundColor: hoverGradient,
-        borderRadius: 6,
-        borderSkipped: "bottom",
-        barPercentage: 0.7,
-        categoryPercentage: 0.85,
-        maxBarThickness: 22,
+        borderColor: gold,
+        backgroundColor: gradient,
+        fill: true,
+        tension: 0.35,
+        borderWidth: 2.5,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        pointBackgroundColor: gold,
+        pointBorderColor: isDark() ? "#0a0c11" : "#ffffff",
+        pointBorderWidth: 1.5,
       }],
     },
     options: {
