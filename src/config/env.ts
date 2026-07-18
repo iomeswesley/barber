@@ -43,6 +43,11 @@ const envSchema = z.object({
   // Monitoramento de erro (Sentry) — opcional: sem DSN configurado, fica
   // completamente desligado (sem custo, sem dependência de rede em dev).
   SENTRY_DSN: z.string().optional(),
+  // E-mail transacional (Resend) — opcional: sem API key, o cadastro
+  // continua funcionando, só não manda o e-mail de confirmação (fica
+  // registrado no console, igual ao stub do WhatsApp antes de configurado).
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().default("onboarding@resend.dev"),
 });
 
 const parsed = envSchema.safeParse(process.env);

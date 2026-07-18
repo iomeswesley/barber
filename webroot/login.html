@@ -72,6 +72,7 @@
     <h1>Painel da Barbearia</h1>
     <p class="hint">Entre com seu usuário e senha</p>
     <div class="error" id="error-box"></div>
+    <div id="verify-notice" style="display:none; padding:8px 12px; border-radius:8px; font-size:12.5px; margin-bottom:14px;"></div>
     <form id="login-form">
       <label>Usuário</label>
       <input id="username" type="text" autocomplete="username" />
@@ -93,6 +94,25 @@
 <script>
 const form = document.getElementById("login-form");
 const errorBox = document.getElementById("error-box");
+
+const verified = new URLSearchParams(location.search).get("verified");
+if (verified) {
+  const notice = document.getElementById("verify-notice");
+  if (verified === "1") {
+    notice.textContent = "E-mail confirmado! Pode entrar normalmente.";
+    notice.style.background = "var(--good-soft)";
+    notice.style.color = "var(--good)";
+  } else if (verified === "expired") {
+    notice.textContent = "Esse link de confirmação expirou. Entre e peça pra reenviar.";
+    notice.style.background = "var(--warn-soft)";
+    notice.style.color = "var(--warn)";
+  } else {
+    notice.textContent = "Não foi possível confirmar o e-mail.";
+    notice.style.background = "var(--danger-soft)";
+    notice.style.color = "var(--danger)";
+  }
+  notice.style.display = "block";
+}
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();

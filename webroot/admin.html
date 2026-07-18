@@ -643,6 +643,11 @@
 
 <main>
 
+  <div id="email-verify-banner" style="display:none; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; background:var(--warn-soft); border:1px solid var(--card-border); border-radius:14px; padding:10px 16px; margin-bottom:16px; font-size:12.5px; color:var(--text-primary);">
+    <span>📧 Confirme seu e-mail pra garantir o acesso à sua conta.</span>
+    <button class="btn-secondary" id="resend-verify-btn" style="padding:6px 12px; font-size:12px;">Reenviar e-mail</button>
+  </div>
+
   <div id="page-overview" class="page-section">
   <div class="alert-banner" id="alert-banner" style="display:none;"></div>
   <div class="section-title">Visão geral do mês</div>
@@ -1051,7 +1056,33 @@ async function loadMe() {
   }
   const me = await res.json();
   shopLabel.textContent = me.barbershopName || "Barbearia";
+  // Contas do seed/demo não têm e-mail cadastrado — só mostra o aviso pra
+  // quem tem e-mail mas ainda não confirmou.
+  if (me.email && !me.emailVerified) {
+    document.getElementById("email-verify-banner").style.display = "flex";
+  }
 }
+
+document.getElementById("resend-verify-btn").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  btn.textContent = "Enviando...";
+  try {
+    const res = await fetch("/api/auth/resend-verification", { method: "POST" });
+    const data = await res.json();
+    if (res.ok) {
+      btn.textContent = "E-mail enviado ✓";
+    } else {
+      btn.disabled = false;
+      btn.textContent = "Reenviar e-mail";
+      await showAlertModal(data.error || "Erro ao reenviar e-mail");
+    }
+  } catch {
+    btn.disabled = false;
+    btn.textContent = "Reenviar e-mail";
+    await showAlertModal("Erro de conexão com o servidor.");
+  }
+});
 
 document.getElementById("logout-btn").addEventListener("click", async () => {
   await fetch("/api/auth/logout", { method: "POST" });

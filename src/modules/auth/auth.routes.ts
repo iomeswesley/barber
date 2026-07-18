@@ -3,7 +3,7 @@ import { verifyPassword } from "@/lib/auth.js";
 import { loginRateLimiter } from "@/middleware/rateLimiter.js";
 import { requireAuth } from "@/middleware/auth.js";
 import { AppError } from "@/middleware/errorHandler.js";
-import { getUserByUsername } from "./users.repository.js";
+import { getUserByUsername, getUserById } from "./users.repository.js";
 import { getBarbershop } from "@/modules/barbershops/barbershops.repository.js";
 
 export const authRouter = Router();
@@ -43,6 +43,14 @@ authRouter.post("/api/auth/logout", (req, res) => {
 });
 
 authRouter.get("/api/auth/me", requireAuth, async (req, res) => {
-  const shop = await getBarbershop(req.session.user!.barbershopId);
-  res.json({ ...req.session.user, barbershopName: shop?.name || null });
+  const [shop, user] = await Promise.all([
+    getBarbershop(req.session.user!.barbershopId),
+    getUserById(req.session.user!.id),
+  ]);
+  res.json({
+    ...req.session.user,
+    barbershopName: shop?.name || null,
+    email: user?.email || null,
+    emailVerified: !!user?.emailVerifiedAt,
+  });
 });

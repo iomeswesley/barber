@@ -155,6 +155,14 @@ model User {
   passwordHash String   @map("password_hash")
   name         String
 
+  // Opcional a nível de schema (usuários do seed/demo não têm) mas exigido
+  // pela rota de cadastro pra contas novas. Token de confirmação enviado por
+  // e-mail no signup — nulo depois de verificado ou se nunca chegou a pedir.
+  email                       String?   @unique
+  emailVerifiedAt             DateTime? @map("email_verified_at")
+  emailVerificationToken      String?   @unique @map("email_verification_token")
+  emailVerificationExpiresAt  DateTime? @map("email_verification_expires_at")
+
   barbershop        Barbershop         @relation(fields: [barbershopId], references: [id])
   barber            Barber?            @relation(fields: [barberId], references: [id])
   pushSubscriptions PushSubscription[]
