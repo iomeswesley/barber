@@ -23,7 +23,12 @@ export async function sendVerificationEmail(to: string, ownerName: string, verif
     console.log(`[EMAIL] (stub, RESEND_API_KEY não configurado) Confirmação para ${to}: ${verifyUrl}`);
     return;
   }
-  await resend.emails.send({
+  // O SDK do Resend não lança exceção em erro da API — devolve
+  // { data, error } e a promise resolve normalmente. Sem checar isso à
+  // mão, uma falha de envio (ex: domínio não verificado) passaria
+  // silenciosamente, sem log nenhum e sem o try/catch de quem chama nunca
+  // disparar.
+  const { error } = await resend.emails.send({
     from: env.EMAIL_FROM,
     to,
     subject: "Confirme seu e-mail — Painel da Barbearia",
@@ -34,4 +39,5 @@ export async function sendVerificationEmail(to: string, ownerName: string, verif
       <p>Esse link expira em 24 horas.</p>
     `,
   });
+  if (error) throw new Error(`Resend: ${error.message}`);
 }
