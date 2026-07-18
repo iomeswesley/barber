@@ -42,3 +42,23 @@ export function updateClientBirthday(clientId: number, birthday: string | null) 
     data: { birthday: birthday ? new Date(birthday) : null },
   });
 }
+
+// Direito de exclusão (LGPD). Client é global (mesma identidade em qualquer
+// barbearia do SaaS que o telefone já tenha atendido) — anonimiza em vez de
+// apagar a linha, porque Appointment/Review/ProductSale/Escalation têm FK
+// obrigatória pra clientId, e os registros financeiros/de agenda da
+// barbearia precisam continuar existindo por obrigação contábil própria do
+// negócio. O telefone vira um valor único não reaproveitável, então a
+// pessoa não fica "presa": se quiser voltar, cadastra de novo com o mesmo
+// número.
+export function anonymizeClient(clientId: number) {
+  return prisma.client.update({
+    where: { id: clientId },
+    data: {
+      name: "Cliente removido",
+      phone: `removido-${clientId}-${Date.now()}`,
+      birthday: null,
+      marketingOptIn: false,
+    },
+  });
+}

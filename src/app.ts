@@ -22,6 +22,7 @@ import { dashboardRouter } from "@/modules/dashboard/dashboard.routes.js";
 import { chatRouter } from "@/modules/chat/chat.routes.js";
 import { whatsappRouter } from "@/modules/whatsapp/whatsapp.routes.js";
 import { onboardingRouter } from "@/modules/onboarding/onboarding.routes.js";
+import { clientsRouter } from "@/modules/clients/clients.routes.js";
 
 const PgSession = connectPgSimple(session);
 
@@ -119,6 +120,7 @@ export function createApp() {
   app.use(chatRouter);
   app.use(whatsappRouter);
   app.use(onboardingRouter);
+  app.use(clientsRouter);
 
   app.use("/api", notFoundHandler);
   app.use(errorHandler);
