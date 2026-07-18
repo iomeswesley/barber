@@ -36,8 +36,12 @@ function formatPrice(cents: number): string {
   return `R$ ${Math.round(cents / 100)}`;
 }
 
-function icsUrl(appointmentId: number): string {
-  return `${env.PUBLIC_BASE_URL || ""}/api/appointments/${appointmentId}/ics`;
+// O telefone vai como query param e a rota confere contra o dono do
+// agendamento — sem isso, o link (que sai sem login nenhum, direto no
+// WhatsApp) deixaria qualquer pessoa baixar o .ics de qualquer agendamento
+// só incrementando o ID na URL.
+function icsUrl(appointmentId: number, phone: string): string {
+  return `${env.PUBLIC_BASE_URL || ""}/api/appointments/${appointmentId}/ics?phone=${encodeURIComponent(phone)}`;
 }
 
 // Rede de segurança: mesmo instruído a usar negrito de UM asterisco (sintaxe
@@ -256,7 +260,7 @@ async function executeTool(barbershop: Barbershop, name: string, input: any, cus
         confirmado: true,
         resumo: `${appointment.serviceName} com ${appointment.barberName} em ${appointment.date} às ${appointment.startTime}`,
         preco: formatPrice(appointment.priceCents),
-        ics_url: icsUrl(appointment.id),
+        ics_url: icsUrl(appointment.id, customerPhone),
       };
     }
     case "listar_meus_agendamentos": {
@@ -284,7 +288,7 @@ async function executeTool(barbershop: Barbershop, name: string, input: any, cus
         throw new Error("Agendamento não encontrado para este cliente.");
       }
       const updated = await rescheduleAppointment(input.agendamento_id, input.nova_data, input.novo_horario);
-      return { reagendado: true, agendamento_id: updated.id, nova_data: updated.date, novo_horario: updated.startTime, ics_url: icsUrl(updated.id) };
+      return { reagendado: true, agendamento_id: updated.id, nova_data: updated.date, novo_horario: updated.startTime, ics_url: icsUrl(updated.id, customerPhone) };
     }
     case "registrar_avaliacao": {
       const appointment = await getAppointmentById(input.agendamento_id);
@@ -300,21 +304,34 @@ async function executeTool(barbershop: Barbershop, name: string, input: any, cus
   }
 }
 
-export async function resetSession(sessionId: string) {
-  await prisma.chatSession.deleteMany({ where: { sessionId } });
+// sessionId sozinho não é único entre tenants — no fluxo real do WhatsApp
+// ele É o telefone do cliente (webhook chama sendMessage(shop.id, from, ...,
+// from, ...)), e o mesmo telefone pode falar com barbearias diferentes
+// (tenants diferentes) nesse SaaS. Como chat_sessions.session_id é chave
+// primária, duas barbearias distintas colidiriam na mesma linha e uma
+// sobrescreveria (upsert) o histórico da outra silenciosamente. Compor a
+// chave de armazenamento com o barbershopId resolve isso sem precisar
+// migrar o schema.
+function storageKey(barbershopId: number, sessionId: string): string {
+  return `${barbershopId}:${sessionId}`;
+}
+
+export async function resetSession(sessionId: string, barbershopId: number) {
+  await prisma.chatSession.deleteMany({ where: { sessionId: storageKey(barbershopId, sessionId) } });
 }
 
 async function loadSession(sessionId: string, barbershopId: number): Promise<ChatSession> {
-  const row = await prisma.chatSession.findUnique({ where: { sessionId } });
-  if (!row || row.barbershopId !== barbershopId) return { barbershopId, messages: [] };
+  const row = await prisma.chatSession.findUnique({ where: { sessionId: storageKey(barbershopId, sessionId) } });
+  if (!row) return { barbershopId, messages: [] };
   return { barbershopId, messages: row.messages as unknown as Anthropic.MessageParam[] };
 }
 
 async function saveSession(sessionId: string, session: ChatSession) {
+  const key = storageKey(session.barbershopId, sessionId);
   await prisma.chatSession.upsert({
-    where: { sessionId },
-    create: { sessionId, barbershopId: session.barbershopId, messages: session.messages as unknown as Prisma.InputJsonValue },
-    update: { barbershopId: session.barbershopId, messages: session.messages as unknown as Prisma.InputJsonValue },
+    where: { sessionId: key },
+    create: { sessionId: key, barbershopId: session.barbershopId, messages: session.messages as unknown as Prisma.InputJsonValue },
+    update: { messages: session.messages as unknown as Prisma.InputJsonValue },
   });
 }
 

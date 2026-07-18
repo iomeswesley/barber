@@ -323,6 +323,19 @@ model ProcessedWhatsappMessage {
   @@map("processed_whatsapp_messages")
 }
 
+// Backing dos rate limiters (login, chat, autoatendimento público) — em
+// Postgres em vez de Map em memória, porque em serverless cada instância
+// teria seu próprio Map e o limite não valeria nada na prática (mesmo bug
+// que já mordeu o histórico de chat antes de virar chat_sessions no banco).
+model RateLimitHit {
+  id        Int      @id @default(autoincrement())
+  key       String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([key, createdAt])
+  @@map("rate_limit_hits")
+}
+
 // Placeholder para a próxima fase (billing/Stripe) — schema já preparado,
 // sem lógica de cobrança implementada nesta passada.
 model Subscription {

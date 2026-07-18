@@ -10,9 +10,21 @@
 // então cada mapeador espelha o shape exato observado no server.js/db.js originais.
 
 import type { AppointmentDTO } from "@/modules/appointments/appointments.types.js";
-import type { Barber, Service, Product, TimeBlock, Escalation, AuditLog, BusinessHours } from "@prisma/client";
+import type { Barber, Service, Product, TimeBlock, Escalation, AuditLog, BusinessHours, Barbershop } from "@prisma/client";
 import type { ClientStatsRow } from "@/modules/dashboard/clientStats.service.js";
 import { localDateStr } from "@/lib/time.js";
+
+// Usado só na rota pública /api/barbershops (tela de reserva sem login) —
+// omite whatsapp_phone_number_id e created_at, que não têm por que sair pra
+// quem não está autenticado.
+export function toApiBarbershopPublic(b: Barbershop) {
+  return {
+    id: b.id,
+    name: b.name,
+    address: b.address,
+    phone: b.phone,
+  };
+}
 
 export function toApiAppointment(a: AppointmentDTO & { computedStatus?: string }) {
   return {

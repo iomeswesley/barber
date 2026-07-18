@@ -115,9 +115,12 @@ appointmentsRouter.post("/api/public/appointments/:id/reschedule", selfServiceRa
   }
 });
 
-appointmentsRouter.get("/api/appointments/:id/ics", async (req, res) => {
+appointmentsRouter.get("/api/appointments/:id/ics", selfServiceRateLimiter, async (req, res) => {
   const appointment = await getAppointmentByIdRaw(Number(req.params.id));
-  if (!appointment) return res.status(404).send("Agendamento não encontrado");
+  const normalizedPhone = normalizePhone(req.query?.phone);
+  if (!appointment || !normalizedPhone || appointment.clientPhone !== normalizedPhone) {
+    return res.status(404).send("Agendamento não encontrado");
+  }
 
   const ics = generateIcs(appointment);
   res.setHeader("Content-Type", "text/calendar; charset=utf-8");

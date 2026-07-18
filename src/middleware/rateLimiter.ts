@@ -1,71 +1,70 @@
 import type { NextFunction, Request, Response } from "express";
-
-const WINDOW_MS = 60_000;
-const MAX_REQUESTS_PER_WINDOW = 15;
-
-const hits = new Map<string, number[]>();
-
-function prune(list: number[], now: number, windowMs = WINDOW_MS) {
-  while (list.length && now - list[0]! > windowMs) list.shift();
-}
+import { prisma } from "@/lib/prisma.js";
 
 function normalizePhone(value: unknown): string {
   return String(value ?? "").replace(/\D/g, "");
 }
 
+// Backed por Postgres, não por Map em memória: em serverless cada instância
+// teria seu próprio Map, e o limite não valeria nada na prática assim que
+// requisições consecutivas caíssem em instâncias diferentes (mesmo bug que
+// já mordeu o histórico de chat antes de virar chat_sessions no banco).
+async function checkAndRecordHit(key: string, windowMs: number, maxRequests: number): Promise<boolean> {
+  const windowStart = new Date(Date.now() - windowMs);
+  const count = await prisma.rateLimitHit.count({ where: { key, createdAt: { gt: windowStart } } });
+  if (count >= maxRequests) return false;
+  await prisma.rateLimitHit.create({ data: { key } });
+  // Limpeza oportunista dos acertos vencidos dessa mesma chave, pra tabela
+  // não crescer sem limite sem precisar de um cron dedicado.
+  await prisma.rateLimitHit.deleteMany({ where: { key, createdAt: { lte: windowStart } } });
+  return true;
+}
+
+const WINDOW_MS = 60_000;
+const MAX_REQUESTS_PER_WINDOW = 15;
+
 // Rate-limita POST /api/chat por telefone do cliente (cai pro IP se faltar),
 // já que o mesmo número de WhatsApp poderia sobrecarregar o backend de IA.
-export function chatRateLimiter(req: Request, res: Response, next: NextFunction) {
-  const key = normalizePhone(req.body?.customerPhone) || req.ip || "unknown";
-  const now = Date.now();
-  const list = hits.get(key) || [];
-  prune(list, now);
-
-  if (list.length >= MAX_REQUESTS_PER_WINDOW) {
-    return res.status(429).json({ error: "Muitas mensagens em pouco tempo. Aguarde um instante e tente novamente." });
+export async function chatRateLimiter(req: Request, res: Response, next: NextFunction) {
+  try {
+    const key = `chat:${normalizePhone(req.body?.customerPhone) || req.ip || "unknown"}`;
+    if (!(await checkAndRecordHit(key, WINDOW_MS, MAX_REQUESTS_PER_WINDOW))) {
+      return res.status(429).json({ error: "Muitas mensagens em pouco tempo. Aguarde um instante e tente novamente." });
+    }
+    next();
+  } catch (err) {
+    next(err);
   }
-
-  list.push(now);
-  hits.set(key, list);
-  next();
 }
 
 const LOGIN_WINDOW_MS = 5 * 60_000;
 const MAX_LOGIN_ATTEMPTS_PER_WINDOW = 10;
-const loginHits = new Map<string, number[]>();
 
 // Rate-limita POST /api/auth/login por IP+username pra dificultar força bruta.
-export function loginRateLimiter(req: Request, res: Response, next: NextFunction) {
-  const username = String(req.body?.username || "").toLowerCase();
-  const key = `${req.ip}:${username}`;
-  const now = Date.now();
-  const list = loginHits.get(key) || [];
-  prune(list, now, LOGIN_WINDOW_MS);
-
-  if (list.length >= MAX_LOGIN_ATTEMPTS_PER_WINDOW) {
-    return res.status(429).json({ error: "Muitas tentativas de login. Aguarde alguns minutos e tente novamente." });
+export async function loginRateLimiter(req: Request, res: Response, next: NextFunction) {
+  try {
+    const username = String(req.body?.username || "").toLowerCase();
+    const key = `login:${req.ip}:${username}`;
+    if (!(await checkAndRecordHit(key, LOGIN_WINDOW_MS, MAX_LOGIN_ATTEMPTS_PER_WINDOW))) {
+      return res.status(429).json({ error: "Muitas tentativas de login. Aguarde alguns minutos e tente novamente." });
+    }
+    next();
+  } catch (err) {
+    next(err);
   }
-
-  list.push(now);
-  loginHits.set(key, list);
-  next();
 }
 
-const selfServiceHits = new Map<string, number[]>();
-
-// Rate-limita as rotas públicas de autoatendimento (cancelar/reagendar sem o chat)
-// por telefone, já que são não-autenticadas e só confiam no telefone como identidade.
-export function selfServiceRateLimiter(req: Request, res: Response, next: NextFunction) {
-  const key = normalizePhone(req.body?.phone ?? req.query?.phone) || req.ip || "unknown";
-  const now = Date.now();
-  const list = selfServiceHits.get(key) || [];
-  prune(list, now);
-
-  if (list.length >= MAX_REQUESTS_PER_WINDOW) {
-    return res.status(429).json({ error: "Muitas tentativas em pouco tempo. Aguarde um instante e tente novamente." });
+// Rate-limita as rotas públicas de autoatendimento (cancelar/reagendar/baixar
+// .ics sem passar pelo chat) por telefone, já que são não-autenticadas e só
+// confiam no telefone como identidade.
+export async function selfServiceRateLimiter(req: Request, res: Response, next: NextFunction) {
+  try {
+    const key = `self:${normalizePhone(req.body?.phone ?? req.query?.phone) || req.ip || "unknown"}`;
+    if (!(await checkAndRecordHit(key, WINDOW_MS, MAX_REQUESTS_PER_WINDOW))) {
+      return res.status(429).json({ error: "Muitas tentativas em pouco tempo. Aguarde um instante e tente novamente." });
+    }
+    next();
+  } catch (err) {
+    next(err);
   }
-
-  list.push(now);
-  selfServiceHits.set(key, list);
-  next();
 }

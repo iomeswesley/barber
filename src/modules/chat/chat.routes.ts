@@ -30,8 +30,8 @@ chatRouter.post("/api/chat", chatRateLimiter, async (req, res, next) => {
 
 chatRouter.post("/api/chat/reset", async (req, res, next) => {
   try {
-    const { sessionId } = req.body || {};
-    if (sessionId) await resetSession(sessionId);
+    const { sessionId, barbershopId } = req.body || {};
+    if (sessionId && barbershopId) await resetSession(sessionId, Number(barbershopId));
     res.json({ ok: true });
   } catch (err) {
     next(err);

@@ -9,13 +9,13 @@ import {
 } from "./barbershops.repository.js";
 import { getServices } from "@/modules/services/services.repository.js";
 import { getBarbers } from "@/modules/barbers/barbers.repository.js";
-import { toApiService, toApiBarber, toApiBusinessHours } from "@/lib/apiMappers.js";
+import { toApiService, toApiBarber, toApiBusinessHours, toApiBarbershopPublic } from "@/lib/apiMappers.js";
 
 export const barbershopsRouter = Router();
 
 // Rotas públicas — usadas pela tela de reserva antes do cliente se identificar.
 barbershopsRouter.get("/api/barbershops", async (_req, res) => {
-  res.json(await getBarbershops());
+  res.json((await getBarbershops()).map(toApiBarbershopPublic));
 });
 
 barbershopsRouter.get("/api/barbershops/:id/services", async (req, res) => {
