@@ -1201,7 +1201,10 @@ const weekdayGroupLinesPlugin = {
     const { weekdaysByIndex, lineColor, labelColor, font } = opts;
     const { ctx, chartArea } = chart;
     const meta = chart.getDatasetMeta(0);
-    const labelY = chartArea.bottom + 22;
+    // Baseado no fundo real do eixo X (depois dos rótulos de hora), não na
+    // área de plotagem — assim a folga não depende de adivinhar a altura da
+    // fonte do tick.
+    const labelY = chart.scales.x.bottom + 16;
 
     ctx.save();
     ctx.strokeStyle = lineColor;
@@ -1283,7 +1286,7 @@ async function loadOccupancyChart() {
       interaction: { mode: "index", intersect: false },
       // Espaço extra embaixo pra 2ª linha (nome do dia) que o plugin desenha
       // manualmente, abaixo dos rótulos de hora do eixo X.
-      layout: { padding: { bottom: 24 } },
+      layout: { padding: { bottom: 52 } },
       plugins: {
         legend: { display: false },
         weekdayGroupLines: {
