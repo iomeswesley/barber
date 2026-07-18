@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Entrar</title>
+<title>Cadastrar barbearia</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%23e8c76a'/><stop offset='55%25' stop-color='%23d4af37'/><stop offset='100%25' stop-color='%238a6a2f'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%92%88</text></svg>" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,7 +20,7 @@
   }
   .card {
     width: 100%;
-    max-width: 360px;
+    max-width: 400px;
     padding: 32px 28px;
   }
   .logo {
@@ -35,10 +35,11 @@
   input {
     width: 100%; padding: 10px 12px; border-radius: 10px;
     border: 1px solid var(--card-border); background: rgba(255,255,255,0.03);
-    color: var(--text-primary); font-size: 14px; margin-bottom: 16px;
+    color: var(--text-primary); font-size: 14px; margin-bottom: 14px;
     transition: border-color .2s ease;
   }
   input:focus { outline: none; border-color: var(--gold); }
+  .field-hint { font-size: 11px; color: var(--text-muted); margin: -10px 0 14px; }
   button {
     width: 100%; padding: 11px; border: none; border-radius: 10px;
     background: linear-gradient(135deg, #f0d585, var(--gold) 45%, #9c7a1e);
@@ -46,19 +47,19 @@
     transition: transform .15s ease, filter .2s ease;
   }
   button:hover { transform: translateY(-1px); filter: brightness(1.08); }
+  button:disabled { opacity: .6; cursor: default; transform: none; }
   .error {
     background: var(--danger-soft); color: var(--danger);
     padding: 8px 12px; border-radius: 8px; font-size: 12.5px;
     margin-bottom: 14px; display: none;
   }
-  .demo-box {
+  .back-link { display: block; text-align: center; margin-top: 18px; color: var(--text-muted); font-size: 12px; text-decoration: none; }
+  .back-link:hover { color: var(--gold); }
+  .trial-box {
     margin-top: 20px; padding: 12px; border-radius: 10px;
-    background: rgba(255,255,255,0.03); border: 1px solid var(--card-border);
-    font-size: 11.5px; color: var(--text-muted); line-height: 1.6;
+    background: var(--gold-soft); border: 1px solid var(--card-border);
+    font-size: 11.5px; color: var(--text-secondary); line-height: 1.6; text-align: center;
   }
-  .demo-box b { color: var(--text-primary); }
-  .signup-link { display: block; text-align: center; margin-top: 18px; color: var(--text-muted); font-size: 12px; text-decoration: none; }
-  .signup-link:hover { color: var(--gold); }
 </style>
 </head>
 <body>
@@ -69,50 +70,70 @@
   </div>
   <div class="card">
     <div class="logo">💈</div>
-    <h1>Painel da Barbearia</h1>
-    <p class="hint">Entre com seu usuário e senha</p>
+    <h1>Cadastre sua barbearia</h1>
+    <p class="hint">Crie o painel da sua barbearia em menos de um minuto</p>
     <div class="error" id="error-box"></div>
-    <form id="login-form">
-      <label>Usuário</label>
-      <input id="username" type="text" autocomplete="username" />
+    <form id="signup-form">
+      <label>Nome da barbearia</label>
+      <input id="shop-name" type="text" autocomplete="organization" required />
+
+      <label>Seu nome</label>
+      <input id="owner-name" type="text" autocomplete="name" required />
+
+      <label>Telefone (opcional)</label>
+      <input id="phone" type="text" autocomplete="tel" placeholder="Ex: 11999998888" />
+
+      <label>Usuário de acesso</label>
+      <input id="username" type="text" autocomplete="username" required />
+      <div class="field-hint">Só letras, números, ponto, traço ou underline.</div>
+
       <label>Senha</label>
-      <input id="password" type="password" autocomplete="current-password" />
-      <button type="submit">Entrar</button>
+      <input id="password" type="password" autocomplete="new-password" required />
+      <div class="field-hint">Pelo menos 8 caracteres.</div>
+
+      <button type="submit" id="submit-btn">Criar minha conta</button>
     </form>
-    <div class="demo-box">
-      <b>Usuários de demonstração</b> (senha para todos: <b>barbearia123</b>):<br>
-      Dono: <b>barbearia-vintage.dono</b> ou <b>barber-king.dono</b><br>
-      Barbeiro: <b>carlos</b>, <b>rafael</b>, <b>diego</b>, <b>lucas</b> ou <b>bruno</b>
-    </div>
-    <a class="signup-link" href="/signup.html">Ainda não tem conta? Cadastre sua barbearia</a>
+    <div class="trial-box">14 dias grátis pra testar, sem cartão de crédito.</div>
+    <a class="back-link" href="/login.html">← Já tenho conta</a>
   </div>
 
 <script>
-const form = document.getElementById("login-form");
+const form = document.getElementById("signup-form");
 const errorBox = document.getElementById("error-box");
+const submitBtn = document.getElementById("submit-btn");
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   errorBox.style.display = "none";
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Criando...";
+
+  const shopName = document.getElementById("shop-name").value.trim();
+  const ownerName = document.getElementById("owner-name").value.trim();
+  const phone = document.getElementById("phone").value.trim();
   const username = document.getElementById("username").value.trim();
   const password = document.getElementById("password").value;
 
   try {
-    const res = await fetch("/api/auth/login", {
+    const res = await fetch("/api/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ shopName, ownerName, phone, username, password }),
     });
     const data = await res.json();
     if (!res.ok) {
-      errorBox.textContent = data.error || "Não foi possível entrar.";
+      errorBox.textContent = data.error || "Não foi possível criar sua conta.";
       errorBox.style.display = "block";
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Criar minha conta";
       return;
     }
     window.location.href = data.redirect;
   } catch (err) {
     errorBox.textContent = "Erro de conexão com o servidor.";
     errorBox.style.display = "block";
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Criar minha conta";
   }
 });
 </script>

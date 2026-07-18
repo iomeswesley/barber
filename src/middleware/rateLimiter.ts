@@ -54,6 +54,24 @@ export async function loginRateLimiter(req: Request, res: Response, next: NextFu
   }
 }
 
+const SIGNUP_WINDOW_MS = 60 * 60_000;
+const MAX_SIGNUPS_PER_WINDOW = 5;
+
+// Rate-limita POST /api/signup por IP pra dificultar criação em massa de
+// barbearias falsas (é uma rota pública, sem CAPTCHA nem verificação de
+// e-mail nesta rodada).
+export async function signupRateLimiter(req: Request, res: Response, next: NextFunction) {
+  try {
+    const key = `signup:${req.ip}`;
+    if (!(await checkAndRecordHit(key, SIGNUP_WINDOW_MS, MAX_SIGNUPS_PER_WINDOW))) {
+      return res.status(429).json({ error: "Muitas tentativas de cadastro. Aguarde um pouco e tente novamente." });
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
 // Rate-limita as rotas públicas de autoatendimento (cancelar/reagendar/baixar
 // .ics sem passar pelo chat) por telefone, já que são não-autenticadas e só
 // confiam no telefone como identidade.
