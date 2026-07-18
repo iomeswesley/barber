@@ -13,7 +13,7 @@ export interface SignupInput {
   ownerName: string;
   username: string;
   password: string;
-  phone?: string;
+  phone: string;
 }
 
 export async function signupBarbershop(input: SignupInput) {
@@ -25,7 +25,7 @@ export async function signupBarbershop(input: SignupInput) {
 
   return prisma.$transaction(async (tx) => {
     const barbershop = await tx.barbershop.create({
-      data: { name: input.shopName, phone: input.phone || null },
+      data: { name: input.shopName, phone: input.phone },
     });
 
     await tx.businessHours.createMany({
