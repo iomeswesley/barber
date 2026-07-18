@@ -24,6 +24,7 @@
     "@anthropic-ai/sdk": "^0.68.0",
     "@aws-sdk/client-s3": "^3.1086.0",
     "@prisma/client": "^6.16.0",
+    "@sentry/node": "^10.66.0",
     "connect-pg-simple": "^10.0.0",
     "express": "^4.21.2",
     "express-session": "^1.18.1",
