@@ -883,6 +883,15 @@
   </div>
 
   <div id="page-configuracoes" class="page-section" style="display:none;">
+    <div class="section-title">Cobrança</div>
+    <div class="card panel" id="billing-card">
+      <div class="hint" id="billing-hint">Carregando...</div>
+      <div id="billing-plans" style="margin-top:14px; display:none; gap:12px; flex-wrap:wrap;"></div>
+      <div class="form-actions" id="billing-actions" style="margin-top:14px; display:none;">
+        <button class="btn-secondary" id="billing-portal-btn">Gerenciar assinatura</button>
+      </div>
+    </div>
+
     <div class="section-title">Horário de funcionamento</div>
     <div class="card panel">
       <div class="hint">Horário por dia da semana, usado para calcular os horários disponíveis no chat. Marque "fechado" para os dias sem atendimento.</div>
@@ -2956,6 +2965,96 @@ document.getElementById("backup-now-btn").addEventListener("click", async (e) =>
   loadBackups();
 });
 
+/* ---------------- Cobrança ---------------- */
+const STATUS_LABEL_BILLING = { trialing: "Em teste grátis", active: "Ativa", past_due: "Pagamento pendente", canceled: "Cancelada" };
+
+function fmtDate(d) { return d ? new Date(d).toLocaleDateString("pt-BR") : "—"; }
+
+async function loadBillingStatus() {
+  const data = await (await fetch("/api/billing/status")).json();
+  const hint = document.getElementById("billing-hint");
+  const plansEl = document.getElementById("billing-plans");
+  const actionsEl = document.getElementById("billing-actions");
+
+  if (!data.configured) {
+    hint.textContent = `Status: ${STATUS_LABEL_BILLING[data.status] || "—"}${data.plan ? ` · Plano ${data.plan}` : ""}. Cobrança ainda não configurada no servidor — assinatura fica só informativa por enquanto.`;
+    return;
+  }
+
+  if (data.status === "trialing") {
+    hint.textContent = `Você está no período de teste grátis até ${fmtDate(data.trial_ends_at)}. Escolha um plano pra continuar depois disso:`;
+  } else if (data.status === "active") {
+    hint.textContent = `Assinatura ativa — plano ${data.plan}. Renova em ${fmtDate(data.current_period_end)}.`;
+  } else if (data.status === "past_due") {
+    hint.textContent = `⚠️ Pagamento pendente no plano ${data.plan}. Atualize sua forma de pagamento pra não perder o acesso.`;
+  } else {
+    hint.textContent = `Sem assinatura ativa. Escolha um plano pra continuar usando o painel:`;
+  }
+
+  if (data.status === "active") {
+    actionsEl.style.display = "flex";
+    plansEl.style.display = "none";
+  } else {
+    plansEl.style.display = "flex";
+    plansEl.innerHTML = data.plans
+      .map(
+        (p) => `
+      <div class="card" style="padding:16px 18px; flex:1; min-width:180px;">
+        <div style="font-weight:700; margin-bottom:4px;">${p.label}</div>
+        <button class="btn-primary" data-subscribe="${p.id}" style="width:100%; margin-top:8px;">Assinar</button>
+      </div>`
+      )
+      .join("");
+    plansEl.querySelectorAll("[data-subscribe]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        btn.textContent = "Redirecionando...";
+        try {
+          const res = await fetch("/api/billing/checkout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ plan: btn.dataset.subscribe }),
+          });
+          const body = await res.json();
+          if (!res.ok) {
+            await showAlertModal(body.error || "Erro ao iniciar assinatura");
+            btn.disabled = false;
+            btn.textContent = "Assinar";
+            return;
+          }
+          window.location.href = body.url;
+        } catch {
+          await showAlertModal("Erro de conexão com o servidor.");
+          btn.disabled = false;
+          btn.textContent = "Assinar";
+        }
+      });
+    });
+    actionsEl.style.display = data.has_subscription ? "flex" : "none";
+  }
+}
+
+document.getElementById("billing-portal-btn").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  btn.textContent = "Redirecionando...";
+  try {
+    const res = await fetch("/api/billing/portal", { method: "POST" });
+    const body = await res.json();
+    if (!res.ok) {
+      await showAlertModal(body.error || "Erro ao abrir portal de cobrança");
+      btn.disabled = false;
+      btn.textContent = "Gerenciar assinatura";
+      return;
+    }
+    window.location.href = body.url;
+  } catch {
+    await showAlertModal("Erro de conexão com o servidor.");
+    btn.disabled = false;
+    btn.textContent = "Gerenciar assinatura";
+  }
+});
+
 /* ---------------- Page-level tabs ---------------- */
 let agendaLoaded = false;
 let historicoLoaded = false;
@@ -2985,7 +3084,7 @@ document.querySelectorAll("#page-tabs button").forEach((btn) => {
     }
     if (page === "configuracoes" && !configuracoesLoaded) {
       configuracoesLoaded = true;
-      await Promise.all([loadManageData(), loadBusinessHours(), loadBackups()]);
+      await Promise.all([loadManageData(), loadBusinessHours(), loadBackups(), loadBillingStatus()]);
     }
     if (page === "auditoria") {
       auditoriaLoaded = true;

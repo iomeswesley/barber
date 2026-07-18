@@ -48,6 +48,12 @@ const envSchema = z.object({
   // registrado no console, igual ao stub do WhatsApp antes de configurado).
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default("onboarding@resend.dev"),
+  // Cobrança (Stripe) — tudo opcional: sem as chaves, a aba de cobrança
+  // fica desligada (mostra só o status do trial, sem botão de assinar).
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRICE_STARTER: z.string().optional(),
+  STRIPE_PRICE_PRO: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

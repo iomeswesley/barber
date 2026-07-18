@@ -8,6 +8,7 @@ import { errorHandler, notFoundHandler } from "@/middleware/errorHandler.js";
 import "@/middleware/session.js";
 import "@/middleware/rawBody.js";
 import { sendDailyReminders } from "@/jobs/reminders.js";
+import { expireOverdueTrials } from "@/modules/billing/billing.service.js";
 
 import { authRouter } from "@/modules/auth/auth.routes.js";
 import { barbershopsRouter } from "@/modules/barbershops/barbershops.routes.js";
@@ -24,6 +25,7 @@ import { chatRouter } from "@/modules/chat/chat.routes.js";
 import { whatsappRouter } from "@/modules/whatsapp/whatsapp.routes.js";
 import { onboardingRouter } from "@/modules/onboarding/onboarding.routes.js";
 import { clientsRouter } from "@/modules/clients/clients.routes.js";
+import { billingRouter } from "@/modules/billing/billing.routes.js";
 
 const PgSession = connectPgSimple(session);
 
@@ -129,6 +131,9 @@ export function createApp() {
       return res.status(401).json({ error: "unauthorized" });
     }
     await sendDailyReminders();
+    // Trials vencidos que nunca converteram em assinatura — mesmo cron
+    // diário, sem endpoint separado.
+    await expireOverdueTrials();
     res.json({ ok: true });
   });
 
@@ -149,6 +154,7 @@ export function createApp() {
   app.use(whatsappRouter);
   app.use(onboardingRouter);
   app.use(clientsRouter);
+  app.use(billingRouter);
 
   app.use("/api", notFoundHandler);
   app.use(errorHandler);

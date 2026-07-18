@@ -4,6 +4,7 @@ import { AppError } from "@/middleware/errorHandler.js";
 import { logAudit } from "@/modules/auditLog/auditLog.repository.js";
 import { toApiBarber } from "@/lib/apiMappers.js";
 import { getBarber, getBarbers, createBarber, updateBarber, setBarberActive } from "./barbers.repository.js";
+import { assertBarberLimitNotExceeded } from "@/modules/billing/billing.service.js";
 
 export const barbersRouter = Router();
 
@@ -17,6 +18,7 @@ barbersRouter.post("/api/manage/barbers", requireAuth, requireOwner, async (req,
     const { name } = req.body || {};
     if (!name || !String(name).trim()) throw new AppError("Nome é obrigatório");
     const barbershopId = req.session.user!.barbershopId;
+    await assertBarberLimitNotExceeded(barbershopId);
     const barber = await createBarber(barbershopId, String(name).trim());
     await logAudit(barbershopId, req.session.user!.name, "Criou barbeiro", barber.name);
     res.status(201).json(toApiBarber(barber));
@@ -52,6 +54,7 @@ barbersRouter.post("/api/manage/barbers/:id/active", requireAuth, requireOwner, 
     const barber = await getBarber(Number(req.params.id));
     if (!belongsToSession(req, barber)) throw new AppError("Barbeiro não encontrado", 404);
     const { active } = req.body || {};
+    if (active) await assertBarberLimitNotExceeded(req.session.user!.barbershopId);
     const updated = await setBarberActive(Number(req.params.id), !!active);
     await logAudit(
       req.session.user!.barbershopId,
