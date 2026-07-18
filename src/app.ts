@@ -1,6 +1,7 @@
 import express from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
+import helmet from "helmet";
 import path from "node:path";
 import { env, isProduction } from "@/config/env.js";
 import { errorHandler, notFoundHandler } from "@/middleware/errorHandler.js";
@@ -35,6 +36,33 @@ export function createApp() {
   // express-session — o login parecia funcionar (200 ok) mas nenhum
   // Set-Cookie chegava ao navegador.
   app.set("trust proxy", 1);
+
+  // Headers de segurança (CSP, X-Frame-Options, Strict-Transport-Security
+  // etc). CSP liberado com 'unsafe-inline' pra script/style porque todo o
+  // frontend (webroot/*.html) é feito com <script>/<style> inline — travar
+  // isso exigiria reescrever todas as páginas pra usar nonce, fora do
+  // escopo desta rodada. Mesmo assim, a CSP ainda bloqueia carregar
+  // recursos de qualquer origem não listada aqui (principal proteção
+  // contra XSS que tenta puxar script/exfiltrar dado de outro domínio).
+  // crossOriginEmbedderPolicy desligado: o padrão do helmet quebraria o
+  // carregamento do Google Fonts e do Chart.js via CDN (exigem que a
+  // origem externa mande um header CORP que elas não mandam).
+  app.use(
+    helmet({
+      crossOriginEmbedderPolicy: false,
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+          styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+          fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+          imgSrc: ["'self'", "data:"],
+          connectSrc: ["'self'"],
+          frameAncestors: ["'self'"],
+        },
+      },
+    })
+  );
 
   // Guarda o corpo bruto da requisição em req.rawBody: o webhook do
   // WhatsApp precisa dele (não do JSON já parseado) pra validar a
