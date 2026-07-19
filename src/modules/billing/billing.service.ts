@@ -21,7 +21,11 @@ async function getOrCreateStripeCustomer(barbershopId: number): Promise<string> 
     email: owner?.email || undefined,
     metadata: { barbershopId: String(barbershopId) },
   });
-  await prisma.subscription.update({ where: { barbershopId }, data: { stripeCustomerId: customer.id } });
+  await prisma.subscription.upsert({
+    where: { barbershopId },
+    update: { stripeCustomerId: customer.id },
+    create: { barbershopId, stripeCustomerId: customer.id },
+  });
   return customer.id;
 }
 
