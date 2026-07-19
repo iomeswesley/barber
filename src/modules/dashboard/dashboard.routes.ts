@@ -18,7 +18,7 @@ import { clientBelongsToShop, updateClientBirthday, getClientById } from "@/modu
 import { getBarbershop } from "@/modules/barbershops/barbershops.repository.js";
 import { getClientLastAppointment } from "@/modules/appointments/appointments.service.js";
 import { sendComeBackMessage } from "@/jobs/reminders.js";
-import { listBackups, runBackup } from "@/jobs/backup.js";
+import { listBackups, runBackup, backupSupported } from "@/jobs/backup.js";
 import { logAudit } from "@/modules/auditLog/auditLog.repository.js";
 import { toApiAppointment, toApiReview, toApiClientStats, toApiClientVisit } from "@/lib/apiMappers.js";
 
@@ -150,14 +150,18 @@ dashboardRouter.post("/api/manage/clients/:id/nudge", requireAuth, requireOwner,
 /* ---------------- Backup do banco (owner only) ---------------- */
 
 dashboardRouter.get("/api/manage/backups", requireAuth, requireOwner, async (_req, res, next) => {
+  if (!backupSupported) return res.json({ supported: false, backups: [] });
   try {
-    res.json(await listBackups());
+    res.json({ supported: true, backups: await listBackups() });
   } catch (err) {
     next(err);
   }
 });
 
 dashboardRouter.post("/api/manage/backups", requireAuth, requireOwner, async (req, res, next) => {
+  if (!backupSupported) {
+    return next(new AppError("Backup manual não é suportado neste ambiente (serverless). O Supabase já mantém backups automáticos.", 503));
+  }
   try {
     const backup = await runBackup();
     await logAudit(req.session.user!.barbershopId, req.session.user!.name, "Gerou backup manual do banco de dados", backup.name);

@@ -982,13 +982,15 @@
       </div>
     </div>
 
-    <div class="section-title">Backup do banco de dados</div>
-    <div class="card panel">
-      <div class="hint">Cópia de segurança automática a cada 24h (mantém as últimas 14). Cobre todas as barbearias do sistema.</div>
-      <div class="form-actions" style="margin-bottom:14px;">
-        <button class="btn-primary" id="backup-now-btn">Fazer backup agora</button>
+    <div id="backup-section">
+      <div class="section-title">Backup do banco de dados</div>
+      <div class="card panel">
+        <div class="hint">Cópia de segurança automática a cada 24h (mantém as últimas 14). Cobre todas as barbearias do sistema.</div>
+        <div class="form-actions" style="margin-bottom:14px;">
+          <button class="btn-primary" id="backup-now-btn">Fazer backup agora</button>
+        </div>
+        <div id="backups-list"></div>
       </div>
-      <div id="backups-list"></div>
     </div>
   </div>
 
@@ -2930,7 +2932,12 @@ function formatBytes(bytes) {
 }
 
 async function loadBackups() {
-  const backups = await (await fetch("/api/manage/backups")).json();
+  const { supported, backups } = await (await fetch("/api/manage/backups")).json();
+  const section = document.getElementById("backup-section");
+  if (!supported) {
+    section.style.display = "none";
+    return;
+  }
   const list = document.getElementById("backups-list");
   if (backups.length === 0) {
     list.innerHTML = `<div class="empty-state">Nenhum backup criado ainda.</div>`;

@@ -54,6 +54,13 @@ const envSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PRICE_STARTER: z.string().optional(),
   STRIPE_PRICE_PRO: z.string().optional(),
+  // Setado automaticamente pelo Vercel em toda função serverless — usado
+  // pra desligar funcionalidades que exigem filesystem persistente/binários
+  // do sistema (ex: backup local via pg_dump), indisponíveis nesse ambiente.
+  VERCEL: z
+    .string()
+    .optional()
+    .transform((v) => v === "1"),
 });
 
 const parsed = envSchema.safeParse(process.env);

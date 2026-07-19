@@ -6,6 +6,11 @@ import { env } from "@/config/env.js";
 
 const execFileAsync = promisify(execFile);
 
+// Serverless (Vercel) não tem filesystem gravável fora de /tmp (efêmero,
+// some a cada invocação) nem o binário pg_dump instalado — backup local
+// só funciona num servidor persistente (VPS, container próprio etc).
+export const backupSupported = !env.VERCEL;
+
 // process.cwd() em vez de __dirname: __dirname fica em profundidades
 // diferentes conforme o modo (src/jobs no dev via tsx, dist/src/jobs
 // compilado), mas o processo sempre roda a partir da raiz do projeto.
