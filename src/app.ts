@@ -119,12 +119,17 @@ export function createApp() {
     return res.redirect("/login.html");
   });
 
-  // Painel de administração da plataforma — sessão própria, sem relação com
-  // login de dono/barbeiro (ver requireSuperAdmin em src/middleware/auth.ts).
+  // Painel de administração da plataforma — sessão própria (superAdmin),
+  // mas login pela mesma tela de dono/barbeiro (POST /api/auth/login em
+  // auth.routes.ts já reconhece as credenciais de admin).
   app.get("/superadmin.html", (req, res, next) => {
     if (req.session?.superAdmin) return next();
-    return res.redirect("/superadmin-login.html");
+    return res.redirect("/login.html");
   });
+
+  // URL antiga da tela de login separada do admin — mantém funcionando
+  // como redirect pra não quebrar quem tinha salvo o link.
+  app.get("/superadmin-login.html", (_req, res) => res.redirect("/login.html"));
 
   // Usa process.cwd() em vez de __dirname: __dirname fica em profundidades
   // diferentes conforme o modo (src/ no dev via tsx, dist/src/ compilado),

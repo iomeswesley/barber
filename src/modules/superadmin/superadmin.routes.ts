@@ -1,41 +1,15 @@
 import { Router } from "express";
-import { env } from "@/config/env.js";
 import { prisma } from "@/lib/prisma.js";
-import { verifyPassword, hashPassword, generateRandomPassword } from "@/lib/auth.js";
+import { hashPassword, generateRandomPassword } from "@/lib/auth.js";
 import { sendAdminGeneratedPasswordEmail } from "@/lib/email.js";
 import { requireSuperAdmin } from "@/middleware/auth.js";
-import { loginRateLimiter } from "@/middleware/rateLimiter.js";
 import { AppError } from "@/middleware/errorHandler.js";
 
 export const superAdminRouter = Router();
 
-// Login fixo via variável de ambiente (ADMIN_USERNAME/ADMIN_PASSWORD_HASH),
-// não uma conta na tabela `users` — o painel de super-admin é da plataforma,
-// não de uma barbearia específica. Reaproveita o mesmo rate limiter do
-// login normal (por IP+username).
-superAdminRouter.post("/api/superadmin/login", loginRateLimiter, async (req, res, next) => {
-  try {
-    if (!env.ADMIN_PASSWORD_HASH) {
-      throw new AppError("Painel de administração não configurado", 503);
-    }
-    const { username, password } = req.body || {};
-    if (!username || !password) throw new AppError("username e password são obrigatórios");
-
-    const validUsername = username === env.ADMIN_USERNAME;
-    const validPassword = verifyPassword(String(password), env.ADMIN_PASSWORD_HASH);
-    if (!validUsername || !validPassword) {
-      throw new AppError("Usuário ou senha inválidos", 401);
-    }
-
-    req.session.superAdmin = true;
-    req.session.save((err) => {
-      if (err) return next(err);
-      res.json({ ok: true, redirect: "/superadmin.html" });
-    });
-  } catch (err) {
-    next(err);
-  }
-});
+// O login em si acontece em POST /api/auth/login (mesma rota/tela de
+// dono/barbeiro) — ver auth.routes.ts. Aqui só ficam as rotas que já
+// exigem sessão de super-admin.
 
 superAdminRouter.post("/api/superadmin/logout", (req, res) => {
   req.session.destroy(() => res.json({ ok: true }));

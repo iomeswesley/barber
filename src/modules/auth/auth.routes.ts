@@ -16,6 +16,18 @@ authRouter.post("/api/auth/login", loginRateLimiter, async (req, res, next) => {
     const { username, password } = req.body || {};
     if (!username || !password) throw new AppError("username e password são obrigatórios");
 
+    // Login do super-admin da plataforma passa pela mesma tela/rota que o
+    // de dono/barbeiro — é um usuário fixo via env (ADMIN_USERNAME/
+    // ADMIN_PASSWORD_HASH), não uma conta na tabela `users`, então é
+    // checado à parte antes da busca normal.
+    if (env.ADMIN_PASSWORD_HASH && username === env.ADMIN_USERNAME && verifyPassword(password, env.ADMIN_PASSWORD_HASH)) {
+      req.session.superAdmin = true;
+      return req.session.save((err) => {
+        if (err) return next(err);
+        res.json({ ok: true, redirect: "/superadmin.html" });
+      });
+    }
+
     const user = await getUserByUsername(username);
     if (!user || !verifyPassword(password, user.passwordHash)) {
       throw new AppError("Usuário ou senha inválidos", 401);
