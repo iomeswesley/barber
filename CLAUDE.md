@@ -25,7 +25,7 @@ Tudo abaixo já está implementado e em produção — o README pode estar desat
 - Onboarding self-service, LGPD (privacidade/termos/exclusão), Sentry, headers de segurança (helmet), recuperação de senha, cobrança via Stripe (Starter/Pro).
 - WhatsApp Cloud API oficial da Meta (não Baileys) — `src/lib/whatsapp.ts` + `src/modules/whatsapp/`, com Message Templates aprovados pra lembrete/reagendamento/reconquista.
 - Landing page de marketing na raiz do site (redesign dark glassmorphism dourado).
-- **Painel de super-admin da plataforma** (`/superadmin-login.html` → `/superadmin.html`, login fixo via `ADMIN_USERNAME`/`ADMIN_PASSWORD_HASH` no env, não uma conta na tabela `users`): lista todos os usuários de todas as barbearias e permite gerar senha aleatória + mandar por e-mail. Ver `src/modules/superadmin/`.
+- **Painel de super-admin da plataforma** (`/superadmin.html`): lista todos os usuários de todas as barbearias e permite gerar senha aleatória + mandar por e-mail. Login pela mesma tela/rota de dono/barbeiro (`/login.html` → `POST /api/auth/login`), que reconhece as credenciais fixas via env (`ADMIN_USERNAME`/`ADMIN_PASSWORD_HASH`, não uma conta na tabela `users`) antes de cair na busca normal. Ver `src/modules/superadmin/`.
 - Auditoria de segurança rodada e corrigida: IDOR entre tenants no agendamento público (barbeiro/serviço de uma barbearia não podem mais ser usados pra criar agendamento em outra) e fail-closed no webhook do WhatsApp (antes aceitava requisição sem assinatura se `WHATSAPP_APP_SECRET` sumisse).
 
 ### Pendências reais
