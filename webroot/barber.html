@@ -162,6 +162,38 @@
     </div>
   </div>
 
+  <div class="section-title">Novo agendamento</div>
+  <div class="card" style="padding:18px 20px;">
+    <div class="hint" style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">Marque um horário manualmente pra um cliente — por telefone, no balcão etc.</div>
+    <div class="form-grid">
+      <div class="form-field">
+        <label>Nome do cliente</label>
+        <input type="text" id="new-appt-client-name" placeholder="Nome completo" />
+      </div>
+      <div class="form-field">
+        <label>Telefone do cliente</label>
+        <input type="text" id="new-appt-client-phone" placeholder="(11) 99999-9999" />
+      </div>
+      <div class="form-field">
+        <label>Serviço</label>
+        <select id="new-appt-service"><option value="">Selecione...</option></select>
+      </div>
+      <div class="form-row-3">
+        <div class="form-field">
+          <label>Data</label>
+          <input type="date" id="new-appt-date" />
+        </div>
+        <div class="form-field">
+          <label>Horário</label>
+          <input type="time" id="new-appt-time" />
+        </div>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn-primary" id="new-appt-save-btn">+ Criar agendamento</button>
+    </div>
+  </div>
+
   <div class="section-title">Minha agenda de hoje</div>
   <div class="appt-list" id="appt-list"></div>
 
@@ -404,6 +436,7 @@ async function loadAll() {
   document.getElementById("shop-label").textContent = me.barbershopName || "";
   await ensureServicesCache();
   await ensureProductsCache();
+  populateNewApptForm();
 
   const summary = await (await fetch("/api/dashboard/my-summary")).json();
   document.getElementById("kpi-revenue").textContent = currency(summary.revenueThisMonth);
@@ -601,6 +634,54 @@ document.getElementById("my-block-save-btn").addEventListener("click", async () 
   }
   document.getElementById("my-block-label").value = "";
   loadMyBlocks();
+});
+
+/* ---------------- Novo agendamento manual ---------------- */
+let newApptFormPopulated = false;
+
+function populateNewApptForm() {
+  if (newApptFormPopulated) return;
+  document.getElementById("new-appt-service").innerHTML =
+    '<option value="">Selecione...</option>' +
+    allServicesCache.filter((s) => s.active).map((s) => `<option value="${s.id}">${s.name} (${currency(s.price_cents / 100)})</option>`).join("");
+  document.getElementById("new-appt-date").value = toDateStr(new Date());
+  newApptFormPopulated = true;
+}
+
+document.getElementById("new-appt-save-btn").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  const clientName = document.getElementById("new-appt-client-name").value.trim();
+  const clientPhone = document.getElementById("new-appt-client-phone").value.trim();
+  const serviceId = document.getElementById("new-appt-service").value;
+  const date = document.getElementById("new-appt-date").value;
+  const startTime = document.getElementById("new-appt-time").value;
+
+  if (!clientName || !clientPhone || !serviceId || !date || !startTime) {
+    await showAlertModal("Preencha todos os campos pra criar o agendamento.");
+    return;
+  }
+
+  btn.disabled = true;
+  try {
+    const res = await fetch("/api/appointments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientName, clientPhone, serviceId, date, startTime }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      await showAlertModal(data.error || "Não foi possível criar o agendamento.");
+      return;
+    }
+    document.getElementById("new-appt-client-name").value = "";
+    document.getElementById("new-appt-client-phone").value = "";
+    document.getElementById("new-appt-service").value = "";
+    document.getElementById("new-appt-time").value = "";
+    await loadAll();
+    await renderMyAgenda();
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 /* ---------------- PWA & Push Notifications ---------------- */

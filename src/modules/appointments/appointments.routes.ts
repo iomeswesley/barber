@@ -5,7 +5,7 @@ import { AppError } from "@/middleware/errorHandler.js";
 import { normalizePhone } from "@/lib/time.js";
 import { generateIcs } from "@/lib/ics.js";
 import { logAudit } from "@/modules/auditLog/auditLog.repository.js";
-import { getClientByPhone } from "@/modules/clients/clients.repository.js";
+import { getClientByPhone, findOrCreateClient } from "@/modules/clients/clients.repository.js";
 import { getProduct, getProductSalesForAppointment, replaceAppointmentProductSales } from "@/modules/products/products.repository.js";
 import { toApiAppointment, toApiProductSale } from "@/lib/apiMappers.js";
 import { getAppointments, getAppointmentById as getAppointmentByIdRaw } from "./appointments.repository.js";
@@ -138,6 +138,44 @@ appointmentsRouter.get("/api/appointments", requireAuth, requireOwner, async (re
     date: date ? String(date) : undefined,
   });
   res.json(appointments.map(toApiAppointment));
+});
+
+// Agendamento manual criado pelo painel (dono ou barbeiro), diferente do
+// autoatendimento público — aqui quem cria já está autenticado, então o
+// cliente é buscado/criado por telefone (findOrCreateClient) em vez de
+// exigir que já exista, como faz POST /api/public/appointments.
+appointmentsRouter.post("/api/appointments", requireAuth, async (req, res, next) => {
+  try {
+    const { clientName, clientPhone, barberId, serviceId, date, startTime } = req.body || {};
+    const normalizedPhone = normalizePhone(clientPhone);
+    if (!clientName || !String(clientName).trim() || !normalizedPhone || !serviceId || !date || !startTime) {
+      throw new AppError("Nome do cliente, telefone, serviço, data e horário são obrigatórios");
+    }
+
+    // Barbeiro só cria agendamento pra si mesmo — barberId do corpo é
+    // ignorado nesse caso (evita marcar em nome de outro barbeiro).
+    let targetBarberId = req.session.user!.role === "barber" ? req.session.user!.barberId! : Number(barberId);
+    if (!targetBarberId) throw new AppError("Barbeiro é obrigatório");
+
+    const client = await findOrCreateClient(String(clientName).trim(), normalizedPhone);
+    const appointment = await createAppointment({
+      barbershopId: req.session.user!.barbershopId,
+      barberId: targetBarberId,
+      serviceId: Number(serviceId),
+      clientId: client.id,
+      date,
+      startTime,
+    });
+    await logAudit(
+      req.session.user!.barbershopId,
+      req.session.user!.name,
+      "Criou agendamento manual",
+      `#${appointment.id} — ${appointment.clientName} (${appointment.serviceName})`
+    );
+    res.status(201).json(toApiAppointment(appointment));
+  } catch (err) {
+    next(err);
+  }
 });
 
 appointmentsRouter.get("/api/appointments/:id/product-sales", requireAuth, async (req, res, next) => {

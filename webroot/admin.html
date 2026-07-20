@@ -791,8 +791,45 @@
             <button class="btn-secondary" id="agenda-today">Hoje</button>
             <button class="btn-secondary" id="agenda-next">Próxima ›</button>
           </div>
+          <button class="btn-primary" id="new-appt-btn">+ Novo agendamento</button>
         </div>
       </div>
+
+      <div class="card panel" id="new-appt-card" style="display:none; margin-bottom:16px;">
+        <div class="form-grid">
+          <div class="form-field">
+            <label>Nome do cliente</label>
+            <input type="text" id="new-appt-client-name" placeholder="Nome completo" />
+          </div>
+          <div class="form-field">
+            <label>Telefone do cliente</label>
+            <input type="text" id="new-appt-client-phone" placeholder="(11) 99999-9999" />
+          </div>
+          <div class="form-field">
+            <label>Barbeiro</label>
+            <select id="new-appt-barber"><option value="">Selecione...</option></select>
+          </div>
+          <div class="form-field">
+            <label>Serviço</label>
+            <select id="new-appt-service"><option value="">Selecione...</option></select>
+          </div>
+          <div class="form-row-3">
+            <div class="form-field">
+              <label>Data</label>
+              <input type="date" id="new-appt-date" />
+            </div>
+            <div class="form-field">
+              <label>Horário</label>
+              <input type="time" id="new-appt-time" />
+            </div>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-secondary" id="new-appt-cancel-btn">Cancelar</button>
+          <button class="btn-primary" id="new-appt-save-btn">Salvar agendamento</button>
+        </div>
+      </div>
+
       <div id="agenda-body"></div>
     </div>
   </div>
@@ -2339,6 +2376,79 @@ async function populateAgendaBarberFilter() {
     barbers.filter((b) => b.active).map((b) => `<option value="${b.id}">${b.name}</option>`).join("");
   agendaBarberFilterPopulated = true;
 }
+
+/* ---------------- Novo agendamento manual (dono) ---------------- */
+let newApptFormPopulated = false;
+
+async function populateNewApptForm() {
+  if (newApptFormPopulated) return;
+  await ensureServicesCache();
+  const barbers = await (await fetch("/api/manage/barbers")).json();
+  document.getElementById("new-appt-barber").innerHTML =
+    '<option value="">Selecione...</option>' +
+    barbers.filter((b) => b.active).map((b) => `<option value="${b.id}">${b.name}</option>`).join("");
+  document.getElementById("new-appt-service").innerHTML =
+    '<option value="">Selecione...</option>' +
+    allServicesCache.filter((s) => s.active).map((s) => `<option value="${s.id}">${s.name} (${currency(s.price_cents / 100)})</option>`).join("");
+  newApptFormPopulated = true;
+}
+
+function resetNewApptForm() {
+  document.getElementById("new-appt-client-name").value = "";
+  document.getElementById("new-appt-client-phone").value = "";
+  document.getElementById("new-appt-barber").value = "";
+  document.getElementById("new-appt-service").value = "";
+  document.getElementById("new-appt-date").value = toDateStr(new Date());
+  document.getElementById("new-appt-time").value = "";
+}
+
+document.getElementById("new-appt-btn").addEventListener("click", async () => {
+  const card = document.getElementById("new-appt-card");
+  const opening = card.style.display === "none";
+  if (opening) {
+    await populateNewApptForm();
+    resetNewApptForm();
+  }
+  card.style.display = opening ? "block" : "none";
+});
+
+document.getElementById("new-appt-cancel-btn").addEventListener("click", () => {
+  document.getElementById("new-appt-card").style.display = "none";
+});
+
+document.getElementById("new-appt-save-btn").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  const clientName = document.getElementById("new-appt-client-name").value.trim();
+  const clientPhone = document.getElementById("new-appt-client-phone").value.trim();
+  const barberId = document.getElementById("new-appt-barber").value;
+  const serviceId = document.getElementById("new-appt-service").value;
+  const date = document.getElementById("new-appt-date").value;
+  const startTime = document.getElementById("new-appt-time").value;
+
+  if (!clientName || !clientPhone || !barberId || !serviceId || !date || !startTime) {
+    await showAlertModal("Preencha todos os campos pra criar o agendamento.");
+    return;
+  }
+
+  btn.disabled = true;
+  try {
+    const res = await fetch("/api/appointments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientName, clientPhone, barberId, serviceId, date, startTime }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      await showAlertModal(data.error || "Não foi possível criar o agendamento.");
+      return;
+    }
+    document.getElementById("new-appt-card").style.display = "none";
+    await renderAgenda();
+    if (document.getElementById("appt-list")) await loadTodayAppointments();
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 function weekRangeFor(date) {
   const start = new Date(date);
