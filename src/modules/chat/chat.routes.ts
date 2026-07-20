@@ -5,7 +5,7 @@ import { AppError } from "@/middleware/errorHandler.js";
 import { normalizePhone } from "@/lib/time.js";
 import { getBarbershop } from "@/modules/barbershops/barbershops.repository.js";
 import { getClientByPhone } from "@/modules/clients/clients.repository.js";
-import { sendMessage, resetSession, listChatSessionsForBarbershop, getChatTranscript } from "./chatEngine.js";
+import { sendMessage, resetSession, listChatSessionsForBarbershop, getChatTranscript, sendManualMessage } from "./chatEngine.js";
 
 export const chatRouter = Router();
 
@@ -63,6 +63,27 @@ chatRouter.get("/api/manage/chat-sessions/:phone", requireAuth, requireOwner, as
     if (!phone) throw new AppError("Telefone é obrigatório");
     const transcript = await getChatTranscript(req.session.user!.barbershopId, phone);
     res.json(transcript);
+  } catch (err) {
+    next(err);
+  }
+});
+
+chatRouter.post("/api/manage/chat-sessions/:phone/send", requireAuth, requireOwner, async (req, res, next) => {
+  try {
+    const phone = req.params.phone;
+    const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+    if (!phone) throw new AppError("Telefone é obrigatório");
+    if (!message) throw new AppError("Mensagem é obrigatória");
+    try {
+      await sendManualMessage(req.session.user!.barbershopId, phone, message);
+    } catch (err) {
+      // Falha de envio (WhatsApp não configurado, fora da janela de 24h da
+      // Meta, etc.) é uma condição esperada e acionável pelo dono — não um
+      // bug do sistema — então vira 400 com a mensagem original em vez de
+      // 500 genérico.
+      throw new AppError((err as Error).message);
+    }
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }

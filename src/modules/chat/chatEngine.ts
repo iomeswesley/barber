@@ -17,6 +17,7 @@ import { markReviewPrompted } from "@/modules/appointments/appointments.reposito
 import { createReview } from "@/modules/reviews/reviews.repository.js";
 import { createEscalation } from "@/modules/escalations/escalations.repository.js";
 import { notifyNewAppointment, notifyEscalation } from "@/modules/push/push.service.js";
+import { sendWhatsappText, whatsappConfigured } from "@/lib/whatsapp.js";
 import { prisma } from "@/lib/prisma.js";
 import { env } from "@/config/env.js";
 import type { Barbershop, Prisma } from "@prisma/client";
@@ -372,6 +373,24 @@ export async function getChatTranscript(barbershopId: number, phone: string): Pr
     if (text) entries.push({ role: "bot", text });
   }
   return entries;
+}
+
+// Envia uma mensagem manual do dono/barbeiro pro cliente, fora do fluxo da
+// IA — mesmo phoneNumberId do webhook, e a mensagem entra na mesma sessão
+// gravada no banco (storageKey = telefone, igual ao webhook) pra aparecer no
+// histórico do painel e a IA não "esquecer" o que o humano já respondeu.
+export async function sendManualMessage(barbershopId: number, phone: string, text: string): Promise<void> {
+  const barbershop = await getBarbershop(barbershopId);
+  if (!barbershop) throw new Error("Barbearia não encontrada");
+  if (!whatsappConfigured || !barbershop.whatsappPhoneNumberId) {
+    throw new Error("Esta barbearia ainda não tem WhatsApp configurado.");
+  }
+
+  await sendWhatsappText(barbershop.whatsappPhoneNumberId, phone, text);
+
+  const session = await loadSession(phone, barbershopId);
+  session.messages.push({ role: "assistant", content: [{ type: "text", text }] });
+  await saveSession(phone, session);
 }
 
 async function loadSession(sessionId: string, barbershopId: number): Promise<ChatSession> {
