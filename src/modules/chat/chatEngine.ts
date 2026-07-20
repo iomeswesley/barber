@@ -393,10 +393,27 @@ export async function sendManualMessage(barbershopId: number, phone: string, tex
   await saveSession(phone, session);
 }
 
+// Mesma ressalva de getChatTranscript/listChatSessionsForBarbershop: sessões
+// gravadas antes da correção de isolamento entre tenants usam a chave antiga,
+// sem prefixo (telefone puro). Sem esse fallback, sendMessage (bot) e
+// sendManualMessage (dono) criariam uma sessão NOVA vazia pra esse telefone
+// em vez de continuar a conversa existente — duplicando a entrada na lista
+// do painel e "perdendo" todo o histórico anterior aos olhos do dono. Aqui a
+// sessão legada é apagada assim que lida, pra saveSession já gravar tudo
+// (histórico antigo + mensagem nova) na chave atual — migração feita na
+// primeira vez que a sessão for tocada de novo.
 async function loadSession(sessionId: string, barbershopId: number): Promise<ChatSession> {
-  const row = await prisma.chatSession.findUnique({ where: { sessionId: storageKey(barbershopId, sessionId) } });
-  if (!row) return { barbershopId, messages: [] };
-  return { barbershopId, messages: row.messages as unknown as Anthropic.MessageParam[] };
+  const key = storageKey(barbershopId, sessionId);
+  const row = await prisma.chatSession.findUnique({ where: { sessionId: key } });
+  if (row) return { barbershopId, messages: row.messages as unknown as Anthropic.MessageParam[] };
+
+  const legacyRow = await prisma.chatSession.findFirst({ where: { sessionId, barbershopId } });
+  if (legacyRow) {
+    await prisma.chatSession.delete({ where: { sessionId: legacyRow.sessionId } }).catch(() => {});
+    return { barbershopId, messages: legacyRow.messages as unknown as Anthropic.MessageParam[] };
+  }
+
+  return { barbershopId, messages: [] };
 }
 
 async function saveSession(sessionId: string, session: ChatSession) {
