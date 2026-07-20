@@ -54,6 +54,12 @@ const envSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PRICE_STARTER: z.string().optional(),
   STRIPE_PRICE_PRO: z.string().optional(),
+  // Stripe Connect — planos de assinatura que a barbearia vende pros próprios
+  // clientes (feature separada, restrita ao plano Pro). Webhook próprio
+  // porque eventos de conta conectada (account.updated) chegam num endpoint
+  // registrado à parte do webhook de billing da plataforma.
+  STRIPE_CONNECT_WEBHOOK_SECRET: z.string().optional(),
+  PLATFORM_COMMISSION_PERCENT: z.coerce.number().default(0),
   // Painel de administração da plataforma (super-admin, fora do escopo de
   // qualquer barbearia) — login fixo via variável de ambiente, não uma
   // conta na tabela users. Sem ADMIN_PASSWORD_HASH configurado, o login

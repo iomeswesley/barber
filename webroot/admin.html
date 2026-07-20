@@ -963,6 +963,46 @@
       </div>
     </div>
 
+    <div class="section-title">Planos para clientes</div>
+    <div class="card panel" id="client-plans-card">
+      <div class="hint" id="client-plans-hint">Carregando...</div>
+      <div id="client-plans-locked" style="display:none;">
+        <div class="hint">Disponível no plano Pro — assine na aba <a href="#" data-goto-billing>Cobrança</a> pra liberar.</div>
+      </div>
+      <div id="client-plans-connect" style="display:none;">
+        <div class="hint">Ative o recebimento via Stripe Connect pra poder criar planos. O cadastro (dados bancários, CNPJ/CPF) é feito direto no site do Stripe — a gente não vê nem guarda esses dados.</div>
+        <div class="form-actions" style="margin-top:10px;">
+          <button class="btn-primary" id="connect-start-btn">Ativar recebimento via Stripe Connect</button>
+        </div>
+      </div>
+      <div id="client-plans-manage" style="display:none;">
+        <div id="client-plans-list"></div>
+        <span class="add-toggle" id="toggle-add-client-plan">+ Adicionar plano</span>
+        <div class="inline-form" id="add-client-plan-form">
+          <div class="form-grid">
+            <div class="form-field" style="grid-column: 1 / -1;"><label>Nome</label><input type="text" id="new-plan-name" /></div>
+            <div class="form-field"><label>Preço (R$/mês)</label><input type="number" step="0.01" id="new-plan-price" /></div>
+            <div class="form-field">
+              <label>Tipo de benefício</label>
+              <select id="new-plan-benefit-type">
+                <option value="services_included">N serviços incluídos por mês</option>
+                <option value="percent_discount">Desconto % em qualquer serviço</option>
+                <option value="unlimited_service">Acesso ilimitado a 1 serviço</option>
+              </select>
+            </div>
+            <div class="form-field"><label id="new-plan-value-label">Quantidade incluída</label><input type="number" id="new-plan-benefit-value" /></div>
+            <div class="form-field" id="new-plan-service-field" style="display:none;">
+              <label>Serviço</label>
+              <select id="new-plan-service-id"></select>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-primary" id="save-client-plan-btn">Salvar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="section-title">Horário de funcionamento</div>
     <div class="card panel">
       <div class="hint">Horário por dia da semana, usado para calcular os horários disponíveis no chat. Marque "fechado" para os dias sem atendimento.</div>
@@ -3290,6 +3330,159 @@ async function loadBillingStatus() {
   }
 }
 
+/* ---------------- Planos para clientes (Stripe Connect) ---------------- */
+const BENEFIT_LABELS = {
+  services_included: (v) => `${v} serviço(s) incluído(s) por mês`,
+  percent_discount: (v) => `${v}% de desconto em qualquer serviço`,
+  unlimited_service: (v) => `Acesso ilimitado a 1 serviço`,
+};
+
+document.getElementById("new-plan-benefit-type").addEventListener("change", (e) => {
+  const isUnlimited = e.target.value === "unlimited_service";
+  document.getElementById("new-plan-service-field").style.display = e.target.value !== "percent_discount" ? "block" : "none";
+  document.getElementById("new-plan-value-label").textContent = isUnlimited ? "" : e.target.value === "percent_discount" ? "Desconto (%)" : "Quantidade incluída";
+  document.getElementById("new-plan-benefit-value").parentElement.style.display = isUnlimited ? "none" : "block";
+});
+
+async function populateClientPlanServiceSelect() {
+  const services = await (await fetch("/api/manage/services")).json();
+  const select = document.getElementById("new-plan-service-id");
+  select.innerHTML = services.filter((s) => s.active).map((s) => `<option value="${s.id}">${s.name}</option>`).join("");
+}
+
+async function loadClientPlans() {
+  const hint = document.getElementById("client-plans-hint");
+  const lockedEl = document.getElementById("client-plans-locked");
+  const connectEl = document.getElementById("client-plans-connect");
+  const manageEl = document.getElementById("client-plans-manage");
+  lockedEl.style.display = "none";
+  connectEl.style.display = "none";
+  manageEl.style.display = "none";
+
+  const res = await fetch("/api/manage/client-plans");
+  if (res.status === 403) {
+    hint.textContent = "";
+    lockedEl.style.display = "block";
+    return;
+  }
+  if (!res.ok) {
+    hint.textContent = "Erro ao carregar planos.";
+    return;
+  }
+  hint.textContent = "";
+  const plans = await res.json();
+
+  const status = await (await fetch("/api/manage/client-plans/connect/status")).json();
+  if (!status.onboarded) {
+    connectEl.style.display = "block";
+    return;
+  }
+
+  manageEl.style.display = "block";
+  await populateClientPlanServiceSelect();
+  renderClientPlans(plans);
+}
+
+function renderClientPlans(plans) {
+  const list = document.getElementById("client-plans-list");
+  if (plans.length === 0) {
+    list.innerHTML = `<div class="empty-state">Nenhum plano criado ainda.</div>`;
+    return;
+  }
+  list.innerHTML = plans
+    .map(
+      (p) => `
+    <div class="item-row ${p.active ? "" : "inactive"}">
+      <div>
+        <div class="item-info">${p.name}${p.active ? "" : " (inativo)"}</div>
+        <div class="item-meta">${currency(p.price_cents / 100)}/mês · ${BENEFIT_LABELS[p.benefit_type](p.benefit_value)}</div>
+      </div>
+      <div class="item-actions">
+        <button class="icon-btn ${p.active ? "danger" : ""}" data-toggle-client-plan="${p.id}" data-active="${p.active}" title="${p.active ? "Desativar" : "Ativar"}">${p.active ? "🚫" : "✅"}</button>
+      </div>
+    </div>
+  `
+    )
+    .join("");
+
+  list.querySelectorAll("[data-toggle-client-plan]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.toggleClientPlan;
+      const active = btn.dataset.active === "true";
+      await fetch(`/api/manage/client-plans/${id}/active`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: !active }),
+      });
+      loadClientPlans();
+    });
+  });
+}
+
+document.querySelectorAll("[data-goto-billing]").forEach((el) => {
+  el.addEventListener("click", (e) => {
+    e.preventDefault();
+    document.getElementById("billing-card").scrollIntoView({ behavior: "smooth" });
+  });
+});
+
+document.getElementById("connect-start-btn").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  btn.textContent = "Redirecionando...";
+  try {
+    const res = await fetch("/api/manage/client-plans/connect/start", { method: "POST" });
+    const body = await res.json();
+    if (!res.ok) {
+      await showAlertModal(body.error || "Erro ao iniciar o cadastro no Stripe Connect");
+      btn.disabled = false;
+      btn.textContent = "Ativar recebimento via Stripe Connect";
+      return;
+    }
+    window.location.href = body.url;
+  } catch {
+    await showAlertModal("Erro de conexão com o servidor.");
+    btn.disabled = false;
+    btn.textContent = "Ativar recebimento via Stripe Connect";
+  }
+});
+
+document.getElementById("toggle-add-client-plan").addEventListener("click", () => {
+  document.getElementById("add-client-plan-form").classList.toggle("open");
+});
+document.getElementById("save-client-plan-btn").addEventListener("click", async () => {
+  const name = document.getElementById("new-plan-name");
+  const price = document.getElementById("new-plan-price");
+  const benefitType = document.getElementById("new-plan-benefit-type").value;
+  const benefitValueEl = document.getElementById("new-plan-benefit-value");
+  const serviceId = document.getElementById("new-plan-service-id").value;
+  if (!name.value.trim() || !price.value) return;
+  const benefitValue = benefitType === "unlimited_service" ? 1 : Number(benefitValueEl.value);
+  if (benefitType !== "unlimited_service" && !benefitValueEl.value) return;
+
+  const res = await fetch("/api/manage/client-plans", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: name.value.trim(),
+      price_cents: Math.round(Number(price.value) * 100),
+      benefit_type: benefitType,
+      benefit_value: benefitValue,
+      service_id: benefitType !== "percent_discount" ? Number(serviceId) : null,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    await showAlertModal(err.error || "Erro ao criar plano");
+    return;
+  }
+  name.value = "";
+  price.value = "";
+  benefitValueEl.value = "";
+  document.getElementById("add-client-plan-form").classList.remove("open");
+  loadClientPlans();
+});
+
 document.getElementById("billing-portal-btn").addEventListener("click", async (e) => {
   const btn = e.currentTarget;
   btn.disabled = true;
@@ -3345,7 +3538,7 @@ document.querySelectorAll("#page-tabs button").forEach((btn) => {
     }
     if (page === "configuracoes" && !configuracoesLoaded) {
       configuracoesLoaded = true;
-      await Promise.all([loadManageData(), loadBusinessHours(), loadBackups(), loadBillingStatus()]);
+      await Promise.all([loadManageData(), loadBusinessHours(), loadBackups(), loadBillingStatus(), loadClientPlans()]);
     }
     if (page === "auditoria") {
       auditoriaLoaded = true;

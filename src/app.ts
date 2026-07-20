@@ -26,6 +26,7 @@ import { whatsappRouter } from "@/modules/whatsapp/whatsapp.routes.js";
 import { onboardingRouter } from "@/modules/onboarding/onboarding.routes.js";
 import { clientsRouter } from "@/modules/clients/clients.routes.js";
 import { billingRouter } from "@/modules/billing/billing.routes.js";
+import { clientPlansRouter } from "@/modules/clientPlans/clientPlans.routes.js";
 import { superAdminRouter } from "@/modules/superadmin/superadmin.routes.js";
 
 const PgSession = connectPgSimple(session);
@@ -170,6 +171,7 @@ export function createApp() {
   app.use(onboardingRouter);
   app.use(clientsRouter);
   app.use(billingRouter);
+  app.use(clientPlansRouter);
   app.use(superAdminRouter);
 
   app.use("/api", notFoundHandler);

@@ -38,6 +38,12 @@ enum SubscriptionStatus {
   canceled
 }
 
+enum ClientPlanBenefitType {
+  services_included
+  percent_discount
+  unlimited_service
+}
+
 model Barbershop {
   id                    Int      @id @default(autoincrement())
   name                  String
@@ -48,6 +54,13 @@ model Barbershop {
   // recebidas no webhook pra barbearia certa (um número por barbearia).
   whatsappPhoneNumberId String?  @unique @map("whatsapp_phone_number_id")
   createdAt             DateTime @default(now()) @map("created_at")
+
+  // Stripe Connect (Standard) — recebimento das assinaturas que a barbearia
+  // vende pros próprios clientes finais (feature separada do billing da
+  // plataforma). Onboard feito pelo dono direto no Stripe; `stripeConnectOnboarded`
+  // só vira true quando o webhook confirma charges_enabled + payouts_enabled.
+  stripeConnectAccountId String?  @unique @map("stripe_connect_account_id")
+  stripeConnectOnboarded Boolean  @default(false) @map("stripe_connect_onboarded")
 
   barbers          Barber[]
   services         Service[]
@@ -62,6 +75,7 @@ model Barbershop {
   escalations      Escalation[]
   pushSubscriptions PushSubscription[]
   subscription     Subscription?
+  clientPlans      ClientPlan[]
 
   @@map("barbershops")
 }
@@ -94,6 +108,7 @@ model Service {
 
   barbershop   Barbershop    @relation(fields: [barbershopId], references: [id])
   appointments Appointment[]
+  clientPlans  ClientPlan[]
 
   @@index([barbershopId])
   @@map("services")
@@ -368,4 +383,30 @@ model Subscription {
   barbershop Barbershop @relation(fields: [barbershopId], references: [id])
 
   @@map("subscriptions")
+}
+
+// Planos de assinatura que a barbearia (não a plataforma) oferece pros
+// próprios clientes finais — feature restrita ao plano Pro, cobrada via
+// Stripe Connect (conta conectada da barbearia, ver stripeConnectAccountId
+// em Barbershop). Benefício é um enum fechado (não motor de regras livre)
+// pra manter self-service sem virar suporte manual.
+model ClientPlan {
+  id              Int                   @id @default(autoincrement())
+  barbershopId    Int                   @map("barbershop_id")
+  name            String
+  priceCents      Int                   @map("price_cents")
+  benefitType     ClientPlanBenefitType @map("benefit_type")
+  benefitValue    Int                   @map("benefit_value")
+  serviceId       Int?                  @map("service_id")
+  active          Boolean               @default(true)
+  stripeProductId String?               @map("stripe_product_id")
+  stripePriceId   String?               @map("stripe_price_id")
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id])
+  service    Service?   @relation(fields: [serviceId], references: [id])
+
+  @@index([barbershopId])
+  @@map("client_plans")
 }

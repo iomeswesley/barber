@@ -83,6 +83,16 @@ export async function assertBarberLimitNotExceeded(barbershopId: number): Promis
   }
 }
 
+// Gate de feature restrita ao plano Pro (ex: planos de assinatura pros
+// clientes finais via Stripe Connect) — mesmo padrão imperativo de
+// assertBarberLimitNotExceeded, chamado no topo dos route handlers.
+export async function assertProPlan(barbershopId: number): Promise<void> {
+  const sub = await getSubscription(barbershopId);
+  if (!sub || sub.status !== "active" || sub.plan !== "pro") {
+    throw new AppError("Esse recurso está disponível apenas no plano Pro.", 403);
+  }
+}
+
 function mapStripeStatus(status: Stripe.Subscription.Status): "trialing" | "active" | "past_due" | "canceled" {
   if (status === "trialing") return "trialing";
   if (status === "active") return "active";

@@ -10,7 +10,7 @@
 // então cada mapeador espelha o shape exato observado no server.js/db.js originais.
 
 import type { AppointmentDTO } from "@/modules/appointments/appointments.types.js";
-import type { Barber, Service, Product, TimeBlock, Escalation, AuditLog, BusinessHours, Barbershop } from "@prisma/client";
+import type { Barber, Service, Product, TimeBlock, Escalation, AuditLog, BusinessHours, Barbershop, ClientPlan } from "@prisma/client";
 import type { ClientStatsRow } from "@/modules/dashboard/clientStats.service.js";
 import { localDateStr } from "@/lib/time.js";
 
@@ -70,6 +70,19 @@ export function toApiService(s: Service) {
     price_cents: s.priceCents,
     duration_min: s.durationMin,
     active: s.active,
+  };
+}
+
+export function toApiClientPlan(p: ClientPlan) {
+  return {
+    id: p.id,
+    barbershop_id: p.barbershopId,
+    name: p.name,
+    price_cents: p.priceCents,
+    benefit_type: p.benefitType,
+    benefit_value: p.benefitValue,
+    service_id: p.serviceId,
+    active: p.active,
   };
 }
 
