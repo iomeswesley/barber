@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Administração — Usuários</title>
+<title>Administração</title>
 <meta name="robots" content="noindex, nofollow" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%23e8c76a'/><stop offset='55%25' stop-color='%23d4af37'/><stop offset='100%25' stop-color='%238a6a2f'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%9B%A1</text></svg>" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,27 +12,42 @@
 <link rel="stylesheet" href="/assets/theme.css">
 <style>
   body { padding: 28px 20px 60px; position: relative; z-index: 0; }
-  .wrap { max-width: 960px; margin: 0 auto; }
-  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; gap: 12px; flex-wrap: wrap; }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; gap: 12px; flex-wrap: wrap; }
   h1 { font-size: 20px; margin: 0; display: flex; align-items: center; gap: 10px; }
+  h2 { font-size: 14px; margin: 26px 0 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  h2:first-of-type { margin-top: 0; }
   .logout-btn { background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); color: var(--text-muted); padding: 8px 14px; border-radius: 10px; font-size: 12.5px; cursor: pointer; }
   .logout-btn:hover { color: var(--text-primary); border-color: var(--gold); }
+  .tabs { display: flex; gap: 6px; margin-bottom: 20px; border-bottom: 1px solid var(--card-border); }
+  .tab-btn { background: none; border: none; color: var(--text-muted); padding: 10px 16px; font-size: 13px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tab-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
+  .tab-page { display: none; }
+  .tab-page.active { display: block; }
   .card { padding: 0; overflow: hidden; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--card-border); }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--card-border); vertical-align: middle; }
   th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); font-weight: 600; }
   tr:last-child td { border-bottom: none; }
   .role-tag { font-size: 11px; padding: 3px 8px; border-radius: 999px; font-weight: 600; }
   .role-owner { background: var(--good-soft); color: var(--good); }
   .role-barber { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+  .inactive-tag { font-size: 11px; padding: 3px 8px; border-radius: 999px; font-weight: 600; background: var(--danger-soft); color: var(--danger); }
   .no-email { color: var(--text-muted); font-style: italic; font-size: 12px; }
-  .reset-btn { background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); color: var(--text-primary); padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; }
-  .reset-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
-  .reset-btn:disabled { opacity: .5; cursor: default; }
+  .reset-btn, .save-btn { background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); color: var(--text-primary); padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+  .reset-btn:hover:not(:disabled), .save-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+  .reset-btn:disabled, .save-btn:disabled { opacity: .5; cursor: default; }
   .status { margin-top: 22px; padding: 10px 14px; border-radius: 10px; font-size: 12.5px; display: none; }
   .status.ok { background: var(--good-soft); color: var(--good); display: block; }
   .status.error { background: var(--danger-soft); color: var(--danger); display: block; }
   .loading, .empty { padding: 30px; text-align: center; color: var(--text-muted); font-size: 13px; }
+  select, .row-input { padding: 7px 9px; border-radius: 8px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.03); color: var(--text-primary); font-size: 13px; font-family: inherit; }
+  .row-input { width: 100%; }
+  .row-input.num { width: 80px; }
+  .shop-picker { max-width: 360px; margin-bottom: 18px; }
+  .shop-picker label { display: block; font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; }
+  .shop-picker select { width: 100%; padding: 10px 12px; }
+  .active-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -43,17 +58,33 @@
   </div>
   <div class="wrap">
     <header>
-      <h1>🛡️ Usuários da plataforma</h1>
+      <h1>🛡️ Administração</h1>
       <button class="logout-btn" id="logout-btn">Sair</button>
     </header>
-    <div class="card" id="table-wrap">
-      <div class="loading">Carregando...</div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="usuarios">Usuários</button>
+      <button class="tab-btn" data-tab="barbearias">Barbearias</button>
     </div>
+
+    <div class="tab-page active" id="tab-usuarios">
+      <div class="card" id="users-wrap">
+        <div class="loading">Carregando...</div>
+      </div>
+    </div>
+
+    <div class="tab-page" id="tab-barbearias">
+      <div class="shop-picker">
+        <label>Selecionar barbearia</label>
+        <select id="shop-select"><option value="">Carregando...</option></select>
+      </div>
+      <div id="shop-config"></div>
+    </div>
+
     <div class="status" id="status-box"></div>
   </div>
 
 <script>
-const tableWrap = document.getElementById("table-wrap");
 const statusBox = document.getElementById("status-box");
 
 function showStatus(msg, ok) {
@@ -66,15 +97,28 @@ function escapeHtml(str) {
   return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-async function loadUsers() {
-  const res = await fetch("/api/superadmin/users");
+function centsToInput(cents) {
+  return (cents / 100).toFixed(2);
+}
+
+async function apiFetch(url, options) {
+  const res = await fetch(url, options);
   if (res.status === 401) {
-    window.location.href = "/superadmin-login.html";
-    return;
+    window.location.href = "/login.html";
+    throw new Error("não autenticado");
   }
+  return res;
+}
+
+/* ---------------- Aba: Usuários ---------------- */
+
+const usersWrap = document.getElementById("users-wrap");
+
+async function loadUsers() {
+  const res = await apiFetch("/api/superadmin/users");
   const users = await res.json();
   if (!users.length) {
-    tableWrap.innerHTML = '<div class="empty">Nenhum usuário cadastrado ainda.</div>';
+    usersWrap.innerHTML = '<div class="empty">Nenhum usuário cadastrado ainda.</div>';
     return;
   }
 
@@ -93,7 +137,7 @@ async function loadUsers() {
     </tr>
   `).join("");
 
-  tableWrap.innerHTML = `
+  usersWrap.innerHTML = `
     <table>
       <thead>
         <tr>
@@ -109,14 +153,14 @@ async function loadUsers() {
     </table>
   `;
 
-  tableWrap.querySelectorAll(".reset-btn").forEach((btn) => {
+  usersWrap.querySelectorAll(".reset-btn").forEach((btn) => {
     btn.addEventListener("click", async () => {
       if (!confirm("Gerar uma senha nova e enviar por e-mail para este usuário?")) return;
       btn.disabled = true;
       const original = btn.textContent;
       btn.textContent = "Enviando...";
       try {
-        const res = await fetch(`/api/superadmin/users/${btn.dataset.id}/reset-password`, { method: "POST" });
+        const res = await apiFetch(`/api/superadmin/users/${btn.dataset.id}/reset-password`, { method: "POST" });
         const data = await res.json();
         if (!res.ok) {
           showStatus(data.error || "Não foi possível gerar a nova senha.", false);
@@ -128,7 +172,6 @@ async function loadUsers() {
         btn.textContent = "Enviado ✓";
         setTimeout(() => { btn.disabled = false; btn.textContent = original; }, 3000);
       } catch (err) {
-        showStatus("Erro de conexão com o servidor.", false);
         btn.disabled = false;
         btn.textContent = original;
       }
@@ -136,13 +179,182 @@ async function loadUsers() {
   });
 }
 
+/* ---------------- Aba: Barbearias (ver/editar configuração) ---------------- */
+
+const shopSelect = document.getElementById("shop-select");
+const shopConfig = document.getElementById("shop-config");
+let shopsLoaded = false;
+
+async function loadShopList() {
+  const res = await apiFetch("/api/superadmin/barbershops");
+  const shops = await res.json();
+  shopSelect.innerHTML = '<option value="">Selecione...</option>' + shops.map((s) => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join("");
+}
+
+function barberRowHtml(b) {
+  return `
+    <tr data-id="${b.id}">
+      <td><input class="row-input" data-field="name" value="${escapeHtml(b.name)}" /></td>
+      <td><input class="row-input num" type="number" step="0.01" min="0" max="100" data-field="commissionPercent" value="${b.commissionPercent}" /></td>
+      <td><input class="row-input num" type="number" step="0.01" min="0" data-field="monthlyGoal" value="${centsToInput(b.monthlyGoalCents)}" /></td>
+      <td><label class="active-toggle"><input type="checkbox" data-field="active" ${b.active ? "checked" : ""} /> Ativo</label></td>
+      <td><button class="save-btn" data-kind="barbers" data-id="${b.id}">Salvar</button></td>
+    </tr>
+  `;
+}
+
+function serviceRowHtml(s) {
+  return `
+    <tr data-id="${s.id}">
+      <td><input class="row-input" data-field="name" value="${escapeHtml(s.name)}" /></td>
+      <td><input class="row-input num" type="number" step="0.01" min="0" data-field="price" value="${centsToInput(s.priceCents)}" /></td>
+      <td><input class="row-input num" type="number" min="1" data-field="durationMin" value="${s.durationMin}" /></td>
+      <td><label class="active-toggle"><input type="checkbox" data-field="active" ${s.active ? "checked" : ""} /> Ativo</label></td>
+      <td><button class="save-btn" data-kind="services" data-id="${s.id}">Salvar</button></td>
+    </tr>
+  `;
+}
+
+function productRowHtml(p) {
+  return `
+    <tr data-id="${p.id}">
+      <td><input class="row-input" data-field="name" value="${escapeHtml(p.name)}" /></td>
+      <td><input class="row-input num" type="number" step="0.01" min="0" data-field="price" value="${centsToInput(p.priceCents)}" /></td>
+      <td><input class="row-input num" type="number" min="0" data-field="stockQuantity" value="${p.stockQuantity}" /></td>
+      <td><input class="row-input num" type="number" min="0" data-field="lowStockThreshold" value="${p.lowStockThreshold}" /></td>
+      <td><label class="active-toggle"><input type="checkbox" data-field="active" ${p.active ? "checked" : ""} /> Ativo</label></td>
+      <td><button class="save-btn" data-kind="products" data-id="${p.id}">Salvar</button></td>
+    </tr>
+  `;
+}
+
+function readRow(tr) {
+  const fields = {};
+  tr.querySelectorAll("[data-field]").forEach((el) => {
+    fields[el.dataset.field] = el.type === "checkbox" ? el.checked : el.value;
+  });
+  return fields;
+}
+
+async function saveRow(shopId, kind, id, tr) {
+  const fields = readRow(tr);
+  let body;
+  if (kind === "barbers") {
+    body = {
+      name: fields.name,
+      commissionPercent: Number(fields.commissionPercent),
+      monthlyGoalCents: Math.round(Number(fields.monthlyGoal) * 100),
+      active: fields.active,
+    };
+  } else if (kind === "services") {
+    body = {
+      name: fields.name,
+      priceCents: Math.round(Number(fields.price) * 100),
+      durationMin: Number(fields.durationMin),
+      active: fields.active,
+    };
+  } else {
+    body = {
+      name: fields.name,
+      priceCents: Math.round(Number(fields.price) * 100),
+      stockQuantity: Number(fields.stockQuantity),
+      lowStockThreshold: Number(fields.lowStockThreshold),
+      active: fields.active,
+    };
+  }
+
+  const res = await apiFetch(`/api/superadmin/barbershops/${shopId}/${kind}/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Não foi possível salvar.");
+}
+
+async function loadShopConfig(shopId) {
+  if (!shopId) {
+    shopConfig.innerHTML = "";
+    return;
+  }
+  shopConfig.innerHTML = '<div class="loading">Carregando...</div>';
+  const res = await apiFetch(`/api/superadmin/barbershops/${shopId}`);
+  const data = await res.json();
+
+  shopConfig.innerHTML = `
+    <h2>Barbeiros</h2>
+    <div class="card">
+      <table>
+        <thead><tr><th>Nome</th><th>Comissão %</th><th>Meta mensal (R$)</th><th></th><th></th></tr></thead>
+        <tbody>${data.barbers.length ? data.barbers.map(barberRowHtml).join("") : '<tr><td colspan="5" class="empty">Nenhum barbeiro cadastrado.</td></tr>'}</tbody>
+      </table>
+    </div>
+
+    <h2>Serviços</h2>
+    <div class="card">
+      <table>
+        <thead><tr><th>Nome</th><th>Preço (R$)</th><th>Duração (min)</th><th></th><th></th></tr></thead>
+        <tbody>${data.services.length ? data.services.map(serviceRowHtml).join("") : '<tr><td colspan="5" class="empty">Nenhum serviço cadastrado.</td></tr>'}</tbody>
+      </table>
+    </div>
+
+    <h2>Estoque (produtos)</h2>
+    <div class="card">
+      <table>
+        <thead><tr><th>Nome</th><th>Preço (R$)</th><th>Qtd. em estoque</th><th>Alerta abaixo de</th><th></th><th></th></tr></thead>
+        <tbody>${data.products.length ? data.products.map(productRowHtml).join("") : '<tr><td colspan="6" class="empty">Nenhum produto cadastrado.</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+
+  shopConfig.querySelectorAll(".save-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const tr = btn.closest("tr");
+      btn.disabled = true;
+      const original = btn.textContent;
+      btn.textContent = "Salvando...";
+      try {
+        await saveRow(shopId, btn.dataset.kind, btn.dataset.id, tr);
+        showStatus("Salvo com sucesso.", true);
+        btn.textContent = "Salvo ✓";
+      } catch (err) {
+        showStatus(err.message || "Não foi possível salvar.", false);
+        btn.textContent = original;
+      } finally {
+        setTimeout(() => { btn.disabled = false; btn.textContent = original; }, 2000);
+      }
+    });
+  });
+}
+
+shopSelect.addEventListener("change", () => {
+  loadShopConfig(shopSelect.value).catch(() => {
+    shopConfig.innerHTML = '<div class="empty">Erro ao carregar dados da barbearia.</div>';
+  });
+});
+
+/* ---------------- Abas ---------------- */
+
+document.querySelectorAll(".tab-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+    document.querySelectorAll(".tab-page").forEach((p) => p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(`tab-${btn.dataset.tab}`).classList.add("active");
+    if (btn.dataset.tab === "barbearias" && !shopsLoaded) {
+      shopsLoaded = true;
+      loadShopList().catch(() => { shopSelect.innerHTML = '<option value="">Erro ao carregar</option>'; });
+    }
+  });
+});
+
 document.getElementById("logout-btn").addEventListener("click", async () => {
   await fetch("/api/superadmin/logout", { method: "POST" });
-  window.location.href = "/superadmin-login.html";
+  window.location.href = "/login.html";
 });
 
 loadUsers().catch(() => {
-  tableWrap.innerHTML = '<div class="empty">Erro ao carregar usuários.</div>';
+  usersWrap.innerHTML = '<div class="empty">Erro ao carregar usuários.</div>';
 });
 </script>
 </body>
