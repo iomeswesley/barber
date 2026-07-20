@@ -102,8 +102,10 @@ export function createApp() {
 
   /* ---------------- Rotas de página protegidas (antes do arquivo estático) ---------------- */
 
-  app.get("/", (_req, res) => {
-    res.redirect("/login.html");
+  app.get("/", (req, res, next) => {
+    if (req.session?.user?.role === "owner") return res.redirect("/admin.html");
+    if (req.session?.user?.role === "barber") return res.redirect("/barber.html");
+    return next(); // visitante sem sessão: cai no index.html estático (landing page)
   });
 
   app.get("/admin.html", (req, res, next) => {

@@ -1,0 +1,824 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Painel da Barbearia — Agendamento e atendimento via WhatsApp com IA</title>
+<meta name="description" content="Plataforma SaaS multi-tenant para barbearias: atendimento e agendamento automático via WhatsApp com IA, dashboard de faturamento e clientes, e cobrança recorrente via Stripe." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%23e8c76a'/><stop offset='55%25' stop-color='%23d4af37'/><stop offset='100%25' stop-color='%238a6a2f'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%92%88</text></svg>" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300..800;1,300..800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/theme.css">
+<style>
+  body { position: relative; z-index: 0; }
+
+  /* ---------- Header ---------- */
+  header.topbar {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px;
+    padding: 14px 28px;
+    background: rgb(var(--color-bg) / 0.55);
+    backdrop-filter: blur(16px) saturate(160%);
+    border-bottom: 1px solid var(--divider);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .brand .logo {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; font-size: 18px;
+    background: linear-gradient(145deg, #e8c76a, var(--gold) 55%, #8a6a2f);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.2) inset, 0 0 20px -4px rgb(var(--color-primary) / 0.55);
+    flex-shrink: 0;
+  }
+  .brand span { font-family: "Sora", sans-serif; font-weight: 800; font-size: 16px; color: var(--text-primary); }
+  nav.main-nav { display: flex; align-items: center; gap: 26px; }
+  nav.main-nav a {
+    font-size: 13.5px; font-weight: 600; color: var(--text-secondary); text-decoration: none;
+    transition: color .2s ease;
+  }
+  nav.main-nav a:hover { color: var(--text-primary); }
+  .header-actions { display: flex; align-items: center; gap: 10px; }
+  .btn-ghost {
+    font-size: 13px; font-weight: 600; color: var(--text-secondary); text-decoration: none;
+    padding: 9px 14px; border-radius: 10px; transition: color .2s ease, background-color .2s ease;
+  }
+  .btn-ghost:hover { color: var(--text-primary); background: rgba(255,255,255,0.04); }
+  .btn-primary.link, .btn-secondary.link { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+
+  @media (max-width: 860px) {
+    nav.main-nav { display: none; }
+  }
+
+  main { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
+  section { padding: 96px 0; }
+  section.tight { padding: 64px 0; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12.5px; font-weight: 700; color: var(--gold);
+    background: var(--gold-soft); border: 1px solid rgb(var(--color-primary) / 0.25);
+    padding: 6px 14px; border-radius: 999px; margin-bottom: 20px;
+  }
+  h1 { font-size: clamp(34px, 5vw, 54px); line-height: 1.08; margin: 0 0 20px; color: var(--text-primary); }
+  h2 { font-size: clamp(26px, 3.4vw, 38px); line-height: 1.15; margin: 0 0 14px; }
+  .section-head { max-width: 640px; margin: 0 auto 48px; text-align: center; }
+  .section-head p { color: var(--text-secondary); font-size: 15.5px; line-height: 1.6; }
+  .gold-text { background: linear-gradient(90deg, var(--gold), #f0d9ab); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+  /* ---------- Hero ---------- */
+  .hero-grid {
+    display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 56px; align-items: center;
+    padding-top: 64px;
+  }
+  .hero-copy p.lead { font-size: 16.5px; color: var(--text-secondary); line-height: 1.65; margin-bottom: 28px; max-width: 520px; }
+  .hero-features { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 30px; }
+  .hero-feature {
+    display: flex; align-items: center; gap: 10px; padding: 11px 14px;
+    background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 12px;
+    font-size: 12.5px; font-weight: 600; color: var(--text-secondary);
+  }
+  .hero-feature .ico { font-size: 15px; flex-shrink: 0; }
+  .hero-cta { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .hero-cta a { font-size: 14.5px; padding: 13px 22px; }
+  .trust-line { font-size: 12.5px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+  .trust-line .check { color: var(--good); }
+
+  /* ---------- Hero mockup (janela de chat) ---------- */
+  .hero-visual { position: relative; }
+  .mock-window {
+    border-radius: 20px; overflow: hidden;
+    background: var(--card-bg-solid); border: 1px solid var(--card-border);
+    box-shadow: var(--shadow-hover);
+  }
+  .mock-titlebar {
+    display: flex; align-items: center; gap: 7px; padding: 10px 14px;
+    border-bottom: 1px solid var(--card-border); background: rgba(255,255,255,0.02);
+  }
+  .mock-dot { width: 9px; height: 9px; border-radius: 50%; }
+  .mock-dot.r { background: #f04747; } .mock-dot.y { background: #fab219; } .mock-dot.g { background: #10b981; }
+  .mock-title { margin-left: auto; font-size: 11px; color: var(--text-muted); }
+  .chat-head {
+    display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+    border-bottom: 1px solid var(--card-border);
+  }
+  .chat-avatar {
+    width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(145deg, #e8c76a, var(--gold) 55%, #8a6a2f); font-size: 16px; flex-shrink: 0;
+  }
+  .chat-head .name { font-weight: 700; font-size: 13.5px; }
+  .chat-head .status { font-size: 11px; color: var(--good); display: flex; align-items: center; gap: 5px; }
+  .chat-head .status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--good); }
+  .chat-badge {
+    margin-left: auto; font-size: 10.5px; font-weight: 700; color: var(--gold);
+    background: var(--gold-soft); padding: 3px 9px; border-radius: 999px;
+  }
+  .chat-body { padding: 18px 16px; display: flex; flex-direction: column; gap: 12px; min-height: 280px; }
+  .bubble { max-width: 78%; padding: 10px 13px; border-radius: 14px; font-size: 13px; line-height: 1.5; position: relative; }
+  .bubble.in { align-self: flex-start; background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); border-bottom-left-radius: 4px; }
+  .bubble.out {
+    align-self: flex-end; background: linear-gradient(135deg, #f0d585, var(--gold) 45%, #9c7a1e);
+    color: #17130a; border-bottom-right-radius: 4px; font-weight: 500;
+  }
+  .bubble time { display: block; font-size: 10px; opacity: 0.65; margin-top: 4px; }
+  .float-toast {
+    position: absolute; display: flex; align-items: center; gap: 10px;
+    background: var(--card-bg-solid); border: 1px solid var(--card-border); border-radius: 14px;
+    padding: 10px 14px; box-shadow: var(--shadow-hover); font-size: 12px; max-width: 230px;
+  }
+  .float-toast .ico { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 15px; }
+  .float-toast.a { top: -18px; left: -30px; animation: floatIn 1s ease-out; }
+  .float-toast.a .ico { background: var(--good-soft); color: var(--good); }
+  .float-toast.b { bottom: 30px; right: -34px; animation: floatIn 1.3s ease-out; }
+  .float-toast.b .ico { background: var(--blue-soft); color: var(--blue); }
+  .float-toast b { display: block; font-size: 12px; }
+  .float-toast small { color: var(--text-muted); font-size: 11px; }
+  @keyframes floatIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  @media (max-width: 860px) {
+    .float-toast { display: none; }
+  }
+
+  /* ---------- Feature tabs ---------- */
+  .tab-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+  .tab-btn {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; border-radius: 999px; border: 1px solid var(--card-border);
+    background: rgba(255,255,255,0.02); color: var(--text-secondary);
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s ease;
+  }
+  .tab-btn:hover { border-color: var(--card-border-hover); color: var(--text-primary); }
+  .tab-btn.active {
+    background: linear-gradient(135deg, #f0d585, var(--gold) 45%, #9c7a1e);
+    color: #17130a; border-color: transparent;
+  }
+  .autoplay-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); margin: 14px 0 26px; }
+  .autoplay-row button {
+    width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--card-border);
+    background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 10px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .progress-track { flex: 1; max-width: 160px; height: 3px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; }
+  .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--gold), #f0d9ab); transition: width .1s linear; }
+
+  .feature-panel { display: none; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
+  .feature-panel.active { display: grid; animation: fadeIn .4s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .feature-panel .ico-badge {
+    width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+    font-size: 20px; background: var(--gold-soft); margin-bottom: 16px;
+  }
+  .feature-panel .kicker { font-size: 12px; font-weight: 700; color: var(--gold); text-transform: uppercase; letter-spacing: 0.04em; }
+  .feature-panel h3 { font-size: 22px; margin: 6px 0 10px; }
+  .feature-panel p.desc { color: var(--text-secondary); font-size: 14.5px; line-height: 1.6; margin-bottom: 18px; }
+  .feature-list { list-style: none; padding: 0; margin: 0 0 20px; display: flex; flex-direction: column; gap: 10px; }
+  .feature-list li { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--text-secondary); }
+  .feature-list li::before { content: "✓"; color: var(--good); font-weight: 700; flex-shrink: 0; }
+  .tip-box {
+    background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); border-radius: 12px;
+    padding: 12px 14px; font-size: 12.5px; color: var(--text-muted);
+  }
+  .tip-box b { color: var(--text-primary); }
+  .feature-mock { padding: 22px; min-height: 260px; }
+  @media (max-width: 860px) {
+    .feature-panel.active { grid-template-columns: 1fr; }
+    .feature-mock { order: -1; }
+  }
+
+  /* generic mock content blocks */
+  .mock-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.03);
+    border: 1px solid var(--card-border); margin-bottom: 8px; font-size: 12.5px;
+  }
+  .mock-row .name { font-weight: 700; font-size: 12.5px; }
+  .mock-row .sub { color: var(--text-muted); font-size: 11px; }
+  .mock-pill {
+    font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px;
+  }
+  .mock-pill.good { background: var(--good-soft); color: var(--good); }
+  .mock-pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .mock-pill.gold { background: var(--gold-soft); color: var(--gold); }
+
+  /* ---------- Steps ---------- */
+  .steps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; position: relative; }
+  .steps-grid::before {
+    content: ""; position: absolute; top: 34px; left: 8%; right: 8%; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--card-border) 15%, var(--card-border) 85%, transparent);
+    z-index: 0;
+  }
+  .step-card { padding: 24px 18px; position: relative; z-index: 1; }
+  .step-badge {
+    display: inline-block; font-size: 11px; font-weight: 700; color: var(--gold);
+    background: var(--gold-soft); padding: 4px 10px; border-radius: 999px; margin-bottom: 14px;
+  }
+  .step-card h4 { font-size: 15.5px; margin: 0 0 8px; }
+  .step-card p { font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; margin: 0; }
+  .step-num {
+    position: absolute; bottom: 10px; right: 16px; font-size: 40px; font-weight: 800;
+    color: rgba(255,255,255,0.05); font-family: "Sora", sans-serif;
+  }
+  @media (max-width: 860px) { .steps-grid { grid-template-columns: 1fr 1fr; } .steps-grid::before { display: none; } }
+  @media (max-width: 540px) { .steps-grid { grid-template-columns: 1fr; } }
+
+  /* ---------- Recursos grid (dashboard) ---------- */
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .mini-card { padding: 22px; }
+  .mini-card .ico-badge {
+    width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    font-size: 18px; background: var(--gold-soft); margin-bottom: 14px;
+  }
+  .mini-card h4 { font-size: 14.5px; margin: 0 0 6px; }
+  .mini-card p { font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; margin: 0; }
+  @media (max-width: 900px) { .grid-3 { grid-template-columns: 1fr 1fr; } .grid-4 { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 560px) { .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+
+  /* ---------- Pricing ---------- */
+  .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; align-items: stretch; }
+  .price-card { padding: 30px 26px; display: flex; flex-direction: column; position: relative; }
+  .price-card.featured { border-color: rgb(var(--color-primary) / 0.5); }
+  .popular-badge {
+    position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+    background: linear-gradient(135deg, #f0d585, var(--gold) 45%, #9c7a1e); color: #17130a;
+    font-size: 11px; font-weight: 800; padding: 5px 14px; border-radius: 999px;
+  }
+  .plan-tag {
+    display: inline-block; font-size: 11.5px; font-weight: 700; color: var(--text-secondary);
+    background: rgba(255,255,255,0.04); padding: 4px 12px; border-radius: 999px; margin-bottom: 16px;
+    align-self: center;
+  }
+  .price-card h3 { text-align: center; font-size: 14px; color: var(--text-secondary); font-weight: 600; margin: 0 0 6px; }
+  .price-amount { text-align: center; font-size: 38px; font-weight: 800; font-family: "Sora", sans-serif; margin-bottom: 4px; }
+  .price-amount span { font-size: 14px; font-weight: 500; color: var(--text-muted); }
+  .price-note { text-align: center; font-size: 12px; color: var(--text-muted); margin-bottom: 24px; }
+  .price-list { list-style: none; padding: 0; margin: 0 0 26px; display: flex; flex-direction: column; gap: 11px; flex: 1; }
+  .price-list li { display: flex; align-items: flex-start; gap: 9px; font-size: 13px; color: var(--text-secondary); }
+  .price-list li::before { content: "✓"; color: var(--good); font-weight: 700; flex-shrink: 0; }
+  .price-card .btn-cta { text-align: center; text-decoration: none; display: block; width: 100%; padding: 12px; }
+  .price-footnote { text-align: center; font-size: 11.5px; color: var(--text-muted); margin-top: 10px; }
+  @media (max-width: 900px) { .pricing-grid { grid-template-columns: 1fr; } }
+
+  /* ---------- FAQ ---------- */
+  .faq-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .faq-item { padding: 4px 4px; }
+  .faq-q {
+    display: flex; align-items: center; gap: 12px; padding: 16px 18px; cursor: pointer; user-select: none;
+  }
+  .faq-q .q-ico {
+    width: 26px; height: 26px; border-radius: 8px; background: var(--gold-soft); color: var(--gold);
+    display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0;
+  }
+  .faq-q span.txt { font-size: 14px; font-weight: 700; flex: 1; }
+  .faq-q .chev { color: var(--text-muted); transition: transform .25s ease; flex-shrink: 0; }
+  .faq-item.open .chev { transform: rotate(180deg); }
+  .faq-a { max-height: 0; overflow: hidden; transition: max-height .3s ease; }
+  .faq-item.open .faq-a { max-height: 220px; }
+  .faq-a p { padding: 0 18px 18px 56px; margin: 0; font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+  @media (max-width: 860px) { .faq-grid { grid-template-columns: 1fr; } }
+
+  /* ---------- CTA final ---------- */
+  .cta-final {
+    text-align: center; padding: 64px 40px; border-radius: 28px;
+    background: linear-gradient(145deg, rgba(212,175,55,0.14), rgba(212,175,55,0.03));
+    border: 1px solid rgb(var(--color-primary) / 0.25);
+  }
+  .cta-final h2 { margin-bottom: 12px; }
+  .cta-final p { color: var(--text-secondary); font-size: 14.5px; margin-bottom: 26px; }
+  .cta-final .hero-cta { justify-content: center; }
+
+  /* ---------- Footer ---------- */
+  footer.site-footer {
+    border-top: 1px solid var(--divider); padding: 48px 24px 30px; margin-top: 40px;
+  }
+  .footer-grid {
+    max-width: 1160px; margin: 0 auto; display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 30px;
+  }
+  .footer-grid h5 { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 12px; }
+  .footer-grid a { display: block; font-size: 13px; color: var(--text-secondary); text-decoration: none; margin-bottom: 9px; }
+  .footer-grid a:hover { color: var(--gold); }
+  .footer-bottom {
+    max-width: 1160px; margin: 30px auto 0; padding-top: 20px; border-top: 1px solid var(--divider);
+    font-size: 12px; color: var(--text-muted); text-align: center;
+  }
+  @media (max-width: 760px) { .footer-grid { grid-template-columns: 1fr 1fr; } }
+
+  @media (max-width: 860px) {
+    .hero-grid { grid-template-columns: 1fr; }
+    .hero-visual { max-width: 460px; margin: 0 auto; }
+  }
+</style>
+</head>
+<body>
+  <div class="bg-blobs" aria-hidden="true">
+    <div class="blob blob-a"></div>
+    <div class="blob blob-b"></div>
+    <div class="blob blob-c"></div>
+  </div>
+
+  <header class="topbar">
+    <a class="brand" href="/">
+      <div class="logo">💈</div>
+      <span>Painel da Barbearia</span>
+    </a>
+    <nav class="main-nav">
+      <a href="#produto">Produto</a>
+      <a href="#como-funciona">Como funciona</a>
+      <a href="#precos">Preços</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="header-actions">
+      <a class="btn-ghost" href="/login.html">Entrar</a>
+      <a class="btn-primary link" href="/signup.html">Teste grátis</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- HERO -->
+    <section class="hero-grid">
+      <div class="hero-copy">
+        <span class="eyebrow">✨ Agendamento e atendimento via WhatsApp com IA</span>
+        <h1>Sua barbearia atendendo e agendando sozinha no <span class="gold-text">WhatsApp</span></h1>
+        <p class="lead">
+          Conecte o número da sua barbearia, a IA responde clientes, marca, cancela e
+          reagenda horários automaticamente — e você acompanha tudo em um painel com
+          faturamento, ocupação e histórico de clientes.
+        </p>
+        <div class="hero-features">
+          <div class="hero-feature"><span class="ico">🤖</span>Agente de IA que agenda de verdade</div>
+          <div class="hero-feature"><span class="ico">📅</span>Agenda por barbeiro em tempo real</div>
+          <div class="hero-feature"><span class="ico">📊</span>Dashboard de faturamento e clientes</div>
+          <div class="hero-feature"><span class="ico">🔒</span>Sessão segura + LGPD</div>
+        </div>
+        <div class="hero-cta">
+          <a class="btn-primary link" href="/signup.html">Teste grátis por 14 dias →</a>
+          <a class="btn-secondary link" href="#produto">Ver o produto</a>
+        </div>
+        <div class="trust-line"><span class="check">✓</span> Sem cartão de crédito para começar o teste.</div>
+      </div>
+
+      <div class="hero-visual">
+        <div style="position:relative;">
+          <div class="mock-window">
+            <div class="mock-titlebar">
+              <div class="mock-dot r"></div><div class="mock-dot y"></div><div class="mock-dot g"></div>
+              <div class="mock-title">WhatsApp — Barbearia Vintage</div>
+            </div>
+            <div class="chat-head">
+              <div class="chat-avatar">💈</div>
+              <div>
+                <div class="name">Assistente da Barbearia</div>
+                <div class="status">Online · IA treinada</div>
+              </div>
+              <div class="chat-badge">IA</div>
+            </div>
+            <div class="chat-body">
+              <div class="bubble in">Oi! Vocês têm horário pra corte hoje à noite?<time>19:42</time></div>
+              <div class="bubble out">Temos sim! Encontrei 19:30 com o Carlos ou 20:00 com o Rafael. Qual prefere?<time>19:42</time></div>
+              <div class="bubble in">Pode ser 19:30 com o Carlos<time>19:43</time></div>
+              <div class="bubble out">Perfeito, agendado! Corte + Carlos, hoje às 19:30. Te aviso 1h antes 👍<time>19:43</time></div>
+            </div>
+          </div>
+          <div class="float-toast a">
+            <div class="ico">📅</div>
+            <div><b>Agendamento criado</b><small>Corte · Carlos · 19:30</small></div>
+          </div>
+          <div class="float-toast b">
+            <div class="ico">💰</div>
+            <div><b>Faturamento do dia</b><small>R$ 480,00 · 12 atendimentos</small></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PRODUTO / TABS -->
+    <section id="produto" class="tight">
+      <div class="section-head" style="text-align:left; max-width:720px; margin-bottom:36px;">
+        <h2>Um painel completo pra atendimento, agenda e <span class="gold-text">CRM</span></h2>
+        <p>Tudo o que a sua barbearia precisa pra atender pelo WhatsApp e gerenciar o dia a dia, no mesmo lugar.</p>
+      </div>
+
+      <div class="tab-bar" id="tab-bar">
+        <button class="tab-btn active" data-tab="0">🤖 Atendimento com IA</button>
+        <button class="tab-btn" data-tab="1">📅 Agenda e horários</button>
+        <button class="tab-btn" data-tab="2">📊 Faturamento e ocupação</button>
+        <button class="tab-btn" data-tab="3">👥 CRM de clientes</button>
+        <button class="tab-btn" data-tab="4">🧑‍💼 Multi-barbeiro</button>
+        <button class="tab-btn" data-tab="5">🔔 Lembretes e avaliações</button>
+      </div>
+      <div class="autoplay-row">
+        <button id="autoplay-toggle" title="Pausar/retomar">❚❚</button>
+        <span id="autoplay-label">Auto-play em execução</span>
+        <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+      </div>
+
+      <!-- Painel 0: IA -->
+      <div class="feature-panel active" data-panel="0">
+        <div>
+          <div class="ico-badge">🤖</div>
+          <div class="kicker">Produto</div>
+          <h3>A IA agenda, cancela e reagenda de verdade</h3>
+          <p class="desc">Nada de robô que só devolve link. O assistente entende o contexto da conversa,
+            consulta horários livres e cria o agendamento direto no seu banco de dados — e chama um
+            humano quando o assunto sai do escopo dele.</p>
+          <ul class="feature-list">
+            <li>Consulta serviços, barbeiros e horários disponíveis em tempo real</li>
+            <li>Cria, cancela e reagenda direto na conversa do WhatsApp</li>
+            <li>Escala pra um humano quando não sabe responder</li>
+          </ul>
+          <div class="tip-box"><b>Dica:</b> a IA também roda no widget de chat do seu site, não só no WhatsApp.</div>
+        </div>
+        <div class="card feature-mock">
+          <div class="mock-row"><div><div class="name">verificar_horarios_disponiveis</div><div class="sub">ferramenta da IA</div></div><span class="mock-pill good">ok</span></div>
+          <div class="mock-row"><div><div class="name">criar_agendamento</div><div class="sub">Corte · Carlos · 19:30</div></div><span class="mock-pill gold">executado</span></div>
+          <div class="mock-row"><div><div class="name">registrar_avaliacao</div><div class="sub">5 estrelas · "Atendimento rápido"</div></div><span class="mock-pill good">ok</span></div>
+          <div class="mock-row"><div><div class="name">escalar_atendimento_humano</div><div class="sub">Cliente pediu desconto especial</div></div><span class="mock-pill warn">escalado</span></div>
+        </div>
+      </div>
+
+      <!-- Painel 1: Agenda -->
+      <div class="feature-panel" data-panel="1">
+        <div>
+          <div class="ico-badge">📅</div>
+          <div class="kicker">Produto</div>
+          <h3>Agenda por barbeiro, sem conflito de horário</h3>
+          <p class="desc">Cada barbeiro tem sua própria disponibilidade, bloqueios de horário e histórico de
+            atendimentos. O cliente também pode reagendar ou cancelar sozinho pelo WhatsApp.</p>
+          <ul class="feature-list">
+            <li>Horário comercial e bloqueios configuráveis por barbeiro</li>
+            <li>Cliente cancela e reagenda sem precisar ligar</li>
+            <li>Exportação em .ics pro cliente adicionar no calendário</li>
+          </ul>
+          <div class="tip-box"><b>Dica:</b> lembretes automáticos são enviados por WhatsApp antes de cada horário.</div>
+        </div>
+        <div class="card feature-mock">
+          <div class="mock-row"><div><div class="name">09:00 — Rafael</div><div class="sub">Corte + Barba · João</div></div><span class="mock-pill good">confirmado</span></div>
+          <div class="mock-row"><div><div class="name">10:30 — Carlos</div><div class="sub">Corte · Pedro</div></div><span class="mock-pill gold">em andamento</span></div>
+          <div class="mock-row"><div><div class="name">11:00 — Diego</div><div class="sub">Bloqueado · almoço</div></div><span class="mock-pill warn">bloqueado</span></div>
+          <div class="mock-row"><div><div class="name">14:00 — Rafael</div><div class="sub">Corte · Marcos</div></div><span class="mock-pill good">confirmado</span></div>
+        </div>
+      </div>
+
+      <!-- Painel 2: Faturamento -->
+      <div class="feature-panel" data-panel="2">
+        <div>
+          <div class="ico-badge">📊</div>
+          <div class="kicker">Produto</div>
+          <h3>Faturamento e ocupação em tempo real</h3>
+          <p class="desc">Veja quanto entrou hoje, a tendência da semana e os horários mais ocupados —
+            sem precisar abrir planilha.</p>
+          <ul class="feature-list">
+            <li>Faturamento do dia, tendência e comparação por período</li>
+            <li>Ocupação por horário pra identificar picos e vazios</li>
+            <li>Controle de produtos e estoque vendido no balcão</li>
+          </ul>
+          <div class="tip-box"><b>Dica:</b> auditoria registra toda ação sensível feita pelo dono no painel.</div>
+        </div>
+        <div class="card feature-mock">
+          <div class="mock-row"><div><div class="name">Faturamento hoje</div><div class="sub">32 atendimentos</div></div><span class="mock-pill good">R$ 1.480</span></div>
+          <div class="mock-row"><div><div class="name">Tendência da semana</div><div class="sub">vs. semana anterior</div></div><span class="mock-pill good">+18%</span></div>
+          <div class="mock-row"><div><div class="name">Pico de ocupação</div><div class="sub">sábado</div></div><span class="mock-pill gold">17h–19h</span></div>
+          <div class="mock-row"><div><div class="name">Produtos vendidos</div><div class="sub">pomada, óleo de barba</div></div><span class="mock-pill good">R$ 210</span></div>
+        </div>
+      </div>
+
+      <!-- Painel 3: CRM -->
+      <div class="feature-panel" data-panel="3">
+        <div>
+          <div class="ico-badge">👥</div>
+          <div class="kicker">Produto</div>
+          <h3>Histórico de cliente identificado pelo telefone</h3>
+          <p class="desc">Cada cliente é reconhecido automaticamente pelo número de WhatsApp, com todo o
+            histórico de visitas, avaliações e aniversário — sem precisar de cadastro manual.</p>
+          <ul class="feature-list">
+            <li>Histórico completo de visitas por cliente</li>
+            <li>Lembrete de aniversário e mensagens de reconquista</li>
+            <li>Avaliações coletadas automaticamente após o atendimento</li>
+          </ul>
+          <div class="tip-box"><b>Dica:</b> clientes podem solicitar exclusão dos próprios dados (LGPD) direto pelo site.</div>
+        </div>
+        <div class="card feature-mock">
+          <div class="mock-row"><div><div class="name">Mariana Lima</div><div class="sub">8 visitas · última há 12 dias</div></div><span class="mock-pill gold">★ 5.0</span></div>
+          <div class="mock-row"><div><div class="name">Pedro Alves</div><div class="sub">aniversário em 3 dias</div></div><span class="mock-pill warn">lembrete</span></div>
+          <div class="mock-row"><div><div class="name">João Souza</div><div class="sub">sem visita há 45 dias</div></div><span class="mock-pill warn">reconquista</span></div>
+          <div class="mock-row"><div><div class="name">Marcos Dias</div><div class="sub">12 visitas · cliente fiel</div></div><span class="mock-pill good">★ 4.9</span></div>
+        </div>
+      </div>
+
+      <!-- Painel 4: Multi-barbeiro -->
+      <div class="feature-panel" data-panel="4">
+        <div>
+          <div class="ico-badge">🧑‍💼</div>
+          <div class="kicker">Produto</div>
+          <h3>Uma barbearia, vários barbeiros, um único número</h3>
+          <p class="desc">Cada barbearia é isolada no sistema (multi-tenant): o dono gerencia barbeiros,
+            serviços e horários; cada barbeiro tem seu próprio login e agenda.</p>
+          <ul class="feature-list">
+            <li>Login separado por barbeiro, com permissões próprias</li>
+            <li>Cadastro de serviços com preço e duração</li>
+            <li>Ativar/desativar barbeiro sem perder o histórico</li>
+          </ul>
+          <div class="tip-box"><b>Dica:</b> o plano Starter cobre até 2 barbeiros ativos; o Pro é ilimitado.</div>
+        </div>
+        <div class="card feature-mock">
+          <div class="mock-row"><div><div class="name">Carlos</div><div class="sub">dono · acesso total</div></div><span class="mock-pill good">ativo</span></div>
+          <div class="mock-row"><div><div class="name">Rafael</div><div class="sub">barbeiro</div></div><span class="mock-pill good">ativo</span></div>
+          <div class="mock-row"><div><div class="name">Diego</div><div class="sub">barbeiro</div></div><span class="mock-pill good">ativo</span></div>
+          <div class="mock-row"><div><div class="name">Lucas</div><div class="sub">barbeiro · férias</div></div><span class="mock-pill warn">inativo</span></div>
+        </div>
+      </div>
+
+      <!-- Painel 5: Lembretes -->
+      <div class="feature-panel" data-panel="5">
+        <div>
+          <div class="ico-badge">🔔</div>
+          <div class="kicker">Produto</div>
+          <h3>Lembretes automáticos e notificações push</h3>
+          <p class="desc">Menos "esqueci" e menos falta: o cliente recebe lembrete por WhatsApp e o barbeiro
+            recebe push no navegador quando alguém pede ajuda humana.</p>
+          <ul class="feature-list">
+            <li>Lembrete automático antes de cada atendimento</li>
+            <li>Notificação push pro barbeiro em caso de escalonamento</li>
+            <li>Templates aprovados de mensagem, sem risco de bloqueio no WhatsApp</li>
+          </ul>
+          <div class="tip-box"><b>Dica:</b> tudo roda via WhatsApp Cloud API oficial da Meta, não número pessoal.</div>
+        </div>
+        <div class="card feature-mock">
+          <div class="mock-row"><div><div class="name">Lembrete enviado</div><div class="sub">Mariana · 19:30 hoje</div></div><span class="mock-pill good">entregue</span></div>
+          <div class="mock-row"><div><div class="name">Escalação para humano</div><div class="sub">cliente pediu desconto</div></div><span class="mock-pill warn">push enviado</span></div>
+          <div class="mock-row"><div><div class="name">Avaliação recebida</div><div class="sub">Pedro · ★★★★★</div></div><span class="mock-pill good">registrada</span></div>
+          <div class="mock-row"><div><div class="name">Backup diário</div><div class="sub">banco de dados</div></div><span class="mock-pill good">concluído</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COMO FUNCIONA -->
+    <section id="como-funciona" class="tight">
+      <div class="section-head">
+        <span class="eyebrow">⚙️ Fluxo simples</span>
+        <h2>Como funciona na prática</h2>
+        <p>Do cadastro ao primeiro atendimento automático, em poucos passos.</p>
+      </div>
+      <div class="steps-grid">
+        <div class="card step-card">
+          <span class="step-badge">Passo 01</span>
+          <h4>Crie sua conta</h4>
+          <p>Cadastre sua barbearia, confirme o e-mail e comece o teste grátis de 14 dias, sem cartão.</p>
+          <span class="step-num">01</span>
+        </div>
+        <div class="card step-card">
+          <span class="step-badge">Passo 02</span>
+          <h4>Conecte o WhatsApp</h4>
+          <p>Ligue o número da barbearia à WhatsApp Cloud API oficial da Meta — sem número pessoal.</p>
+          <span class="step-num">02</span>
+        </div>
+        <div class="card step-card">
+          <span class="step-badge">Passo 03</span>
+          <h4>Cadastre serviços e barbeiros</h4>
+          <p>Defina preços, duração, horário de funcionamento e quem atende o quê.</p>
+          <span class="step-num">03</span>
+        </div>
+        <div class="card step-card">
+          <span class="step-badge">Passo 04</span>
+          <h4>A IA assume o atendimento</h4>
+          <p>Clientes agendam sozinhos pelo WhatsApp e você acompanha tudo pelo painel.</p>
+          <span class="step-num">04</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- RECURSOS EXTRA -->
+    <section class="tight">
+      <div class="section-head">
+        <span class="eyebrow">🛡️ Segurança e conformidade</span>
+        <h2>Pensado pra rodar sério, não só pra demo</h2>
+        <p>Detalhes que não aparecem na tela, mas evitam dor de cabeça.</p>
+      </div>
+      <div class="grid-4">
+        <div class="card mini-card">
+          <div class="ico-badge">🔐</div>
+          <h4>Sessão segura</h4>
+          <p>Login com sessão armazenada no Postgres, headers de segurança (CSP, HSTS) e limite de tentativas.</p>
+        </div>
+        <div class="card mini-card">
+          <div class="ico-badge">📄</div>
+          <h4>LGPD nativo</h4>
+          <p>Cliente pode solicitar exclusão dos próprios dados direto pelo site, sem abrir chamado.</p>
+        </div>
+        <div class="card mini-card">
+          <div class="ico-badge">🧾</div>
+          <h4>Auditoria</h4>
+          <p>Toda ação sensível do dono fica registrada em log de auditoria, com data e responsável.</p>
+        </div>
+        <div class="card mini-card">
+          <div class="ico-badge">💾</div>
+          <h4>Backup automático</h4>
+          <p>Backup diário do banco de dados, sem depender de ninguém lembrar de fazer.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- PREÇOS -->
+    <section id="precos" class="tight">
+      <div class="section-head">
+        <span class="eyebrow">💳 Planos e valores</span>
+        <h2>Preços para cada tamanho de barbearia</h2>
+        <p>Comece grátis por 14 dias. Sem cartão de crédito para testar.</p>
+      </div>
+      <div class="pricing-grid">
+        <div class="card price-card">
+          <span class="plan-tag">Teste grátis</span>
+          <h3>Experimente sem compromisso</h3>
+          <div class="price-amount">R$ 0<span>/14 dias</span></div>
+          <div class="price-note">Depois, escolha Starter ou Pro.</div>
+          <ul class="price-list">
+            <li>Acesso completo ao painel e à IA</li>
+            <li>Até 2 barbeiros ativos</li>
+            <li>WhatsApp conectado via Cloud API</li>
+            <li>Sem necessidade de cartão</li>
+          </ul>
+          <a class="btn-secondary btn-cta link" href="/signup.html">Começar teste grátis</a>
+          <div class="price-footnote">Crie sua conta agora.</div>
+        </div>
+        <div class="card price-card featured">
+          <span class="popular-badge">Mais popular</span>
+          <span class="plan-tag">Starter</span>
+          <h3>Pra barbearias de até 2 barbeiros</h3>
+          <div class="price-amount">R$ 99<span>/mês</span></div>
+          <div class="price-note">Até 2 barbeiros ativos.</div>
+          <ul class="price-list">
+            <li>Atendimento via IA no WhatsApp</li>
+            <li>Dashboard de faturamento e clientes</li>
+            <li>Lembretes automáticos por WhatsApp</li>
+            <li>Backup diário e auditoria</li>
+          </ul>
+          <a class="btn-primary btn-cta link" href="/signup.html">Assinar Starter</a>
+          <div class="price-footnote">Assine dentro do painel após o cadastro.</div>
+        </div>
+        <div class="card price-card">
+          <span class="plan-tag">Pro</span>
+          <h3>Barbeiros ilimitados</h3>
+          <div class="price-amount">R$ 149<span>/mês</span></div>
+          <div class="price-note">Ideal pra barbearias em crescimento.</div>
+          <ul class="price-list">
+            <li>Tudo do Starter, sem limite de barbeiros</li>
+            <li>Prioridade em novos recursos</li>
+            <li>Suporte via portal do cliente Stripe</li>
+          </ul>
+          <a class="btn-secondary btn-cta link" href="/signup.html">Assinar Pro</a>
+          <div class="price-footnote">Cancele quando quiser, sem multa.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="tight">
+      <div class="section-head">
+        <span class="eyebrow">❓ Perguntas frequentes</span>
+        <h2>Perguntas frequentes</h2>
+        <p>Tudo o que você precisa saber para decidir com confiança.</p>
+      </div>
+      <div class="faq-grid" id="faq-grid">
+        <div class="card faq-item">
+          <div class="faq-q"><div class="q-ico">?</div><span class="txt">Preciso usar um WhatsApp pessoal?</span><span class="chev">▾</span></div>
+          <div class="faq-a"><p>Não. A conexão é feita via WhatsApp Cloud API oficial da Meta, com o número comercial da sua barbearia — nada de QR Code em celular pessoal.</p></div>
+        </div>
+        <div class="card faq-item">
+          <div class="faq-q"><div class="q-ico">?</div><span class="txt">A IA realmente marca e cancela horários?</span><span class="chev">▾</span></div>
+          <div class="faq-a"><p>Sim. A IA consulta a disponibilidade real do seu banco de dados e cria, cancela ou reagenda o atendimento na conversa — não é só um texto pronto.</p></div>
+        </div>
+        <div class="card faq-item">
+          <div class="faq-q"><div class="q-ico">?</div><span class="txt">E se a IA não souber responder?</span><span class="chev">▾</span></div>
+          <div class="faq-a"><p>Ela escala o atendimento para um humano e o barbeiro/dono recebe uma notificação push no navegador na hora.</p></div>
+        </div>
+        <div class="card faq-item">
+          <div class="faq-q"><div class="q-ico">?</div><span class="txt">Dá pra ter mais de um barbeiro?</span><span class="chev">▾</span></div>
+          <div class="faq-a"><p>Sim. O plano Starter cobre até 2 barbeiros ativos e o Pro é ilimitado, cada um com login e agenda própria.</p></div>
+        </div>
+        <div class="card faq-item">
+          <div class="faq-q"><div class="q-ico">?</div><span class="txt">Como funciona o teste grátis?</span><span class="chev">▾</span></div>
+          <div class="faq-a"><p>14 dias com acesso completo ao painel e à IA, sem pedir cartão de crédito. Depois, você assina Starter ou Pro pelo próprio painel.</p></div>
+        </div>
+        <div class="card faq-item">
+          <div class="faq-q"><div class="q-ico">?</div><span class="txt">Os dados dos meus clientes estão seguros?</span><span class="chev">▾</span></div>
+          <div class="faq-a"><p>Sim: sessão segura em Postgres, headers de segurança, log de auditoria e um fluxo de exclusão de dados (LGPD) disponível direto pelo site.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA FINAL -->
+    <section class="tight">
+      <div class="cta-final">
+        <span class="eyebrow">🚀 Pronto para começar?</span>
+        <h2>Deixe o WhatsApp da sua barbearia trabalhar sozinho</h2>
+        <p>Teste grátis por 14 dias, sem cartão de crédito. Cancele quando quiser.</p>
+        <div class="hero-cta">
+          <a class="btn-primary link" href="/signup.html">Criar minha conta →</a>
+          <a class="btn-secondary link" href="/login.html">Já tenho conta</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-grid">
+      <div>
+        <div class="brand" style="margin-bottom:12px;">
+          <div class="logo">💈</div>
+          <span>Painel da Barbearia</span>
+        </div>
+        <p style="font-size:12.5px; color:var(--text-muted); max-width:280px; line-height:1.6;">
+          Plataforma de agendamento e atendimento via WhatsApp com IA para barbearias.
+        </p>
+      </div>
+      <div>
+        <h5>Produto</h5>
+        <a href="#produto">Recursos</a>
+        <a href="#como-funciona">Como funciona</a>
+        <a href="#precos">Preços</a>
+      </div>
+      <div>
+        <h5>Conta</h5>
+        <a href="/signup.html">Criar conta</a>
+        <a href="/login.html">Entrar</a>
+        <a href="/esqueci-senha.html">Esqueci minha senha</a>
+      </div>
+      <div>
+        <h5>Legal</h5>
+        <a href="/privacidade.html">Privacidade</a>
+        <a href="/termos.html">Termos de uso</a>
+        <a href="/excluir-dados.html">Excluir meus dados</a>
+      </div>
+    </div>
+    <div class="footer-bottom">© <span id="year"></span> Painel da Barbearia. Todos os direitos reservados.</div>
+  </footer>
+
+  <script>
+    // ---- Tabs de recursos com auto-play ----
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const panels = document.querySelectorAll('.feature-panel');
+    const progressFill = document.getElementById('progress-fill');
+    const autoplayToggle = document.getElementById('autoplay-toggle');
+    const autoplayLabel = document.getElementById('autoplay-label');
+    const TAB_DURATION = 4500;
+    let current = 0;
+    let playing = true;
+    let rafId = null;
+    let segmentStart = null;
+
+    function showTab(index) {
+      current = index;
+      tabButtons.forEach((btn, i) => btn.classList.toggle('active', i === index));
+      panels.forEach((p, i) => p.classList.toggle('active', i === index));
+    }
+
+    function tick(ts) {
+      if (!playing) return;
+      if (segmentStart === null) segmentStart = ts;
+      const elapsed = ts - segmentStart;
+      const pct = Math.min(100, (elapsed / TAB_DURATION) * 100);
+      progressFill.style.width = pct + '%';
+      if (elapsed >= TAB_DURATION) {
+        segmentStart = ts;
+        showTab((current + 1) % panels.length);
+      }
+      rafId = requestAnimationFrame(tick);
+    }
+
+    function startAutoplay() {
+      playing = true;
+      segmentStart = null;
+      autoplayToggle.textContent = '❚❚';
+      autoplayLabel.textContent = 'Auto-play em execução';
+      rafId = requestAnimationFrame(tick);
+    }
+    function stopAutoplay() {
+      playing = false;
+      autoplayToggle.textContent = '▶';
+      autoplayLabel.textContent = 'Auto-play pausado';
+      progressFill.style.width = '0%';
+      if (rafId) cancelAnimationFrame(rafId);
+    }
+
+    tabButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        showTab(Number(btn.dataset.tab));
+        stopAutoplay();
+      });
+    });
+    autoplayToggle.addEventListener('click', () => {
+      if (playing) stopAutoplay(); else startAutoplay();
+    });
+    startAutoplay();
+
+    // ---- FAQ accordion ----
+    document.querySelectorAll('.faq-item').forEach((item) => {
+      item.querySelector('.faq-q').addEventListener('click', () => {
+        const isOpen = item.classList.contains('open');
+        document.querySelectorAll('.faq-item').forEach((i) => i.classList.remove('open'));
+        if (!isOpen) item.classList.add('open');
+      });
+    });
+
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
