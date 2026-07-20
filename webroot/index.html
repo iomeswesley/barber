@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Painel da Barbearia — Agendamento e atendimento via WhatsApp com IA</title>
+<title>Painel da Barbearia: Agendamento e atendimento via WhatsApp com IA</title>
 <meta name="description" content="Plataforma SaaS multi-tenant para barbearias: atendimento e agendamento automático via WhatsApp com IA, dashboard de faturamento e clientes, e cobrança recorrente via Stripe." />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%23e8c76a'/><stop offset='55%25' stop-color='%23d4af37'/><stop offset='100%25' stop-color='%238a6a2f'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%92%88</text></svg>" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -138,12 +138,16 @@
   }
 
   /* ---------- Feature tabs ---------- */
-  .tab-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+  .tab-bar {
+    display: flex; flex-wrap: nowrap; gap: 8px; margin-bottom: 8px;
+    overflow-x: auto; padding-bottom: 4px;
+  }
   .tab-btn {
-    display: flex; align-items: center; gap: 8px;
-    padding: 10px 16px; border-radius: 999px; border: 1px solid var(--card-border);
+    display: flex; align-items: center; gap: 7px; flex-shrink: 0;
+    padding: 10px 14px; border-radius: 999px; border: 1px solid var(--card-border);
     background: rgba(255,255,255,0.02); color: var(--text-secondary);
-    font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s ease;
+    font-size: 12.5px; font-weight: 600; cursor: pointer; transition: all .2s ease;
+    white-space: nowrap;
   }
   .tab-btn:hover { border-color: var(--card-border-hover); color: var(--text-primary); }
   .tab-btn.active {
@@ -339,7 +343,7 @@
         <h1>Sua barbearia atendendo e agendando sozinha no <span class="gold-text">WhatsApp</span></h1>
         <p class="lead">
           Conecte o número da sua barbearia, a IA responde clientes, marca, cancela e
-          reagenda horários automaticamente — e você acompanha tudo em um painel com
+          reagenda horários automaticamente, e você acompanha tudo em um painel com
           faturamento, ocupação e histórico de clientes.
         </p>
         <div class="hero-features">
@@ -349,7 +353,7 @@
           <div class="hero-feature"><span class="ico">🔒</span>Sessão segura + LGPD</div>
         </div>
         <div class="hero-cta">
-          <a class="btn-primary link" href="/signup.html">Teste grátis por 14 dias →</a>
+          <a class="btn-primary link" href="/signup.html">Teste grátis por 7 dias →</a>
           <a class="btn-secondary link" href="#produto">Ver o produto</a>
         </div>
         <div class="trust-line"><span class="check">✓</span> Sem cartão de crédito para começar o teste.</div>
@@ -360,7 +364,7 @@
           <div class="mock-window">
             <div class="mock-titlebar">
               <div class="mock-dot r"></div><div class="mock-dot y"></div><div class="mock-dot g"></div>
-              <div class="mock-title">WhatsApp — Barbearia Vintage</div>
+              <div class="mock-title">WhatsApp · Barbearia Vintage</div>
             </div>
             <div class="chat-head">
               <div class="chat-avatar">💈</div>
@@ -417,7 +421,7 @@
           <div class="kicker">Produto</div>
           <h3>A IA agenda, cancela e reagenda de verdade</h3>
           <p class="desc">Nada de robô que só devolve link. O assistente entende o contexto da conversa,
-            consulta horários livres e cria o agendamento direto no seu banco de dados — e chama um
+            consulta horários livres e cria o agendamento direto no seu banco de dados, e chama um
             humano quando o assunto sai do escopo dele.</p>
           <ul class="feature-list">
             <li>Consulta serviços, barbeiros e horários disponíveis em tempo real</li>
@@ -450,10 +454,10 @@
           <div class="tip-box"><b>Dica:</b> lembretes automáticos são enviados por WhatsApp antes de cada horário.</div>
         </div>
         <div class="card feature-mock">
-          <div class="mock-row"><div><div class="name">09:00 — Rafael</div><div class="sub">Corte + Barba · João</div></div><span class="mock-pill good">confirmado</span></div>
-          <div class="mock-row"><div><div class="name">10:30 — Carlos</div><div class="sub">Corte · Pedro</div></div><span class="mock-pill gold">em andamento</span></div>
-          <div class="mock-row"><div><div class="name">11:00 — Diego</div><div class="sub">Bloqueado · almoço</div></div><span class="mock-pill warn">bloqueado</span></div>
-          <div class="mock-row"><div><div class="name">14:00 — Rafael</div><div class="sub">Corte · Marcos</div></div><span class="mock-pill good">confirmado</span></div>
+          <div class="mock-row"><div><div class="name">09:00 · Rafael</div><div class="sub">Corte + Barba · João</div></div><span class="mock-pill good">confirmado</span></div>
+          <div class="mock-row"><div><div class="name">10:30 · Carlos</div><div class="sub">Corte · Pedro</div></div><span class="mock-pill gold">em andamento</span></div>
+          <div class="mock-row"><div><div class="name">11:00 · Diego</div><div class="sub">Bloqueado · almoço</div></div><span class="mock-pill warn">bloqueado</span></div>
+          <div class="mock-row"><div><div class="name">14:00 · Rafael</div><div class="sub">Corte · Marcos</div></div><span class="mock-pill good">confirmado</span></div>
         </div>
       </div>
 
@@ -463,7 +467,7 @@
           <div class="ico-badge">📊</div>
           <div class="kicker">Produto</div>
           <h3>Faturamento e ocupação em tempo real</h3>
-          <p class="desc">Veja quanto entrou hoje, a tendência da semana e os horários mais ocupados —
+          <p class="desc">Veja quanto entrou hoje, a tendência da semana e os horários mais ocupados,
             sem precisar abrir planilha.</p>
           <ul class="feature-list">
             <li>Faturamento do dia, tendência e comparação por período</li>
@@ -487,7 +491,7 @@
           <div class="kicker">Produto</div>
           <h3>Histórico de cliente identificado pelo telefone</h3>
           <p class="desc">Cada cliente é reconhecido automaticamente pelo número de WhatsApp, com todo o
-            histórico de visitas, avaliações e aniversário — sem precisar de cadastro manual.</p>
+            histórico de visitas, avaliações e aniversário, sem precisar de cadastro manual.</p>
           <ul class="feature-list">
             <li>Histórico completo de visitas por cliente</li>
             <li>Lembrete de aniversário e mensagens de reconquista</li>
@@ -561,13 +565,13 @@
         <div class="card step-card">
           <span class="step-badge">Passo 01</span>
           <h4>Crie sua conta</h4>
-          <p>Cadastre sua barbearia, confirme o e-mail e comece o teste grátis de 14 dias, sem cartão.</p>
+          <p>Cadastre sua barbearia, confirme o e-mail e comece o teste grátis de 7 dias, sem cartão.</p>
           <span class="step-num">01</span>
         </div>
         <div class="card step-card">
           <span class="step-badge">Passo 02</span>
           <h4>Conecte o WhatsApp</h4>
-          <p>Ligue o número da barbearia à WhatsApp Cloud API oficial da Meta — sem número pessoal.</p>
+          <p>Ligue o número da barbearia à WhatsApp Cloud API oficial da Meta, sem número pessoal.</p>
           <span class="step-num">02</span>
         </div>
         <div class="card step-card">
@@ -621,13 +625,13 @@
       <div class="section-head">
         <span class="eyebrow">💳 Planos e valores</span>
         <h2>Preços para cada tamanho de barbearia</h2>
-        <p>Comece grátis por 14 dias. Sem cartão de crédito para testar.</p>
+        <p>Comece grátis por 7 dias. Sem cartão de crédito para testar.</p>
       </div>
       <div class="pricing-grid">
         <div class="card price-card">
           <span class="plan-tag">Teste grátis</span>
           <h3>Experimente sem compromisso</h3>
-          <div class="price-amount">R$ 0<span>/14 dias</span></div>
+          <div class="price-amount">R$ 0<span>/7 dias</span></div>
           <div class="price-note">Depois, escolha Starter ou Pro.</div>
           <ul class="price-list">
             <li>Acesso completo ao painel e à IA</li>
@@ -679,11 +683,11 @@
       <div class="faq-grid" id="faq-grid">
         <div class="card faq-item">
           <div class="faq-q"><div class="q-ico">?</div><span class="txt">Preciso usar um WhatsApp pessoal?</span><span class="chev">▾</span></div>
-          <div class="faq-a"><p>Não. A conexão é feita via WhatsApp Cloud API oficial da Meta, com o número comercial da sua barbearia — nada de QR Code em celular pessoal.</p></div>
+          <div class="faq-a"><p>Não. A conexão é feita via WhatsApp Cloud API oficial da Meta, com o número comercial da sua barbearia, nada de QR Code em celular pessoal.</p></div>
         </div>
         <div class="card faq-item">
           <div class="faq-q"><div class="q-ico">?</div><span class="txt">A IA realmente marca e cancela horários?</span><span class="chev">▾</span></div>
-          <div class="faq-a"><p>Sim. A IA consulta a disponibilidade real do seu banco de dados e cria, cancela ou reagenda o atendimento na conversa — não é só um texto pronto.</p></div>
+          <div class="faq-a"><p>Sim. A IA consulta a disponibilidade real do seu banco de dados e cria, cancela ou reagenda o atendimento na conversa, não é só um texto pronto.</p></div>
         </div>
         <div class="card faq-item">
           <div class="faq-q"><div class="q-ico">?</div><span class="txt">E se a IA não souber responder?</span><span class="chev">▾</span></div>
@@ -695,7 +699,7 @@
         </div>
         <div class="card faq-item">
           <div class="faq-q"><div class="q-ico">?</div><span class="txt">Como funciona o teste grátis?</span><span class="chev">▾</span></div>
-          <div class="faq-a"><p>14 dias com acesso completo ao painel e à IA, sem pedir cartão de crédito. Depois, você assina Starter ou Pro pelo próprio painel.</p></div>
+          <div class="faq-a"><p>7 dias com acesso completo ao painel e à IA, sem pedir cartão de crédito. Depois, você assina Starter ou Pro pelo próprio painel.</p></div>
         </div>
         <div class="card faq-item">
           <div class="faq-q"><div class="q-ico">?</div><span class="txt">Os dados dos meus clientes estão seguros?</span><span class="chev">▾</span></div>
@@ -709,7 +713,7 @@
       <div class="cta-final">
         <span class="eyebrow">🚀 Pronto para começar?</span>
         <h2>Deixe o WhatsApp da sua barbearia trabalhar sozinho</h2>
-        <p>Teste grátis por 14 dias, sem cartão de crédito. Cancele quando quiser.</p>
+        <p>Teste grátis por 7 dias, sem cartão de crédito. Cancele quando quiser.</p>
         <div class="hero-cta">
           <a class="btn-primary link" href="/signup.html">Criar minha conta →</a>
           <a class="btn-secondary link" href="/login.html">Já tenho conta</a>
@@ -758,7 +762,7 @@
     const progressFill = document.getElementById('progress-fill');
     const autoplayToggle = document.getElementById('autoplay-toggle');
     const autoplayLabel = document.getElementById('autoplay-label');
-    const TAB_DURATION = 4500;
+    const TAB_DURATION = 15000;
     let current = 0;
     let playing = true;
     let rafId = null;
