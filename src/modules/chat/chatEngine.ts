@@ -320,6 +320,60 @@ export async function resetSession(sessionId: string, barbershopId: number) {
   await prisma.chatSession.deleteMany({ where: { sessionId: storageKey(barbershopId, sessionId) } });
 }
 
+// Lista as conversas da barbearia pro dono conseguir ver o que o cliente
+// mandou e o que o bot respondeu. sessionId é o telefone (wa_id) no fluxo
+// real do WhatsApp — prefixado com "<barbershopId>:" desde a correção de
+// isolamento entre tenants (ver storageKey), mas linhas gravadas antes
+// dessa correção guardam o telefone puro, sem prefixo. Como já filtramos
+// por barbershopId na query, tratar as duas formas aqui é seguro (não
+// vaza conversa de outra barbearia) e evita esconder histórico real de
+// cliente só porque é anterior à correção.
+export async function listChatSessionsForBarbershop(barbershopId: number) {
+  const sessions = await prisma.chatSession.findMany({
+    where: { barbershopId },
+    orderBy: { updatedAt: "desc" },
+    select: { sessionId: true, updatedAt: true },
+  });
+  const prefix = `${barbershopId}:`;
+  return sessions.map((s) => ({
+    phone: s.sessionId.startsWith(prefix) ? s.sessionId.slice(prefix.length) : s.sessionId,
+    updatedAt: s.updatedAt,
+  }));
+}
+
+export interface ChatTranscriptEntry {
+  role: "customer" | "bot";
+  text: string;
+}
+
+// Content blocks de tool_use/tool_result são "conversa interna" entre o bot
+// e o próprio sistema (ex: consultar horários) — não foram digitados por
+// ninguém, então ficam de fora da transcrição pro dono ver só o diálogo real.
+export async function getChatTranscript(barbershopId: number, phone: string): Promise<ChatTranscriptEntry[]> {
+  // Tenta a chave atual (prefixada) primeiro; cai pro telefone puro se for
+  // uma conversa anterior à correção de isolamento entre tenants (mesma
+  // ressalva de listChatSessionsForBarbershop acima).
+  let row = await prisma.chatSession.findUnique({ where: { sessionId: storageKey(barbershopId, phone) } });
+  if (!row) row = await prisma.chatSession.findFirst({ where: { sessionId: phone, barbershopId } });
+  const messages = (row?.messages as unknown as Anthropic.MessageParam[]) || [];
+
+  const entries: ChatTranscriptEntry[] = [];
+  for (const message of messages) {
+    if (typeof message.content === "string") {
+      if (message.role === "user") entries.push({ role: "customer", text: message.content });
+      continue;
+    }
+    if (message.role !== "assistant") continue; // "user" com content em array é tool_result, não mensagem real
+    const text = message.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("\n")
+      .trim();
+    if (text) entries.push({ role: "bot", text });
+  }
+  return entries;
+}
+
 async function loadSession(sessionId: string, barbershopId: number): Promise<ChatSession> {
   const row = await prisma.chatSession.findUnique({ where: { sessionId: storageKey(barbershopId, sessionId) } });
   if (!row) return { barbershopId, messages: [] };

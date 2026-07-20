@@ -605,6 +605,20 @@
     .link-back span.full { display: none; }
     main { padding: 16px 14px; }
   }
+
+  /* ---------- Conversas (histórico de chat do WhatsApp) ---------- */
+  .chat-session-item {
+    display: block; width: 100%; text-align: left; padding: 12px 14px; border: none; border-bottom: 1px solid var(--card-border);
+    background: none; color: var(--text-primary); cursor: pointer; font-size: 12.5px;
+  }
+  .chat-session-item:hover { background: rgba(255,255,255,0.03); }
+  .chat-session-item.active { background: rgb(var(--color-primary) / 0.12); }
+  .chat-session-item .csi-name { font-weight: 700; font-size: 13px; }
+  .chat-session-item .csi-phone { color: var(--text-muted); font-size: 11.5px; margin-top: 2px; }
+  .chat-session-item .csi-time { color: var(--text-muted); font-size: 10.5px; margin-top: 4px; }
+  .chat-bubble { max-width: 78%; padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.45; white-space: pre-wrap; }
+  .chat-bubble.customer { align-self: flex-start; background: rgba(255,255,255,0.06); border-top-left-radius: 3px; }
+  .chat-bubble.bot { align-self: flex-end; background: rgb(var(--color-primary) / 0.18); border-top-right-radius: 3px; }
 </style>
 </head>
 <body>
@@ -626,6 +640,7 @@
   <div class="tabs page-tabs" id="page-tabs">
     <button data-page="overview" class="active">Visão geral</button>
     <button data-page="agenda">Agenda</button>
+    <button data-page="conversas">Conversas</button>
     <button data-page="historico">Histórico</button>
     <button data-page="estoque">Estoque</button>
     <button data-page="configuracoes">Configurações</button>
@@ -831,6 +846,19 @@
       </div>
 
       <div id="agenda-body"></div>
+    </div>
+  </div>
+
+  <div id="page-conversas" class="page-section" style="display:none;">
+    <div class="section-title">Conversas do WhatsApp</div>
+    <div class="card panel" style="padding:0; display:grid; grid-template-columns: 280px 1fr; min-height:480px; overflow:hidden;">
+      <div style="border-right:1px solid var(--card-border); overflow-y:auto; max-height:640px;" id="chat-session-list">
+        <div class="empty-state" style="padding:20px;">Carregando...</div>
+      </div>
+      <div style="display:flex; flex-direction:column;">
+        <div style="padding:12px 16px; border-bottom:1px solid var(--card-border); font-size:13px; font-weight:700;" id="chat-transcript-header">Selecione uma conversa</div>
+        <div style="flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:10px; max-height:600px;" id="chat-transcript-body"></div>
+      </div>
     </div>
   </div>
 
@@ -2377,6 +2405,58 @@ async function populateAgendaBarberFilter() {
   agendaBarberFilterPopulated = true;
 }
 
+/* ---------------- Conversas do WhatsApp ---------------- */
+function escapeHtml(str) {
+  return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+let activeChatPhone = null;
+
+async function loadChatSessionList() {
+  const list = document.getElementById("chat-session-list");
+  const sessions = await (await fetch("/api/manage/chat-sessions")).json();
+  if (sessions.length === 0) {
+    list.innerHTML = `<div class="empty-state" style="padding:20px;">Nenhuma conversa ainda.</div>`;
+    return;
+  }
+  list.innerHTML = sessions
+    .map(
+      (s) => `
+    <button class="chat-session-item" data-phone="${escapeHtml(s.phone)}">
+      <div class="csi-name">${escapeHtml(s.clientName || s.phone)}</div>
+      ${s.clientName ? `<div class="csi-phone">${escapeHtml(s.phone)}</div>` : ""}
+      <div class="csi-time">${timeAgo(s.updatedAt)}</div>
+    </button>
+  `
+    )
+    .join("");
+  list.querySelectorAll(".chat-session-item").forEach((btn) => {
+    btn.addEventListener("click", () => loadChatTranscript(btn.dataset.phone));
+  });
+}
+
+async function loadChatTranscript(phone) {
+  activeChatPhone = phone;
+  document.querySelectorAll(".chat-session-item").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.phone === phone);
+  });
+  const header = document.getElementById("chat-transcript-header");
+  const body = document.getElementById("chat-transcript-body");
+  header.textContent = phone;
+  body.innerHTML = `<div class="empty-state">Carregando...</div>`;
+
+  const transcript = await (await fetch(`/api/manage/chat-sessions/${encodeURIComponent(phone)}`)).json();
+  if (activeChatPhone !== phone) return; // usuário já trocou de conversa antes da resposta chegar
+  if (transcript.length === 0) {
+    body.innerHTML = `<div class="empty-state">Sem mensagens nessa conversa.</div>`;
+    return;
+  }
+  body.innerHTML = transcript
+    .map((m) => `<div class="chat-bubble ${m.role}">${escapeHtml(m.text)}</div>`)
+    .join("");
+  body.scrollTop = body.scrollHeight;
+}
+
 /* ---------------- Novo agendamento manual (dono) ---------------- */
 let newApptFormPopulated = false;
 
@@ -3174,6 +3254,7 @@ document.getElementById("billing-portal-btn").addEventListener("click", async (e
 
 /* ---------------- Page-level tabs ---------------- */
 let agendaLoaded = false;
+let conversasLoaded = false;
 let historicoLoaded = false;
 let auditoriaLoaded = false;
 let estoqueLoaded = false;
@@ -3184,12 +3265,16 @@ document.querySelectorAll("#page-tabs button").forEach((btn) => {
     document.querySelectorAll("#page-tabs button").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     const page = btn.dataset.page;
-    ["overview", "agenda", "historico", "estoque", "configuracoes", "auditoria"].forEach((p) => {
+    ["overview", "agenda", "conversas", "historico", "estoque", "configuracoes", "auditoria"].forEach((p) => {
       document.getElementById(`page-${p}`).style.display = p === page ? "block" : "none";
     });
     if (page === "agenda" && !agendaLoaded) {
       agendaLoaded = true;
       await renderAgenda();
+    }
+    if (page === "conversas" && !conversasLoaded) {
+      conversasLoaded = true;
+      await loadChatSessionList();
     }
     if (page === "historico" && !historicoLoaded) {
       historicoLoaded = true;
