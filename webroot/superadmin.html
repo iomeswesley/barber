@@ -43,6 +43,10 @@
   .loading, .empty { padding: 30px; text-align: center; color: var(--text-muted); font-size: 13px; }
   select, .row-input { padding: 7px 9px; border-radius: 8px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.03); color: var(--text-primary); font-size: 13px; font-family: inherit; }
   .row-input { width: 100%; }
+  /* Native <select> popups ignoram fundo transparente e caem no padrão
+     branco do browser — mesmo fix usado em .form-field select (theme.css). */
+  select { background-color: var(--card-bg-solid); color-scheme: light dark; }
+  select option { background-color: var(--card-bg-solid); color: var(--text-primary); }
   .row-input.num { width: 80px; }
   .shop-picker { max-width: 360px; margin-bottom: 18px; }
   .shop-picker label { display: block; font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; }

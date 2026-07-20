@@ -10,6 +10,10 @@ SaaS multi-tenant de agendamento para barbearias: painel web (dono/barbeiro) + b
 - Deploy: Vercel, produção em https://barbearia-saas-jet.vercel.app
 - Banco: Postgres via Supabase (Prisma) — **um único banco, sem staging/teste separado**. Dev local aponta pro mesmo banco de produção.
 
+## Convenções de frontend
+
+- **Todo `<select>` novo em `webroot/*.html` precisa de `color-scheme: light dark` + fundo sólido (`var(--card-bg-solid)`) no próprio `select` e no `select option`** — sem isso o dropdown nativo abre com fundo branco no dark mode (o navegador ignora CSS de fundo transparente no popup nativo). O padrão certo já existe em `webroot/assets/theme.css` (`.form-field select`), mas só se aplica a elementos com essa classe — não herda automaticamente pra selects fora desse padrão.
+
 ## Convenções operacionais (importante seguir)
 
 - **Antes de qualquer commit**: `npx tsc --noEmit` e `npx vitest run` têm que passar limpos.
