@@ -75,7 +75,7 @@ authRouter.post("/api/auth/forgot-password", selfServiceRateLimiter, async (req,
       });
       const resetUrl = `${env.PUBLIC_BASE_URL || ""}/redefinir-senha.html?token=${token}`;
       try {
-        await sendPasswordResetEmail(user.email!, user.name, resetUrl);
+        await sendPasswordResetEmail(user.email!, user.name, user.username, resetUrl);
       } catch (err) {
         console.error("[EMAIL] Falha ao enviar redefinição de senha:", err);
       }

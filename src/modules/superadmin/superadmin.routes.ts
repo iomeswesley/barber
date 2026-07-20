@@ -55,7 +55,7 @@ superAdminRouter.post("/api/superadmin/users/:id/reset-password", requireSuperAd
 
     const newPassword = generateRandomPassword();
     await prisma.user.update({ where: { id: user.id }, data: { passwordHash: hashPassword(newPassword) } });
-    await sendAdminGeneratedPasswordEmail(user.email, user.name, newPassword);
+    await sendAdminGeneratedPasswordEmail(user.email, user.name, user.username, newPassword);
 
     res.json({ ok: true, sentTo: user.email });
   } catch (err) {
