@@ -279,6 +279,11 @@
   .price-list { list-style: none; padding: 0; margin: 0 0 26px; display: flex; flex-direction: column; gap: 11px; flex: 1; }
   .price-list li { display: flex; align-items: flex-start; gap: 9px; font-size: 13px; color: var(--text-secondary); }
   .price-list li::before { content: "✓"; color: var(--good); font-weight: 700; flex-shrink: 0; }
+  .soon-tag {
+    display: inline-block; font-size: 10px; font-weight: 700; color: var(--gold);
+    border: 1px solid rgb(var(--color-primary) / 0.4); border-radius: 999px;
+    padding: 1px 8px; margin-left: 6px; vertical-align: middle;
+  }
   .price-card .btn-cta { text-align: center; text-decoration: none; display: block; width: 100%; padding: 12px; }
   .price-footnote { text-align: center; font-size: 11.5px; color: var(--text-muted); margin-top: 10px; }
   @media (max-width: 900px) { .pricing-grid { grid-template-columns: 1fr; } }
@@ -689,6 +694,7 @@
           <div class="price-note">Ideal pra barbearias em crescimento.</div>
           <ul class="price-list">
             <li>Tudo do Starter, sem limite de barbeiros</li>
+            <li>Planos de assinatura pros seus clientes <span class="soon-tag">em breve</span></li>
             <li>Prioridade em novos recursos</li>
             <li>Suporte via portal do cliente Stripe</li>
           </ul>
