@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { env } from "@/config/env.js";
+import { env, isProduction } from "@/config/env.js";
 
 export const whatsappConfigured = !!env.WHATSAPP_ACCESS_TOKEN;
 
@@ -66,7 +66,13 @@ export async function sendWhatsappTemplate(
 // "X-Hub-Signature-256", garantindo que a requisição do webhook realmente
 // veio da Meta (usando o App Secret) e não de terceiros.
 export function verifyWebhookSignature(rawBody: Buffer, signatureHeader: string | undefined): boolean {
-  if (!env.WHATSAPP_APP_SECRET) return true; // sem app secret configurado, não valida (só pra facilitar dev inicial)
+  if (!env.WHATSAPP_APP_SECRET) {
+    // Sem app secret configurado não dá pra validar assinatura nenhuma —
+    // em produção isso significa que qualquer um poderia forjar eventos do
+    // webhook, então falha fechado. Só libera sem checagem em dev/test pra
+    // não travar quem ainda não configurou a Meta localmente.
+    return !isProduction;
+  }
   if (!signatureHeader || !signatureHeader.startsWith("sha256=")) return false;
   const expected = crypto.createHmac("sha256", env.WHATSAPP_APP_SECRET).update(rawBody).digest("hex");
   const provided = signatureHeader.slice("sha256=".length);

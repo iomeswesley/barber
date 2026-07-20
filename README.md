@@ -64,12 +64,15 @@ Mesmas credenciais do barbearia-bot original (senha `barbearia123` para todos, g
 - Dono: `barbearia-vintage.dono`
 - Barbeiro: `carlos` (ou `rafael`, `diego`, `lucas`, `bruno`)
 
-## Próximos passos (fora do escopo desta passada)
+## Status
 
-Esta passada cobriu arquitetura e isolamento de tenant. Ficou de fora, para uma fase seguinte:
+- **Onboarding self-service** — implementado (`src/modules/onboarding/`): cadastro de dono/barbearia, confirmação de e-mail por token, recuperação de senha.
+- **Cobrança (Stripe)** — implementada (`src/modules/billing/`): checkout, portal do cliente, webhook, gating por plano (Starter/Pro).
+- **LGPD** — implementada: política de privacidade, termos e exclusão de dados de cliente (`src/modules/clients/clients.routes.ts`). Como `Client` é uma entidade global (identificada por telefone, compartilhada entre barbearias), um pedido de exclusão feito numa barbearia anonimiza o cadastro em todas as outras onde o mesmo cliente já agendou — comportamento decorrente do modelo de dados, vale revisitar se o produto crescer para o ponto de isso virar um problema real.
+- **WhatsApp** — integração oficial com a Cloud API da Meta (`src/lib/whatsapp.ts`, `src/modules/whatsapp/`), com Message Templates para lembrete, aviso de reagendamento e mensagem de reconquista.
+- **Auditoria de isolamento nas rotas públicas** — rodada uma revisão de segurança dedicada; corrigido um IDOR entre tenants em `/api/public/appointments` (barbeiro/serviço de uma barbearia podiam ser usados para criar agendamento em outra) e a verificação de assinatura do webhook do WhatsApp (falhava aberta se `WHATSAPP_APP_SECRET` não estivesse configurado). `/api/public/*` e `/api/chat` continuam confiando no telefone do cliente como identidade (sem OTP), igual ao fluxo real do WhatsApp — decisão consciente, mitigada por rate limiting.
 
-1. **Onboarding self-service** — hoje uma barbearia nova só existe via `prisma/seed.ts`; falta uma tela + rota para cadastro de dono/barbearia sem intervenção manual.
-2. **Cobrança** — o modelo `Subscription` já está no schema (status trialing/active/past_due/canceled, campos para Stripe) mas sem nenhuma lógica de billing implementada ainda.
-3. **LGPD** — política de privacidade e endpoint de exclusão de dados de cliente a pedido.
-4. **Reescrita do frontend** — `webroot/*.html` continua em HTML/JS puro, copiado do projeto original; migrar para um framework (ou ao menos modularizar) é uma iniciativa separada.
-5. **Auditoria de isolamento nas rotas públicas** — `/api/public/*` e `/api/chat` continuam recebendo `barbershopId` do próprio cliente (sem sessão, já que é o fluxo de WhatsApp/autoatendimento); vale uma revisão de segurança dedicada antes de escalar para múltiplos clientes reais.
+## Próximos passos
+
+1. **Reescrita do frontend** — `webroot/*.html` já passou por um redesign visual, mas continua em HTML/JS puro; migrar para um framework (ou ao menos modularizar) é uma iniciativa separada.
+2. **Cobertura de testes** — hoje concentrada em `lib/` e alguns módulos (`clients`, `appointments`); faltam testes para `billing` (webhook do Stripe), `whatsapp`/`chat` (webhook, chatEngine) e `onboarding`/`auth`.

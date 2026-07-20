@@ -3,6 +3,7 @@ import { AppError } from "@/middleware/errorHandler.js";
 import { timeToMinutes, minutesToTime, localDateStr, normalizePhone } from "@/lib/time.js";
 import { getBarbershop, getBusinessHoursForDate } from "@/modules/barbershops/barbershops.repository.js";
 import { getService } from "@/modules/services/services.repository.js";
+import { getBarber } from "@/modules/barbers/barbers.repository.js";
 import { getBlocksFor } from "@/modules/timeBlocks/timeBlocks.repository.js";
 import { getClientByPhone } from "@/modules/clients/clients.repository.js";
 import {
@@ -22,8 +23,9 @@ export async function getAvailableSlots(
   serviceId: number,
   date: string
 ): Promise<string[]> {
-  const [shop, service] = await Promise.all([getBarbershop(barbershopId), getService(serviceId)]);
-  if (!shop || !service) return [];
+  const [shop, service, barber] = await Promise.all([getBarbershop(barbershopId), getService(serviceId), getBarber(barberId)]);
+  if (!shop || !service || service.barbershopId !== barbershopId) return [];
+  if (!barber || barber.barbershopId !== barbershopId) return [];
 
   const hours = await getBusinessHoursForDate(barbershopId, date);
   if (!hours || hours.closed) return [];
@@ -82,8 +84,9 @@ export async function createAppointment(input: {
   date: string;
   startTime: string;
 }): Promise<AppointmentDTO> {
-  const service = await getService(input.serviceId);
-  if (!service) throw new AppError("Serviço não encontrado", 404);
+  const [service, barber] = await Promise.all([getService(input.serviceId), getBarber(input.barberId)]);
+  if (!service || service.barbershopId !== input.barbershopId) throw new AppError("Serviço não encontrado", 404);
+  if (!barber || barber.barbershopId !== input.barbershopId) throw new AppError("Barbeiro não encontrado", 404);
   const endTime = minutesToTime(timeToMinutes(input.startTime) + service.durationMin);
 
   const conflict = await findConflict(input.barberId, input.date, input.startTime, endTime);
@@ -163,7 +166,7 @@ export async function updateAppointmentDetails(
 
   if (serviceId && Number(serviceId) !== appointment.serviceId) {
     const service = await getService(Number(serviceId));
-    if (!service) throw new AppError("Serviço não encontrado");
+    if (!service || service.barbershopId !== appointment.barbershopId) throw new AppError("Serviço não encontrado");
     const newEndTime = minutesToTime(timeToMinutes(appointment.startTime) + service.durationMin);
     await updateAppointmentFields(id, { serviceId: Number(serviceId), endTime: newEndTime });
   }
