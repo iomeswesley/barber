@@ -99,9 +99,27 @@ html, body {
   margin: 0;
   padding: 0;
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  overflow-x: hidden;
+  /* "clip" em vez de "hidden": impede scroll horizontal igual, mas não cria
+     um contexto de scroll próprio em html/body — "hidden" fazia isso e
+     quebrava todo position:sticky da página (Safari é o mais afetado). */
+  overflow-x: clip;
   width: 100%;
 }
+
+/* ---------- Scrollbar (dark glassmorphism dourado) ---------- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--color-primary) / 0.45) transparent;
+}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--color-primary) / 0.35);
+  border-radius: 999px;
+  border: 2px solid var(--bg-page);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: rgb(var(--color-primary) / 0.55); background-clip: padding-box; }
 button, input, select, textarea, option {
   font-family: inherit;
 }
