@@ -2417,10 +2417,19 @@ function escapeHtml(str) {
 }
 
 let activeChatPhone = null;
+// Proxy pra "última atividade" da conversa — a política de 24h do WhatsApp
+// exige a hora exata da última mensagem do CLIENTE, mas o schema não guarda
+// timestamp por mensagem, só updatedAt da sessão inteira. Como toda troca
+// (cliente -> bot) atualiza a sessão de uma vez, updatedAt costuma refletir
+// bem a última mensagem do cliente — só fica impreciso logo depois de uma
+// resposta manual do dono, que também bate o updatedAt. Aceitável como aviso,
+// não é garantia.
+let chatSessionUpdatedAt = {};
 
 async function loadChatSessionList() {
   const list = document.getElementById("chat-session-list");
   const sessions = await (await fetch("/api/manage/chat-sessions")).json();
+  chatSessionUpdatedAt = Object.fromEntries(sessions.map((s) => [s.phone, s.updatedAt]));
   if (sessions.length === 0) {
     list.innerHTML = `<div class="empty-state" style="padding:20px;">Nenhuma conversa ainda.</div>`;
     return;
@@ -2470,6 +2479,16 @@ async function sendChatReply() {
   const btn = document.getElementById("chat-reply-send-btn");
   const message = input.value.trim();
   if (!message || !activeChatPhone) return;
+
+  const lastActivity = chatSessionUpdatedAt[activeChatPhone];
+  const hoursSinceLastActivity = lastActivity ? (Date.now() - new Date(lastActivity).getTime()) / 36e5 : Infinity;
+  if (hoursSinceLastActivity > 24) {
+    const proceed = await showConfirmModal(
+      "Essa conversa está inativa há mais de 24h. Por política do WhatsApp, mensagens de texto livre fora dessa janela podem não chegar ao cliente (só templates aprovados funcionam depois disso) — o envio pode parecer ter dado certo aqui mesmo sem a mensagem chegar. Enviar mesmo assim?",
+      { destructive: false }
+    );
+    if (!proceed) return;
+  }
 
   btn.disabled = true;
   try {
