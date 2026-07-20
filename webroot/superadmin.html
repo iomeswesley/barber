@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Administração — Usuários</title>
+<meta name="robots" content="noindex, nofollow" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%23e8c76a'/><stop offset='55%25' stop-color='%23d4af37'/><stop offset='100%25' stop-color='%238a6a2f'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%9B%A1</text></svg>" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300..800;1,300..800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/theme.css">
+<style>
+  body { padding: 28px 20px 60px; position: relative; z-index: 0; }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; gap: 12px; flex-wrap: wrap; }
+  h1 { font-size: 20px; margin: 0; display: flex; align-items: center; gap: 10px; }
+  .logout-btn { background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); color: var(--text-muted); padding: 8px 14px; border-radius: 10px; font-size: 12.5px; cursor: pointer; }
+  .logout-btn:hover { color: var(--text-primary); border-color: var(--gold); }
+  .card { padding: 0; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--card-border); }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  .role-tag { font-size: 11px; padding: 3px 8px; border-radius: 999px; font-weight: 600; }
+  .role-owner { background: var(--good-soft); color: var(--good); }
+  .role-barber { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+  .no-email { color: var(--text-muted); font-style: italic; font-size: 12px; }
+  .reset-btn { background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); color: var(--text-primary); padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; }
+  .reset-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+  .reset-btn:disabled { opacity: .5; cursor: default; }
+  .status { margin-top: 22px; padding: 10px 14px; border-radius: 10px; font-size: 12.5px; display: none; }
+  .status.ok { background: var(--good-soft); color: var(--good); display: block; }
+  .status.error { background: var(--danger-soft); color: var(--danger); display: block; }
+  .loading, .empty { padding: 30px; text-align: center; color: var(--text-muted); font-size: 13px; }
+</style>
+</head>
+<body>
+  <div class="bg-blobs" aria-hidden="true">
+    <div class="blob blob-a"></div>
+    <div class="blob blob-b"></div>
+    <div class="blob blob-c"></div>
+  </div>
+  <div class="wrap">
+    <header>
+      <h1>🛡️ Usuários da plataforma</h1>
+      <button class="logout-btn" id="logout-btn">Sair</button>
+    </header>
+    <div class="card" id="table-wrap">
+      <div class="loading">Carregando...</div>
+    </div>
+    <div class="status" id="status-box"></div>
+  </div>
+
+<script>
+const tableWrap = document.getElementById("table-wrap");
+const statusBox = document.getElementById("status-box");
+
+function showStatus(msg, ok) {
+  statusBox.textContent = msg;
+  statusBox.className = "status " + (ok ? "ok" : "error");
+  setTimeout(() => { statusBox.className = "status"; }, 5000);
+}
+
+function escapeHtml(str) {
+  return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+async function loadUsers() {
+  const res = await fetch("/api/superadmin/users");
+  if (res.status === 401) {
+    window.location.href = "/superadmin-login.html";
+    return;
+  }
+  const users = await res.json();
+  if (!users.length) {
+    tableWrap.innerHTML = '<div class="empty">Nenhum usuário cadastrado ainda.</div>';
+    return;
+  }
+
+  const rows = users.map((u) => `
+    <tr data-id="${u.id}">
+      <td>${escapeHtml(u.name)}</td>
+      <td>${escapeHtml(u.barbershopName)}</td>
+      <td><span class="role-tag role-${u.role}">${u.role === "owner" ? "Dono" : "Barbeiro"}</span></td>
+      <td>${escapeHtml(u.username)}</td>
+      <td>${u.email ? escapeHtml(u.email) : '<span class="no-email">sem e-mail</span>'}</td>
+      <td>
+        <button class="reset-btn" data-id="${u.id}" ${u.email ? "" : "disabled"} title="${u.email ? "" : "Usuário sem e-mail cadastrado"}">
+          Gerar nova senha
+        </button>
+      </td>
+    </tr>
+  `).join("");
+
+  tableWrap.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Barbearia</th>
+          <th>Papel</th>
+          <th>Usuário</th>
+          <th>E-mail</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+
+  tableWrap.querySelectorAll(".reset-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Gerar uma senha nova e enviar por e-mail para este usuário?")) return;
+      btn.disabled = true;
+      const original = btn.textContent;
+      btn.textContent = "Enviando...";
+      try {
+        const res = await fetch(`/api/superadmin/users/${btn.dataset.id}/reset-password`, { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) {
+          showStatus(data.error || "Não foi possível gerar a nova senha.", false);
+          btn.disabled = false;
+          btn.textContent = original;
+          return;
+        }
+        showStatus(`Nova senha enviada para ${data.sentTo}.`, true);
+        btn.textContent = "Enviado ✓";
+        setTimeout(() => { btn.disabled = false; btn.textContent = original; }, 3000);
+      } catch (err) {
+        showStatus("Erro de conexão com o servidor.", false);
+        btn.disabled = false;
+        btn.textContent = original;
+      }
+    });
+  });
+}
+
+document.getElementById("logout-btn").addEventListener("click", async () => {
+  await fetch("/api/superadmin/logout", { method: "POST" });
+  window.location.href = "/superadmin-login.html";
+});
+
+loadUsers().catch(() => {
+  tableWrap.innerHTML = '<div class="empty">Erro ao carregar usuários.</div>';
+});
+</script>
+</body>
+</html>

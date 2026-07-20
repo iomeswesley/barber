@@ -69,3 +69,25 @@ export async function sendPasswordResetEmail(to: string, name: string, resetUrl:
   });
   if (error) throw new Error(`Resend: ${error.message}`);
 }
+
+// Usado pelo painel de super-admin: diferente do fluxo normal de "esqueci
+// minha senha" (que manda um link), aqui o admin já gerou a senha nova e
+// ela vai direto no corpo do e-mail — o usuário pode trocar depois se quiser.
+export async function sendAdminGeneratedPasswordEmail(to: string, name: string, newPassword: string): Promise<void> {
+  if (!resend) {
+    console.log(`[EMAIL] (stub, RESEND_API_KEY não configurado) Nova senha gerada pelo admin para ${to}: ${newPassword}`);
+    return;
+  }
+  const { error } = await resend.emails.send({
+    from: env.EMAIL_FROM,
+    to,
+    subject: "Sua senha foi redefinida — Painel da Barbearia",
+    html: `
+      <p>Oi, ${name}!</p>
+      <p>Um administrador da plataforma redefiniu a senha da sua conta. Sua nova senha de acesso é:</p>
+      <p style="font-size: 18px; font-weight: 700; letter-spacing: 1px;">${newPassword}</p>
+      <p>Recomendamos trocar essa senha assim que entrar, pela opção "Esqueci minha senha" na tela de login.</p>
+    `,
+  });
+  if (error) throw new Error(`Resend: ${error.message}`);
+}

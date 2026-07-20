@@ -154,6 +154,7 @@ model User {
   username     String   @unique
   passwordHash String   @map("password_hash")
   name         String
+  createdAt    DateTime @default(now()) @map("created_at")
 
   // Opcional a nível de schema (usuários do seed/demo não têm) mas exigido
   // pela rota de cadastro pra contas novas. Token de confirmação enviado por

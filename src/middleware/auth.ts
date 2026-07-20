@@ -22,6 +22,15 @@ export function requireBarber(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+// Painel de administração da plataforma — sessão própria (`superAdmin`),
+// sem relação com o login de dono/barbeiro de uma barbearia.
+export function requireSuperAdmin(req: Request, res: Response, next: NextFunction) {
+  if (!req.session?.superAdmin) {
+    return res.status(401).json({ error: "Não autenticado" });
+  }
+  next();
+}
+
 // Helper central de isolamento de tenant: toda rota que carrega um recurso por id
 // (agendamento, produto, barbeiro, bloqueio...) deve comparar seu barbershopId
 // contra req.session.user.barbershopId usando esta função, em vez de reescrever

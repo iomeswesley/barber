@@ -26,6 +26,7 @@ import { whatsappRouter } from "@/modules/whatsapp/whatsapp.routes.js";
 import { onboardingRouter } from "@/modules/onboarding/onboarding.routes.js";
 import { clientsRouter } from "@/modules/clients/clients.routes.js";
 import { billingRouter } from "@/modules/billing/billing.routes.js";
+import { superAdminRouter } from "@/modules/superadmin/superadmin.routes.js";
 
 const PgSession = connectPgSimple(session);
 
@@ -118,6 +119,13 @@ export function createApp() {
     return res.redirect("/login.html");
   });
 
+  // Painel de administração da plataforma — sessão própria, sem relação com
+  // login de dono/barbeiro (ver requireSuperAdmin em src/middleware/auth.ts).
+  app.get("/superadmin.html", (req, res, next) => {
+    if (req.session?.superAdmin) return next();
+    return res.redirect("/superadmin-login.html");
+  });
+
   // Usa process.cwd() em vez de __dirname: __dirname fica em profundidades
   // diferentes conforme o modo (src/ no dev via tsx, dist/src/ compilado),
   // mas o processo sempre roda a partir da raiz do projeto em todos os
@@ -157,6 +165,7 @@ export function createApp() {
   app.use(onboardingRouter);
   app.use(clientsRouter);
   app.use(billingRouter);
+  app.use(superAdminRouter);
 
   app.use("/api", notFoundHandler);
   app.use(errorHandler);

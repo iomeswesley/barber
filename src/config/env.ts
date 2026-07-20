@@ -54,6 +54,13 @@ const envSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PRICE_STARTER: z.string().optional(),
   STRIPE_PRICE_PRO: z.string().optional(),
+  // Painel de administração da plataforma (super-admin, fora do escopo de
+  // qualquer barbearia) — login fixo via variável de ambiente, não uma
+  // conta na tabela users. Sem ADMIN_PASSWORD_HASH configurado, o login
+  // fica desligado (rota responde 503). Gere o hash com
+  // `npx tsx scripts/hash-password.ts <senha>`.
+  ADMIN_USERNAME: z.string().default("admin"),
+  ADMIN_PASSWORD_HASH: z.string().optional(),
   // Setado automaticamente pelo Vercel em toda função serverless — usado
   // pra desligar funcionalidades que exigem filesystem persistente/binários
   // do sistema (ex: backup local via pg_dump), indisponíveis nesse ambiente.
