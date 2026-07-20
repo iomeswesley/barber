@@ -169,6 +169,11 @@
   }
   .progress-track { flex: 1; max-width: 160px; height: 3px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; }
   .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--gold), #f0d9ab); transition: width .1s linear; }
+  .tab-counter { font-variant-numeric: tabular-nums; white-space: nowrap; flex-shrink: 0; }
+  @media (max-width: 480px) {
+    .autoplay-row { flex-wrap: wrap; }
+    .progress-track { order: 3; flex-basis: 100%; max-width: none; }
+  }
 
   .feature-panel { display: none; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
   .feature-panel.active { display: grid; animation: fadeIn .4s ease; }
@@ -420,6 +425,8 @@
         <button id="autoplay-toggle" title="Pausar/retomar">❚❚</button>
         <span id="autoplay-label">Auto-play em execução</span>
         <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+        <span id="tab-counter" class="tab-counter">1 / 6</span>
+        <button id="tab-next" title="Próximo recurso" aria-label="Próximo recurso">»</button>
       </div>
 
       <!-- Painel 0: IA -->
@@ -770,6 +777,8 @@
     const progressFill = document.getElementById('progress-fill');
     const autoplayToggle = document.getElementById('autoplay-toggle');
     const autoplayLabel = document.getElementById('autoplay-label');
+    const tabCounter = document.getElementById('tab-counter');
+    const tabNext = document.getElementById('tab-next');
     const TAB_DURATION = 15000;
     let current = 0;
     let playing = true;
@@ -780,6 +789,11 @@
       current = index;
       tabButtons.forEach((btn, i) => btn.classList.toggle('active', i === index));
       panels.forEach((p, i) => p.classList.toggle('active', i === index));
+      tabCounter.textContent = `${index + 1} / ${panels.length}`;
+      // No mobile a barra de pílulas rola horizontalmente e a ativa pode ficar
+      // fora da tela — sem isso o usuário não teria como saber qual recurso
+      // está selecionado sem arrastar a barra manualmente.
+      tabButtons[index].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     }
 
     function tick(ts) {
@@ -819,6 +833,11 @@
     autoplayToggle.addEventListener('click', () => {
       if (playing) stopAutoplay(); else startAutoplay();
     });
+    tabNext.addEventListener('click', () => {
+      showTab((current + 1) % panels.length);
+      stopAutoplay();
+    });
+    showTab(0);
     startAutoplay();
 
     // ---- FAQ accordion ----
