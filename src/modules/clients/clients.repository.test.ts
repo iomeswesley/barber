@@ -18,7 +18,7 @@ describe("clientBelongsToShop / anonymizeClient (integração)", () => {
     shopA = await prisma.barbershop.create({ data: { name: "[teste] Shop A" } });
     shopB = await prisma.barbershop.create({ data: { name: "[teste] Shop B" } });
     barber = await prisma.barber.create({
-      data: { barbershopId: shopA.id, name: "[teste] Barbeiro", commissionPercent: 40 },
+      data: { barbershopId: shopA.id, name: "[teste] Barbeiro", serviceCommissionPercent: 40 },
     });
     service = await prisma.service.create({
       data: { barbershopId: shopA.id, name: "[teste] Corte", priceCents: 3000, durationMin: 30 },

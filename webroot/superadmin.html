@@ -199,7 +199,8 @@ function barberRowHtml(b) {
   return `
     <tr data-id="${b.id}">
       <td><input class="row-input" data-field="name" value="${escapeHtml(b.name)}" /></td>
-      <td><input class="row-input num" type="number" step="0.01" min="0" max="100" data-field="commissionPercent" value="${b.commissionPercent}" /></td>
+      <td><input class="row-input num" type="number" step="0.01" min="0" max="100" data-field="serviceCommissionPercent" value="${b.serviceCommissionPercent}" /></td>
+      <td><input class="row-input num" type="number" step="0.01" min="0" max="100" data-field="productCommissionPercent" value="${b.productCommissionPercent}" /></td>
       <td><input class="row-input num" type="number" step="0.01" min="0" data-field="monthlyGoal" value="${centsToInput(b.monthlyGoalCents)}" /></td>
       <td><label class="active-toggle"><input type="checkbox" data-field="active" ${b.active ? "checked" : ""} /> Ativo</label></td>
       <td><button class="save-btn" data-kind="barbers" data-id="${b.id}">Salvar</button></td>
@@ -246,7 +247,8 @@ async function saveRow(shopId, kind, id, tr) {
   if (kind === "barbers") {
     body = {
       name: fields.name,
-      commissionPercent: Number(fields.commissionPercent),
+      serviceCommissionPercent: Number(fields.serviceCommissionPercent),
+      productCommissionPercent: Number(fields.productCommissionPercent),
       monthlyGoalCents: Math.round(Number(fields.monthlyGoal) * 100),
       active: fields.active,
     };
@@ -289,8 +291,8 @@ async function loadShopConfig(shopId) {
     <h2>Barbeiros</h2>
     <div class="card">
       <table>
-        <thead><tr><th>Nome</th><th>Comissão %</th><th>Meta mensal (R$)</th><th></th><th></th></tr></thead>
-        <tbody>${data.barbers.length ? data.barbers.map(barberRowHtml).join("") : '<tr><td colspan="5" class="empty">Nenhum barbeiro cadastrado.</td></tr>'}</tbody>
+        <thead><tr><th>Nome</th><th>Comissão serviço %</th><th>Comissão produto %</th><th>Meta mensal (R$)</th><th></th><th></th></tr></thead>
+        <tbody>${data.barbers.length ? data.barbers.map(barberRowHtml).join("") : '<tr><td colspan="6" class="empty">Nenhum barbeiro cadastrado.</td></tr>'}</tbody>
       </table>
     </div>
 

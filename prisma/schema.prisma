@@ -99,12 +99,18 @@ model Barbershop {
 }
 
 model Barber {
-  id                Int     @id @default(autoincrement())
-  barbershopId      Int     @map("barbershop_id")
-  name              String
-  active            Boolean @default(true)
-  commissionPercent Decimal @default(40) @map("commission_percent") @db.Decimal(5, 2)
-  monthlyGoalCents  Int     @default(0) @map("monthly_goal_cents")
+  id           Int     @id @default(autoincrement())
+  barbershopId Int     @map("barbershop_id")
+  name         String
+  active       Boolean @default(true)
+  // Comissão de serviço (mesma coluna física de sempre, só renomeada no
+  // Prisma) e de produto separadas — podem ser taxas diferentes (ex: 0% em
+  // produto revendido com margem menor). Produto default 0 pra não mudar
+  // retroativamente o líquido de nenhuma barbearia já em produção; o dono
+  // ajusta se quiser pagar comissão sobre produto também.
+  serviceCommissionPercent Decimal @default(40) @map("commission_percent") @db.Decimal(5, 2)
+  productCommissionPercent Decimal @default(0) @map("product_commission_percent") @db.Decimal(5, 2)
+  monthlyGoalCents        Int     @default(0) @map("monthly_goal_cents")
 
   barbershop   Barbershop    @relation(fields: [barbershopId], references: [id])
   appointments Appointment[]

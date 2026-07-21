@@ -57,7 +57,8 @@ export function toApiBarber(b: Barber) {
     barbershop_id: b.barbershopId,
     name: b.name,
     active: b.active,
-    commission_percent: Number(b.commissionPercent),
+    service_commission_percent: Number(b.serviceCommissionPercent),
+    product_commission_percent: Number(b.productCommissionPercent),
     monthly_goal_cents: b.monthlyGoalCents,
   };
 }

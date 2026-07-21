@@ -121,11 +121,12 @@ superAdminRouter.put("/api/superadmin/barbershops/:id/barbers/:barberId", requir
     const barber = await getBarber(barberId);
     assertBelongsToShop(barber, barbershopId, "Barbeiro");
 
-    const { name, commissionPercent, monthlyGoalCents, active } = req.body || {};
+    const { name, serviceCommissionPercent, productCommissionPercent, monthlyGoalCents, active } = req.body || {};
     if (!name || !String(name).trim()) throw new AppError("Nome é obrigatório");
 
     await updateBarber(barberId, String(name).trim(), {
-      commissionPercent: commissionPercent !== undefined ? Number(commissionPercent) : undefined,
+      serviceCommissionPercent: serviceCommissionPercent !== undefined ? Number(serviceCommissionPercent) : undefined,
+      productCommissionPercent: productCommissionPercent !== undefined ? Number(productCommissionPercent) : undefined,
       monthlyGoalCents: monthlyGoalCents !== undefined ? Number(monthlyGoalCents) : undefined,
     });
     if (active !== undefined) await setBarberActive(barberId, !!active);

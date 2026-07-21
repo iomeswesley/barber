@@ -17,9 +17,9 @@ describe("createAppointment / getAvailableSlots (isolamento entre tenants)", () 
   beforeAll(async () => {
     shopA = await prisma.barbershop.create({ data: { name: "[teste] Shop A" } });
     shopB = await prisma.barbershop.create({ data: { name: "[teste] Shop B" } });
-    barberA = await prisma.barber.create({ data: { barbershopId: shopA.id, name: "[teste] Barbeiro A", commissionPercent: 40 } });
+    barberA = await prisma.barber.create({ data: { barbershopId: shopA.id, name: "[teste] Barbeiro A", serviceCommissionPercent: 40 } });
     serviceA = await prisma.service.create({ data: { barbershopId: shopA.id, name: "[teste] Corte A", priceCents: 3000, durationMin: 30 } });
-    barberB = await prisma.barber.create({ data: { barbershopId: shopB.id, name: "[teste] Barbeiro B", commissionPercent: 40 } });
+    barberB = await prisma.barber.create({ data: { barbershopId: shopB.id, name: "[teste] Barbeiro B", serviceCommissionPercent: 40 } });
     serviceB = await prisma.service.create({ data: { barbershopId: shopB.id, name: "[teste] Corte B", priceCents: 3000, durationMin: 30 } });
     client = await prisma.client.create({ data: { name: "[teste] Cliente", phone: `teste-${Date.now()}` } });
   });

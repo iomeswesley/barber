@@ -34,7 +34,7 @@ async function assertUsernameAvailable(username: string, ignoreUserId?: number) 
 
 barbersRouter.post("/api/manage/barbers", requireAuth, requireOwner, async (req, res, next) => {
   try {
-    const { name, username, password, commissionPercent, monthlyGoalCents } = req.body || {};
+    const { name, username, password, serviceCommissionPercent, productCommissionPercent, monthlyGoalCents } = req.body || {};
     if (!name || !String(name).trim()) throw new AppError("Nome é obrigatório");
     if (!username || !String(username).trim()) throw new AppError("Usuário é obrigatório");
     if (String(password || "").length < 8) throw new AppError("A senha precisa ter pelo menos 8 caracteres");
@@ -53,7 +53,8 @@ barbersRouter.post("/api/manage/barbers", requireAuth, requireOwner, async (req,
       String(name).trim(),
       { username: trimmedUsername, passwordHash: hashPassword(String(password)) },
       {
-        commissionPercent: commissionPercent !== undefined ? Number(commissionPercent) : undefined,
+        serviceCommissionPercent: serviceCommissionPercent !== undefined ? Number(serviceCommissionPercent) : undefined,
+        productCommissionPercent: productCommissionPercent !== undefined ? Number(productCommissionPercent) : undefined,
         monthlyGoalCents: monthlyGoalCents !== undefined ? Number(monthlyGoalCents) : undefined,
       }
     );
@@ -69,7 +70,7 @@ barbersRouter.put("/api/manage/barbers/:id", requireAuth, requireOwner, async (r
     const barberId = Number(req.params.id);
     const barber = await getBarber(barberId);
     if (!belongsToSession(req, barber)) throw new AppError("Barbeiro não encontrado", 404);
-    const { name, commissionPercent, monthlyGoalCents, username, password } = req.body || {};
+    const { name, serviceCommissionPercent, productCommissionPercent, monthlyGoalCents, username, password } = req.body || {};
     if (!name || !String(name).trim()) throw new AppError("Nome é obrigatório");
     const trimmedName = String(name).trim();
 
@@ -97,14 +98,15 @@ barbersRouter.put("/api/manage/barbers/:id", requireAuth, requireOwner, async (r
     }
 
     const updated = await updateBarber(barberId, trimmedName, {
-      commissionPercent: commissionPercent !== undefined ? Number(commissionPercent) : undefined,
+      serviceCommissionPercent: serviceCommissionPercent !== undefined ? Number(serviceCommissionPercent) : undefined,
+      productCommissionPercent: productCommissionPercent !== undefined ? Number(productCommissionPercent) : undefined,
       monthlyGoalCents: monthlyGoalCents !== undefined ? Number(monthlyGoalCents) : undefined,
     });
     await logAudit(
       req.session.user!.barbershopId,
       req.session.user!.name,
       "Editou barbeiro",
-      `${updated.name} · comissão ${updated.commissionPercent}% · meta R$ ${Math.round(updated.monthlyGoalCents / 100)}`
+      `${updated.name} · comissão serviço ${updated.serviceCommissionPercent}% · comissão produto ${updated.productCommissionPercent}% · meta R$ ${Math.round(updated.monthlyGoalCents / 100)}`
     );
     res.json(toApiBarber(updated));
   } catch (err) {

@@ -53,6 +53,44 @@ function monthRange(month: string) {
   return { from, to: to > today ? today : to };
 }
 
+// Venda de produto não tem barbeiro próprio no schema — só dá pra atribuir
+// via o agendamento vinculado (appointmentId). Venda avulsa sem agendamento
+// fica de fora (não dá pra saber quem atendeu), mas continua contando na
+// receita bruta total normalmente, só não gera comissão de produto pra
+// ninguém específico. Reaproveitado em getDashboardSummary,
+// getMonthlyFinancialTrend, getBarberOwnSummary e getBarberPerformance.
+async function productRevenueCentsByBarberId(
+  barbershopId: number,
+  appointmentsInScope: AppointmentDTO[],
+  dateFrom: string,
+  dateTo: string
+): Promise<Map<number, number>> {
+  const barberIdByAppointmentId = new Map(appointmentsInScope.map((a) => [a.id, a.barberId]));
+  const sales = await getProductSalesWithAppointment(barbershopId, { dateFrom, dateTo });
+  const map = new Map<number, number>();
+  for (const sale of sales) {
+    const barberId = barberIdByAppointmentId.get(sale.appointmentId);
+    if (barberId == null) continue;
+    map.set(barberId, (map.get(barberId) || 0) + sale.amountCents);
+  }
+  return map;
+}
+
+function sumMapValues(map: Map<number, number>): number {
+  return sum([...map.values()]);
+}
+
+// Comissão de produto só é devida sobre a parte atribuída a um barbeiro (ver
+// productRevenueCentsByBarberId) — venda avulsa sem agendamento nunca gera
+// comissão pra ninguém, mas segue contando na receita bruta.
+function productCommissionCentsFor(productRevenueByBarberId: Map<number, number>, productCommissionPercentByBarberId: Record<number, number>): number {
+  let total = 0;
+  for (const [barberId, cents] of productRevenueByBarberId) {
+    total += (cents * (productCommissionPercentByBarberId[barberId] ?? 0)) / 100;
+  }
+  return total;
+}
+
 export async function getDashboardSummary(barbershopId: number) {
   const now = new Date();
   // A meta da barbearia toda não é setada diretamente — é a soma da meta de cada
@@ -61,12 +99,14 @@ export async function getDashboardSummary(barbershopId: number) {
   const barbersAll = await getBarbers(barbershopId, { includeInactive: true });
   const barbersActive = await getBarbers(barbershopId);
   const shopGoalCents = sum(barbersActive.map((b) => b.monthlyGoalCents));
-  // Comissão é devida por barbeiro sobre serviços realizados (ou agendados, pra
-  // previsão) — vendas de produto não têm atribuição por barbeiro neste sistema,
-  // então nunca geram comissão e sempre contam como receita líquida total.
-  const commissionPercentByBarberId = Object.fromEntries(barbersAll.map((b) => [b.id, Number(b.commissionPercent)]));
+  // Comissão de serviço é devida por barbeiro sobre serviços realizados (ou
+  // agendados, pra previsão); comissão de produto usa uma taxa separada,
+  // sobre a parte de venda de produto atribuída a esse barbeiro via
+  // agendamento vinculado (ver productRevenueCentsByBarberId).
+  const serviceCommissionPercentByBarberId = Object.fromEntries(barbersAll.map((b) => [b.id, Number(b.serviceCommissionPercent)]));
+  const productCommissionPercentByBarberId = Object.fromEntries(barbersAll.map((b) => [b.id, Number(b.productCommissionPercent)]));
   const commissionCentsFor = (rows: AppointmentDTO[]) =>
-    sum(rows.map((a) => (a.priceCents * (commissionPercentByBarberId[a.barberId] ?? 0)) / 100));
+    sum(rows.map((a) => (a.priceCents * (serviceCommissionPercentByBarberId[a.barberId] ?? 0)) / 100));
 
   // No-shows nunca geraram receita, então são excluídos de todas as figuras
   // financeiras aqui — consistente com a aba Histórico, que filtra do mesmo jeito.
@@ -86,8 +126,9 @@ export async function getDashboardSummary(barbershopId: number) {
   const realizedThisMonth = thisMonth.filter((a) => endDateTime(a) <= now);
 
   const { from: monthFrom, to: monthTo } = monthDateRange(now);
-  const productRevenueThisMonth =
-    sum((await getProductSalesRevenue(barbershopId, { dateFrom: monthFrom, dateTo: monthTo })).map((p) => p.amountCents)) / 100;
+  const productRevenueByBarberIdThisMonth = await productRevenueCentsByBarberId(barbershopId, thisMonth, monthFrom, monthTo);
+  const productRevenueThisMonth = sumMapValues(productRevenueByBarberIdThisMonth) / 100;
+  const productCommissionCentsThisMonth = productCommissionCentsFor(productRevenueByBarberIdThisMonth, productCommissionPercentByBarberId);
 
   // "Previsão" = tudo agendado neste mês, realizado ou não.
   // "Faturamento" = só o que já foi concluído (produtos sempre são transações
@@ -95,23 +136,19 @@ export async function getDashboardSummary(barbershopId: number) {
   const revenueRealizedThisMonth = sum(realizedThisMonth.map((a) => a.priceCents)) / 100;
   const previsaoBruto = sum(thisMonth.map((a) => a.priceCents)) / 100 + productRevenueThisMonth;
   const faturamentoBruto = revenueRealizedThisMonth + productRevenueThisMonth;
-  const previsaoLiquido = previsaoBruto - commissionCentsFor(thisMonth) / 100;
-  const faturamentoLiquido = faturamentoBruto - commissionCentsFor(realizedThisMonth) / 100;
+  const previsaoLiquido = previsaoBruto - commissionCentsFor(thisMonth) / 100 - productCommissionCentsThisMonth / 100;
+  const faturamentoLiquido = faturamentoBruto - commissionCentsFor(realizedThisMonth) / 100 - productCommissionCentsThisMonth / 100;
 
   const lastMonthDaysInMonth = new Date(lastMonthDate.getFullYear(), lastMonthDate.getMonth() + 1, 0).getDate();
   const lastMonthCutoffDay = Math.min(now.getDate(), lastMonthDaysInMonth);
-  const productRevenueLastMonth =
-    sum(
-      (
-        await getProductSalesRevenue(barbershopId, {
-          dateFrom: `${lastMonthKey}-01`,
-          dateTo: `${lastMonthKey}-${pad(lastMonthCutoffDay)}`,
-        })
-      ).map((p) => p.amountCents)
-    ) / 100;
+  const lastMonthFrom = `${lastMonthKey}-01`;
+  const lastMonthTo = `${lastMonthKey}-${pad(lastMonthCutoffDay)}`;
+  const productRevenueByBarberIdLastMonth = await productRevenueCentsByBarberId(barbershopId, lastMonthMTD, lastMonthFrom, lastMonthTo);
+  const productRevenueLastMonth = sumMapValues(productRevenueByBarberIdLastMonth) / 100;
+  const productCommissionCentsLastMonth = productCommissionCentsFor(productRevenueByBarberIdLastMonth, productCommissionPercentByBarberId);
   const revenueLastMonthServiceOnly = sum(lastMonthMTD.map((a) => a.priceCents)) / 100;
   const revenueLastMonth = revenueLastMonthServiceOnly + productRevenueLastMonth;
-  const liquidoLastMonth = revenueLastMonth - commissionCentsFor(lastMonthMTD) / 100;
+  const liquidoLastMonth = revenueLastMonth - commissionCentsFor(lastMonthMTD) / 100 - productCommissionCentsLastMonth / 100;
 
   const countRealizedThisMonth = realizedThisMonth.length;
   const countRealizedLastMonth = lastMonthMTD.length;
@@ -171,9 +208,10 @@ export async function getDashboardSummary(barbershopId: number) {
 export async function getMonthlyFinancialTrend(barbershopId: number, months = 6) {
   const now = new Date();
   const barbersAll = await getBarbers(barbershopId, { includeInactive: true });
-  const commissionPercentByBarberId = Object.fromEntries(barbersAll.map((b) => [b.id, Number(b.commissionPercent)]));
+  const serviceCommissionPercentByBarberId = Object.fromEntries(barbersAll.map((b) => [b.id, Number(b.serviceCommissionPercent)]));
+  const productCommissionPercentByBarberId = Object.fromEntries(barbersAll.map((b) => [b.id, Number(b.productCommissionPercent)]));
   const commissionCentsFor = (rows: AppointmentDTO[]) =>
-    sum(rows.map((a) => (a.priceCents * (commissionPercentByBarberId[a.barberId] ?? 0)) / 100));
+    sum(rows.map((a) => (a.priceCents * (serviceCommissionPercentByBarberId[a.barberId] ?? 0)) / 100));
 
   const all = (await getAppointments({ barbershopId })).filter((a) => a.status !== "no_show");
   const endDateTime = (a: AppointmentDTO) => new Date(`${a.date}T${a.endTime}:00`);
@@ -185,12 +223,14 @@ export async function getMonthlyFinancialTrend(barbershopId: number, months = 6)
     const monthAppts = all.filter((a) => a.date.slice(0, 7) === mKey);
     const realized = monthAppts.filter((a) => endDateTime(a) <= now);
     const { from, to } = monthRange(mKey);
-    const productRevenue = sum((await getProductSalesRevenue(barbershopId, { dateFrom: from, dateTo: to })).map((p) => p.amountCents)) / 100;
+    const productRevenueByBarberId = await productRevenueCentsByBarberId(barbershopId, monthAppts, from, to);
+    const productRevenue = sumMapValues(productRevenueByBarberId) / 100;
+    const productCommissionCents = productCommissionCentsFor(productRevenueByBarberId, productCommissionPercentByBarberId);
 
     const bruto = sum(realized.map((a) => a.priceCents)) / 100 + productRevenue;
     const previsaoBruto = sum(monthAppts.map((a) => a.priceCents)) / 100 + productRevenue;
-    const liquido = bruto - commissionCentsFor(realized) / 100;
-    const previsaoLiquido = previsaoBruto - commissionCentsFor(monthAppts) / 100;
+    const liquido = bruto - commissionCentsFor(realized) / 100 - productCommissionCents / 100;
+    const previsaoLiquido = previsaoBruto - commissionCentsFor(monthAppts) / 100 - productCommissionCents / 100;
 
     result.push({ month: mKey, bruto, liquido, previsaoBruto, previsaoLiquido });
   }
@@ -214,8 +254,24 @@ export async function getBarberOwnSummary(barbershopId: number, barberId: number
   const endDateTime = (a: AppointmentDTO) => new Date(`${a.date}T${a.endTime}:00`);
   const realizedThisMonth = thisMonth.filter((a) => endDateTime(a) <= now);
 
-  const revenueThisMonth = sum(thisMonth.map((a) => a.priceCents)) / 100;
-  const revenueLastMonth = sum(lastMonthMTD.map((a) => a.priceCents)) / 100;
+  const { from: monthFrom, to: monthTo } = monthDateRange(now);
+  const productRevenueMapThisMonth = await productRevenueCentsByBarberId(barbershopId, thisMonth, monthFrom, monthTo);
+  const productRevenueThisMonth = (productRevenueMapThisMonth.get(barberId) || 0) / 100;
+
+  const lastMonthDaysInMonth = new Date(lastMonthDate.getFullYear(), lastMonthDate.getMonth() + 1, 0).getDate();
+  const lastMonthCutoffDay = Math.min(now.getDate(), lastMonthDaysInMonth);
+  const productRevenueMapLastMonth = await productRevenueCentsByBarberId(
+    barbershopId,
+    lastMonthMTD,
+    `${lastMonthKey}-01`,
+    `${lastMonthKey}-${pad(lastMonthCutoffDay)}`
+  );
+  const productRevenueLastMonth = (productRevenueMapLastMonth.get(barberId) || 0) / 100;
+
+  const serviceRevenueThisMonth = sum(thisMonth.map((a) => a.priceCents)) / 100;
+  const serviceRevenueLastMonth = sum(lastMonthMTD.map((a) => a.priceCents)) / 100;
+  const revenueThisMonth = serviceRevenueThisMonth + productRevenueThisMonth;
+  const revenueLastMonth = serviceRevenueLastMonth + productRevenueLastMonth;
 
   const countRealizedThisMonth = realizedThisMonth.length;
   const countRealizedLastMonth = lastMonthMTD.length;
@@ -223,7 +279,10 @@ export async function getBarberOwnSummary(barbershopId: number, barberId: number
   const revenueRealizedThisMonth = sum(realizedThisMonth.map((a) => a.priceCents)) / 100;
   const avgTicketThisMonth = countRealizedThisMonth ? revenueRealizedThisMonth / countRealizedThisMonth : 0;
 
-  const commissionPercent = barber ? Number(barber.commissionPercent) : 0;
+  const serviceCommissionPercent = barber ? Number(barber.serviceCommissionPercent) : 0;
+  const productCommissionPercent = barber ? Number(barber.productCommissionPercent) : 0;
+  const serviceCommissionEarned = (serviceRevenueThisMonth * serviceCommissionPercent) / 100;
+  const productCommissionEarned = (productRevenueThisMonth * productCommissionPercent) / 100;
 
   return {
     revenueThisMonth,
@@ -231,8 +290,11 @@ export async function getBarberOwnSummary(barbershopId: number, barberId: number
     countRealizedThisMonth,
     countGrowthPercent: pctGrowth(countRealizedThisMonth, countRealizedLastMonth),
     avgTicketThisMonth,
-    commissionPercent,
-    commissionEarned: (revenueThisMonth * commissionPercent) / 100,
+    serviceCommissionPercent,
+    productCommissionPercent,
+    serviceCommissionEarned,
+    productCommissionEarned,
+    commissionEarned: serviceCommissionEarned + productCommissionEarned,
     monthlyGoal: (barber?.monthlyGoalCents ?? 0) / 100,
     monthlyGoalPercent: goalProgress(revenueThisMonth, barber?.monthlyGoalCents ?? 0),
   };
@@ -374,19 +436,8 @@ export async function getBarberPerformance(barbershopId: number) {
   }
   availableMinutes = Math.max(availableMinutes, 1);
 
-  // Venda de produto não tem barbeiro próprio no schema — só dá pra atribuir
-  // via o agendamento vinculado (appointmentId). Venda avulsa sem agendamento
-  // fica de fora dessa soma por barbeiro (decisão consciente: não dá pra
-  // adivinhar quem atendeu), mas segue contando no faturamento total normal.
   const { from: monthFrom, to: monthTo } = monthDateRange(now);
-  const barberIdByAppointmentId = new Map(thisMonth.map((a) => [a.id, a.barberId]));
-  const productSales = await getProductSalesWithAppointment(barbershopId, { dateFrom: monthFrom, dateTo: monthTo });
-  const productRevenueByBarberId = new Map<number, number>();
-  for (const sale of productSales) {
-    const barberId = barberIdByAppointmentId.get(sale.appointmentId);
-    if (barberId == null) continue;
-    productRevenueByBarberId.set(barberId, (productRevenueByBarberId.get(barberId) || 0) + sale.amountCents);
-  }
+  const productRevenueByBarberId = await productRevenueCentsByBarberId(barbershopId, thisMonth, monthFrom, monthTo);
 
   return barbers
     .map((b) => {

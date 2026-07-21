@@ -1122,7 +1122,8 @@
             <div class="form-field"><label>Nome</label><input type="text" id="new-barber-name" /></div>
             <div class="form-field"><label>Usuário (login)</label><input type="text" id="new-barber-username" autocomplete="off" /></div>
             <div class="form-field"><label>Senha</label><input type="password" id="new-barber-password" autocomplete="new-password" /></div>
-            <div class="form-field"><label>Comissão (%)</label><input type="number" step="0.1" min="0" max="100" id="new-barber-commission" value="40" /></div>
+            <div class="form-field"><label>Comissão de serviço (%)</label><input type="number" step="0.1" min="0" max="100" id="new-barber-service-commission" value="40" /></div>
+            <div class="form-field"><label>Comissão de produto (%)</label><input type="number" step="0.1" min="0" max="100" id="new-barber-product-commission" value="0" /></div>
             <div class="form-field"><label>Meta mensal (R$)</label><input type="number" step="0.01" min="0" id="new-barber-goal" value="0" /></div>
           </div>
           <div class="hint" style="margin-top:6px;">O barbeiro usa esse usuário e senha pra entrar na própria agenda.</div>
@@ -2088,7 +2089,7 @@ async function loadManageBarbers() {
     <div class="item-row ${b.active ? "" : "inactive"}">
       <div>
         <div class="item-info">${b.name}${b.active ? "" : " (inativo)"}</div>
-        <div class="item-meta">Comissão ${b.commission_percent}%${b.monthly_goal_cents ? " · Meta " + currency(b.monthly_goal_cents / 100) : ""}</div>
+        <div class="item-meta">Comissão serviço ${b.service_commission_percent}% · produto ${b.product_commission_percent}%${b.monthly_goal_cents ? " · Meta " + currency(b.monthly_goal_cents / 100) : ""}</div>
       </div>
       <div class="item-actions">
         <button class="icon-btn" data-rename-barber="${b.id}" title="Editar">✏️</button>
@@ -2098,7 +2099,8 @@ async function loadManageBarbers() {
     <div class="inline-form" id="edit-barber-form-${b.id}">
       <div class="form-grid">
         <div class="form-field" style="grid-column: 1 / -1;"><label>Nome</label><input type="text" id="edit-barber-name-${b.id}" value="${b.name}" /></div>
-        <div class="form-field"><label>Comissão (%)</label><input type="number" step="0.1" min="0" max="100" id="edit-barber-commission-${b.id}" value="${b.commission_percent}" /></div>
+        <div class="form-field"><label>Comissão de serviço (%)</label><input type="number" step="0.1" min="0" max="100" id="edit-barber-service-commission-${b.id}" value="${b.service_commission_percent}" /></div>
+        <div class="form-field"><label>Comissão de produto (%)</label><input type="number" step="0.1" min="0" max="100" id="edit-barber-product-commission-${b.id}" value="${b.product_commission_percent}" /></div>
         <div class="form-field"><label>Meta mensal (R$)</label><input type="number" step="0.01" min="0" id="edit-barber-goal-${b.id}" value="${b.monthly_goal_cents / 100}" /></div>
         <div class="form-field"><label>Usuário (login)</label><input type="text" id="edit-barber-username-${b.id}" value="${b.username || ""}" autocomplete="off" /></div>
         <div class="form-field"><label>Nova senha</label><input type="password" id="edit-barber-password-${b.id}" placeholder="Deixe em branco pra manter" autocomplete="new-password" /></div>
@@ -2148,7 +2150,8 @@ async function loadManageBarbers() {
     btn.addEventListener("click", async () => {
       const id = btn.dataset.saveBarber;
       const name = document.getElementById(`edit-barber-name-${id}`).value;
-      const commissionPercent = document.getElementById(`edit-barber-commission-${id}`).value;
+      const serviceCommissionPercent = document.getElementById(`edit-barber-service-commission-${id}`).value;
+      const productCommissionPercent = document.getElementById(`edit-barber-product-commission-${id}`).value;
       const monthlyGoal = document.getElementById(`edit-barber-goal-${id}`).value;
       const username = document.getElementById(`edit-barber-username-${id}`).value;
       const password = document.getElementById(`edit-barber-password-${id}`).value;
@@ -2158,7 +2161,8 @@ async function loadManageBarbers() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
-          commissionPercent: Number(commissionPercent) || 0,
+          serviceCommissionPercent: Number(serviceCommissionPercent) || 0,
+          productCommissionPercent: Number(productCommissionPercent) || 0,
           monthlyGoalCents: Math.round(Number(monthlyGoal || 0) * 100),
           username: username.trim(),
           password,
@@ -2181,7 +2185,8 @@ document.getElementById("save-barber-btn").addEventListener("click", async () =>
   const nameInput = document.getElementById("new-barber-name");
   const usernameInput = document.getElementById("new-barber-username");
   const passwordInput = document.getElementById("new-barber-password");
-  const commissionInput = document.getElementById("new-barber-commission");
+  const serviceCommissionInput = document.getElementById("new-barber-service-commission");
+  const productCommissionInput = document.getElementById("new-barber-product-commission");
   const goalInput = document.getElementById("new-barber-goal");
   if (!nameInput.value.trim() || !usernameInput.value.trim() || !passwordInput.value) {
     await showAlertModal("Preencha nome, usuário e senha.");
@@ -2197,7 +2202,8 @@ document.getElementById("save-barber-btn").addEventListener("click", async () =>
         name: nameInput.value.trim(),
         username: usernameInput.value.trim(),
         password: passwordInput.value,
-        commissionPercent: Number(commissionInput.value) || 0,
+        serviceCommissionPercent: Number(serviceCommissionInput.value) || 0,
+        productCommissionPercent: Number(productCommissionInput.value) || 0,
         monthlyGoalCents: Math.round(Number(goalInput.value || 0) * 100),
       }),
     });
@@ -2209,7 +2215,8 @@ document.getElementById("save-barber-btn").addEventListener("click", async () =>
     nameInput.value = "";
     usernameInput.value = "";
     passwordInput.value = "";
-    commissionInput.value = "40";
+    serviceCommissionInput.value = "40";
+    productCommissionInput.value = "0";
     goalInput.value = "0";
     document.getElementById("add-barber-form").classList.remove("open");
     loadManageBarbers();

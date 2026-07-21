@@ -445,7 +445,8 @@ async function loadAll() {
   document.getElementById("kpi-count-sub").innerHTML = deltaBadge(summary.countGrowthPercent);
   document.getElementById("kpi-ticket").textContent = currency(summary.avgTicketThisMonth);
   document.getElementById("kpi-commission").textContent = currency(summary.commissionEarned);
-  document.getElementById("kpi-commission-sub").textContent = `${summary.commissionPercent}% do faturamento`;
+  document.getElementById("kpi-commission-sub").textContent =
+    `${summary.serviceCommissionPercent}% em serviço · ${summary.productCommissionPercent}% em produto`;
 
   const goalCard = document.getElementById("my-goal-card");
   if (summary.monthlyGoal > 0) {

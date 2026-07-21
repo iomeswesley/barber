@@ -34,7 +34,7 @@ export const appointmentInclude = {
 } as const;
 
 export type AppointmentWithRelations = Appointment & {
-  barber: { name: string; commissionPercent: unknown };
+  barber: { name: string; serviceCommissionPercent: unknown };
   service: { name: string; durationMin: number; priceCents: number };
   client: { name: string; phone: string };
   barbershop: { name: string };
@@ -59,7 +59,7 @@ export function toAppointmentDTO(a: AppointmentWithRelations): AppointmentDTO {
     reviewPromptedAt: a.reviewPromptedAt,
     createdAt: a.createdAt,
     barberName: a.barber.name,
-    barberCommissionPercent: Number(a.barber.commissionPercent),
+    barberCommissionPercent: Number(a.barber.serviceCommissionPercent),
     serviceName: a.service.name,
     durationMin: a.service.durationMin,
     // Preço de tabela normalmente; se um plano de assinatura do cliente foi

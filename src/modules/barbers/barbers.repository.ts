@@ -30,12 +30,17 @@ export function createBarber(
   barbershopId: number,
   name: string,
   credentials?: { username: string; passwordHash: string },
-  { commissionPercent, monthlyGoalCents }: { commissionPercent?: number; monthlyGoalCents?: number } = {}
+  {
+    serviceCommissionPercent,
+    productCommissionPercent,
+    monthlyGoalCents,
+  }: { serviceCommissionPercent?: number; productCommissionPercent?: number; monthlyGoalCents?: number } = {}
 ) {
   const barberData = {
     barbershopId,
     name,
-    ...(commissionPercent !== undefined ? { commissionPercent } : {}),
+    ...(serviceCommissionPercent !== undefined ? { serviceCommissionPercent } : {}),
+    ...(productCommissionPercent !== undefined ? { productCommissionPercent } : {}),
     ...(monthlyGoalCents !== undefined ? { monthlyGoalCents } : {}),
   };
   if (!credentials) {
@@ -85,13 +90,18 @@ export function updateBarberUser(userId: number, data: { username?: string; pass
 export function updateBarber(
   id: number,
   name: string,
-  { commissionPercent, monthlyGoalCents }: { commissionPercent?: number; monthlyGoalCents?: number } = {}
+  {
+    serviceCommissionPercent,
+    productCommissionPercent,
+    monthlyGoalCents,
+  }: { serviceCommissionPercent?: number; productCommissionPercent?: number; monthlyGoalCents?: number } = {}
 ) {
   return prisma.barber.update({
     where: { id },
     data: {
       name,
-      ...(commissionPercent !== undefined ? { commissionPercent } : {}),
+      ...(serviceCommissionPercent !== undefined ? { serviceCommissionPercent } : {}),
+      ...(productCommissionPercent !== undefined ? { productCommissionPercent } : {}),
       ...(monthlyGoalCents !== undefined ? { monthlyGoalCents } : {}),
     },
   });
