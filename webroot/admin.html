@@ -3562,12 +3562,12 @@ async function loadBillingStatus() {
 
   const usageEl = document.getElementById("billing-whatsapp-usage");
   if (data.status === "trialing") {
-    hint.textContent = `Você está no período de teste grátis até ${fmtDate(data.trial_ends_at)}. Escolha um plano pra continuar depois disso:`;
+    hint.textContent = `Você está no período de teste grátis até ${fmtDate(data.trial_ends_at)}. Envio de mensagens automáticas (lembrete, reagendamento, reconquista) tem uso limitado nesse período — escolha um plano ou conecte seu próprio WhatsApp pra continuar depois disso:`;
     if (data.whatsapp_trial_usage != null && !data.has_own_whatsapp) {
       const pct = Math.min(100, Math.round((data.whatsapp_trial_usage / data.whatsapp_trial_usage_limit) * 100));
       usageEl.style.display = "block";
       document.getElementById("billing-whatsapp-usage-label").textContent =
-        `Uso de mensagens automáticas no teste grátis: ${pct}%${pct >= 100 ? " — lembretes e reconquista pausados até você conectar seu próprio WhatsApp ou assinar um plano" : ""}`;
+        `Uso de mensagens automáticas no teste grátis: ${pct}%${pct >= 100 ? " — lembretes e reconquista pausados até você conectar seu próprio WhatsApp ou assinar um plano" : " do limite disponível pra teste"}`;
       document.getElementById("billing-whatsapp-usage-bar").style.width = `${pct}%`;
       document.getElementById("billing-whatsapp-usage-bar").style.background = pct >= 100 ? "var(--danger)" : "var(--gold)";
     } else {
