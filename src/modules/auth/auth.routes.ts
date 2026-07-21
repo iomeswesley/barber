@@ -15,12 +15,21 @@ authRouter.post("/api/auth/login", loginRateLimiter, async (req, res, next) => {
   try {
     const { username, password } = req.body || {};
     if (!username || !password) throw new AppError("username e password são obrigatórios");
+    // Usuário sempre gravado em minúsculo (onboarding, criação de barbeiro
+    // e seed já fazem isso) — normaliza o que foi digitado aqui também, pra
+    // "Carlos", "CARLOS" e "carlos" entrarem igual, sem exigir digitação
+    // exata do jeito que ficou salvo no banco.
+    const normalizedUsername = String(username).trim().toLowerCase();
 
     // Login do super-admin da plataforma passa pela mesma tela/rota que o
     // de dono/barbeiro — é um usuário fixo via env (ADMIN_USERNAME/
     // ADMIN_PASSWORD_HASH), não uma conta na tabela `users`, então é
     // checado à parte antes da busca normal.
-    if (env.ADMIN_PASSWORD_HASH && username === env.ADMIN_USERNAME && verifyPassword(password, env.ADMIN_PASSWORD_HASH)) {
+    if (
+      env.ADMIN_PASSWORD_HASH &&
+      normalizedUsername === env.ADMIN_USERNAME.toLowerCase() &&
+      verifyPassword(password, env.ADMIN_PASSWORD_HASH)
+    ) {
       req.session.superAdmin = true;
       return req.session.save((err) => {
         if (err) return next(err);
@@ -28,7 +37,7 @@ authRouter.post("/api/auth/login", loginRateLimiter, async (req, res, next) => {
       });
     }
 
-    const user = await getUserByUsername(username);
+    const user = await getUserByUsername(normalizedUsername);
     if (!user || !verifyPassword(password, user.passwordHash)) {
       throw new AppError("Usuário ou senha inválidos", 401);
     }

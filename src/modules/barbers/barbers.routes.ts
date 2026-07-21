@@ -28,7 +28,10 @@ barbersRouter.post("/api/manage/barbers", requireAuth, requireOwner, async (req,
     // Starter é o motivo mais provável de travar aqui, não conflito de nome).
     await assertBarberLimitNotExceeded(barbershopId);
 
-    const trimmedUsername = String(username).trim();
+    // Minúsculo pra ficar consistente com o resto do sistema (onboarding e
+    // seed já gravam assim) — sem isso, o login (que normaliza o que foi
+    // digitado) não bateria com um username salvo com maiúsculas aqui.
+    const trimmedUsername = String(username).trim().toLowerCase();
     const existingUsername = await getUserByUsername(trimmedUsername);
     if (existingUsername) throw new AppError("Esse nome de usuário já está em uso.", 409);
 
