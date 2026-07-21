@@ -8,6 +8,10 @@ import { getBarbershops, getBarbershop } from "@/modules/barbershops/barbershops
 import { getBarbers, getBarber, updateBarber, setBarberActive } from "@/modules/barbers/barbers.repository.js";
 import { getServices, getService, updateService, setServiceActive } from "@/modules/services/services.repository.js";
 import { getProducts, getProduct, updateProduct, setProductActive } from "@/modules/products/products.repository.js";
+import { getSubscription, grantTrial } from "@/modules/billing/billing.service.js";
+import type { PlanId } from "@/lib/stripe.js";
+
+const VALID_PLANS: PlanId[] = ["starter", "pro"];
 
 export const superAdminRouter = Router();
 
@@ -88,10 +92,11 @@ superAdminRouter.get("/api/superadmin/barbershops/:id", requireSuperAdmin, async
     const shop = await getBarbershop(barbershopId);
     if (!shop) throw new AppError("Barbearia não encontrada", 404);
 
-    const [barbers, services, products] = await Promise.all([
+    const [barbers, services, products, subscription] = await Promise.all([
       getBarbers(barbershopId, { includeInactive: true }),
       getServices(barbershopId, { includeInactive: true }),
       getProducts(barbershopId, { includeInactive: true }),
+      getSubscription(barbershopId),
     ]);
 
     res.json({
@@ -99,6 +104,9 @@ superAdminRouter.get("/api/superadmin/barbershops/:id", requireSuperAdmin, async
       barbers,
       services,
       products,
+      subscription: subscription
+        ? { status: subscription.status, plan: subscription.plan, trialEndsAt: subscription.trialEndsAt }
+        : null,
     });
   } catch (err) {
     next(err);
@@ -178,6 +186,31 @@ superAdminRouter.put("/api/superadmin/barbershops/:id/products/:productId", requ
     if (active !== undefined) await setProductActive(productId, !!active);
 
     res.json(await getProduct(productId));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Concede teste grátis num plano específico pra uma barbearia — substitui o
+// que tinha antes (status/plano/prazo), sem envolver o Stripe de verdade.
+// Usado pra cortesia comercial (ex: cliente pedindo mais tempo pra decidir,
+// parceria, compensação por bug) direto pelo painel, sem mexer no banco na mão.
+superAdminRouter.post("/api/superadmin/barbershops/:id/grant-trial", requireSuperAdmin, async (req, res, next) => {
+  try {
+    const barbershopId = Number(req.params.id);
+    const shop = await getBarbershop(barbershopId);
+    if (!shop) throw new AppError("Barbearia não encontrada", 404);
+
+    const { plan, days } = req.body || {};
+    if (!VALID_PLANS.includes(plan)) throw new AppError("Plano inválido");
+    const daysNum = Number(days);
+    if (!Number.isFinite(daysNum) || daysNum <= 0) throw new AppError("Quantidade de dias inválida");
+
+    const trialEndsAt = new Date();
+    trialEndsAt.setDate(trialEndsAt.getDate() + daysNum);
+    await grantTrial(barbershopId, plan, trialEndsAt);
+
+    res.json({ ok: true, plan, trialEndsAt });
   } catch (err) {
     next(err);
   }

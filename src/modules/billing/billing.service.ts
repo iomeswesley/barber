@@ -10,6 +10,18 @@ export function getSubscription(barbershopId: number) {
   return prisma.subscription.findUnique({ where: { barbershopId } });
 }
 
+// Cortesia comercial concedida pelo painel de super-admin — pisa em cima do
+// que tinha antes (status/plano/prazo), sem tocar no Stripe (não cria
+// customer/checkout nenhum). Se a barbearia converter num plano de verdade
+// depois, o webhook do Stripe sobrescreve isso normalmente.
+export function grantTrial(barbershopId: number, plan: PlanId, trialEndsAt: Date) {
+  return prisma.subscription.upsert({
+    where: { barbershopId },
+    update: { status: "trialing", plan, trialEndsAt },
+    create: { barbershopId, status: "trialing", plan, trialEndsAt },
+  });
+}
+
 async function getOrCreateStripeCustomer(barbershopId: number): Promise<string> {
   if (!stripe) throw new AppError("Cobrança não configurada no servidor.", 503);
   const sub = await getSubscription(barbershopId);

@@ -287,7 +287,32 @@ async function loadShopConfig(shopId) {
   const res = await apiFetch(`/api/superadmin/barbershops/${shopId}`);
   const data = await res.json();
 
+  const STATUS_LABEL = { trialing: "Em teste grátis", active: "Ativa", past_due: "Pagamento pendente", canceled: "Cancelada" };
+  const sub = data.subscription;
+  const subLine = sub
+    ? `${STATUS_LABEL[sub.status] || sub.status} · plano ${sub.plan}${sub.trialEndsAt ? ` · trial até ${new Date(sub.trialEndsAt).toLocaleDateString("pt-BR")}` : ""}`
+    : "Sem assinatura registrada";
+
   shopConfig.innerHTML = `
+    <h2>Cobrança</h2>
+    <div class="card" style="padding:16px 18px;">
+      <div style="font-size:13px; margin-bottom:14px;">${subLine}</div>
+      <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+        <div>
+          <label style="display:block; font-size:11px; color:var(--text-muted); font-weight:600; margin-bottom:6px;">Plano</label>
+          <select id="grant-trial-plan">
+            <option value="starter">Starter</option>
+            <option value="pro">Pro</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block; font-size:11px; color:var(--text-muted); font-weight:600; margin-bottom:6px;">Dias de teste grátis</label>
+          <input class="row-input num" type="number" min="1" id="grant-trial-days" value="7" style="width:90px;" />
+        </div>
+        <button class="save-btn" id="grant-trial-btn">Conceder teste grátis</button>
+      </div>
+    </div>
+
     <h2>Barbeiros</h2>
     <div class="card">
       <table>
@@ -313,7 +338,7 @@ async function loadShopConfig(shopId) {
     </div>
   `;
 
-  shopConfig.querySelectorAll(".save-btn").forEach((btn) => {
+  shopConfig.querySelectorAll(".save-btn:not(#grant-trial-btn)").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const tr = btn.closest("tr");
       btn.disabled = true;
@@ -330,6 +355,32 @@ async function loadShopConfig(shopId) {
         setTimeout(() => { btn.disabled = false; btn.textContent = original; }, 2000);
       }
     });
+  });
+
+  document.getElementById("grant-trial-btn").addEventListener("click", async () => {
+    const btn = document.getElementById("grant-trial-btn");
+    const plan = document.getElementById("grant-trial-plan").value;
+    const days = document.getElementById("grant-trial-days").value;
+    btn.disabled = true;
+    const original = btn.textContent;
+    btn.textContent = "Salvando...";
+    try {
+      const res = await apiFetch(`/api/superadmin/barbershops/${shopId}/grant-trial`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan, days: Number(days) }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Não foi possível conceder o teste grátis.");
+      showStatus("Teste grátis concedido com sucesso.", true);
+      btn.textContent = "Concedido ✓";
+      loadShopConfig(shopId).catch(() => {});
+    } catch (err) {
+      showStatus(err.message || "Não foi possível conceder o teste grátis.", false);
+      btn.textContent = original;
+    } finally {
+      setTimeout(() => { btn.disabled = false; }, 2000);
+    }
   });
 }
 
