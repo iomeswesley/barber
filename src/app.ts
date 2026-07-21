@@ -58,11 +58,11 @@ export function createApp() {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+          scriptSrc: ["'self'", "'unsafe-inline'", "https://connect.facebook.net"],
           styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
           fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
           imgSrc: ["'self'", "data:"],
-          connectSrc: ["'self'"],
+          connectSrc: ["'self'", "https://www.facebook.com", "https://graph.facebook.com"],
           frameAncestors: ["'self'"],
         },
       },
