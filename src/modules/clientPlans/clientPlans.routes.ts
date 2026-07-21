@@ -3,6 +3,8 @@ import { requireAuth, requireOwner, belongsToSession } from "@/middleware/auth.j
 import { AppError } from "@/middleware/errorHandler.js";
 import { env } from "@/config/env.js";
 import { stripe } from "@/lib/stripe.js";
+import { normalizePhone } from "@/lib/time.js";
+import { selfServiceRateLimiter, otpRateLimiter } from "@/middleware/rateLimiter.js";
 import { logAudit } from "@/modules/auditLog/auditLog.repository.js";
 import { toApiClientPlan } from "@/lib/apiMappers.js";
 import { assertProPlan } from "@/modules/billing/billing.service.js";
@@ -12,6 +14,14 @@ import {
   getAccountStatus,
   createConnectedProductAndPrice,
 } from "@/lib/stripeConnect.js";
+import {
+  startPhoneVerification,
+  confirmPhoneVerification,
+  createClientPlanCheckoutSession,
+  handleClientPlanCheckoutCompleted,
+  handleClientPlanSubscriptionUpdated,
+  handleClientPlanSubscriptionDeleted,
+} from "./clientPlans.service.js";
 import {
   getConnectAccountId,
   saveConnectAccount,
@@ -180,6 +190,64 @@ clientPlansRouter.post("/api/manage/client-plans/:id/active", requireAuth, requi
   }
 });
 
+/* ---------------- Público — verificação + checkout do cliente final ---------------- */
+
+clientPlansRouter.get("/api/public/barbershops/:id/client-plans", selfServiceRateLimiter, async (req, res, next) => {
+  try {
+    const barbershopId = Number(req.params.id);
+    const connect = await getConnectAccountId(barbershopId);
+    if (!connect?.stripeConnectOnboarded) return res.json([]);
+    const plans = await getClientPlans(barbershopId, { includeInactive: false });
+    res.json(plans.map(toApiClientPlan));
+  } catch (err) {
+    next(err);
+  }
+});
+
+clientPlansRouter.post("/api/public/client-plans/verify/start", otpRateLimiter, async (req, res, next) => {
+  try {
+    const barbershopId = Number(req.body?.barbershopId);
+    const phone = normalizePhone(req.body?.phone);
+    if (!barbershopId || !phone) throw new AppError("Telefone e barbearia são obrigatórios");
+    await startPhoneVerification(barbershopId, phone);
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+clientPlansRouter.post("/api/public/client-plans/verify/confirm", otpRateLimiter, async (req, res, next) => {
+  try {
+    const phone = normalizePhone(req.body?.phone);
+    const code = String(req.body?.code || "").trim();
+    if (!phone || !code) throw new AppError("Telefone e código são obrigatórios");
+    await confirmPhoneVerification(phone, code);
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+clientPlansRouter.post("/api/public/client-plans/:id/checkout", selfServiceRateLimiter, async (req, res, next) => {
+  try {
+    const phone = normalizePhone(req.body?.phone);
+    const name = String(req.body?.name || "").trim();
+    if (!phone || !name) throw new AppError("Nome e telefone são obrigatórios");
+
+    const base = env.PUBLIC_BASE_URL || `${req.protocol}://${req.get("host")}`;
+    const url = await createClientPlanCheckoutSession(
+      Number(req.params.id),
+      phone,
+      name,
+      `${base}/minha-conta.html?plan=success`,
+      `${base}/minha-conta.html?plan=cancel`
+    );
+    res.json({ url });
+  } catch (err) {
+    next(err);
+  }
+});
+
 /* ---------------- Webhook Stripe Connect ---------------- */
 
 // Público — endpoint separado do webhook de billing da plataforma (eventos
@@ -203,10 +271,25 @@ clientPlansRouter.post("/api/webhooks/stripe-connect", async (req, res) => {
   }
 
   try {
-    if (event.type === "account.updated") {
-      const account = event.data.object as Stripe.Account;
-      const onboarded = !!account.charges_enabled && !!account.payouts_enabled;
-      await setConnectOnboardedByAccountId(account.id, onboarded);
+    switch (event.type) {
+      case "account.updated": {
+        const account = event.data.object as Stripe.Account;
+        const onboarded = !!account.charges_enabled && !!account.payouts_enabled;
+        await setConnectOnboardedByAccountId(account.id, onboarded);
+        break;
+      }
+      case "checkout.session.completed":
+        await handleClientPlanCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+        break;
+      case "customer.subscription.updated":
+      case "customer.subscription.created":
+        await handleClientPlanSubscriptionUpdated(event.data.object as Stripe.Subscription);
+        break;
+      case "customer.subscription.deleted":
+        await handleClientPlanSubscriptionDeleted(event.data.object as Stripe.Subscription);
+        break;
+      default:
+        break; // outros eventos de conta conectada (invoice.*, payment_intent.*) não afetam o estado local
     }
     res.sendStatus(200);
   } catch (err) {

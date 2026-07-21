@@ -62,7 +62,11 @@ export function toAppointmentDTO(a: AppointmentWithRelations): AppointmentDTO {
     barberCommissionPercent: Number(a.barber.commissionPercent),
     serviceName: a.service.name,
     durationMin: a.service.durationMin,
-    priceCents: a.service.priceCents,
+    // Preço de tabela normalmente; se um plano de assinatura do cliente foi
+    // aplicado na criação, priceChargedCents guarda o valor real cobrado
+    // (com desconto ou grátis) — esse é o único ponto de leitura, então
+    // faturamento/comissão no dashboard já refletem isso automaticamente.
+    priceCents: a.priceChargedCents ?? a.service.priceCents,
     clientName: a.client.name,
     clientPhone: a.client.phone,
     barbershopName: a.barbershop.name,

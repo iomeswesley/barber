@@ -89,6 +89,26 @@
 
   <div id="results"></div>
 
+  <div class="section-label">Planos de assinatura</div>
+  <div class="card" id="plans-card" style="display:none;">
+    <div id="plans-list"></div>
+  </div>
+
+  <div class="card" id="subscribe-card" style="display:none;">
+    <div style="font-weight:700; margin-bottom:10px;" id="subscribe-plan-name"></div>
+    <label>Seu nome</label>
+    <input type="text" id="subscribe-name" />
+    <label>Seu telefone (com DDD)</label>
+    <input type="text" id="subscribe-phone" placeholder="Ex: 11999998888" />
+    <button class="secondary" id="send-code-btn">Enviar código por WhatsApp</button>
+    <div id="code-step" style="display:none; margin-top:14px;">
+      <label>Código recebido no WhatsApp</label>
+      <input type="text" id="subscribe-code" maxlength="6" placeholder="000000" />
+      <button class="secondary" id="confirm-code-btn">Confirmar código</button>
+    </div>
+    <button class="primary" id="go-checkout-btn" style="display:none; margin-top:14px;">Ir pro pagamento</button>
+  </div>
+
   <a class="link-back" href="/chat.html">← Prefiro conversar com a IA</a>
   <a class="link-back" href="/excluir-dados.html" style="margin-top:8px; font-size:11px;">Quero excluir meus dados</a>
 </div>
@@ -103,7 +123,124 @@ async function loadShops() {
   const shops = await (await fetch("/api/barbershops")).json();
   const select = document.getElementById("shop-select");
   select.innerHTML = shops.map((s) => `<option value="${s.id}">${s.name}</option>`).join("");
+  loadClientPlans();
 }
+
+/* ---------------- Planos de assinatura ---------------- */
+const BENEFIT_LABELS = {
+  services_included: (v) => `${v} serviço(s) incluído(s) por mês`,
+  percent_discount: (v) => `${v}% de desconto em qualquer serviço`,
+  unlimited_service: () => `Acesso ilimitado a 1 serviço`,
+};
+
+let selectedPlanId = null;
+
+async function loadClientPlans() {
+  const shopId = document.getElementById("shop-select").value;
+  const plansCard = document.getElementById("plans-card");
+  if (!shopId) { plansCard.style.display = "none"; return; }
+  const plans = await (await fetch(`/api/public/barbershops/${shopId}/client-plans`)).json();
+  if (plans.length === 0) { plansCard.style.display = "none"; return; }
+  plansCard.style.display = "block";
+  document.getElementById("plans-list").innerHTML = plans
+    .map(
+      (p) => `
+    <div class="appt-card">
+      <div class="appt-client">${p.name}</div>
+      <div class="appt-meta">${currency(p.price_cents / 100)}/mês · ${BENEFIT_LABELS[p.benefit_type](p.benefit_value)}</div>
+      <div class="appt-actions">
+        <button class="primary" data-subscribe-plan="${p.id}" data-plan-name="${p.name}">Assinar</button>
+      </div>
+    </div>
+  `
+    )
+    .join("");
+  document.querySelectorAll("[data-subscribe-plan]").forEach((btn) => {
+    btn.addEventListener("click", () => openSubscribePanel(btn.dataset.subscribePlan, btn.dataset.planName));
+  });
+}
+
+function openSubscribePanel(planId, planName) {
+  selectedPlanId = planId;
+  document.getElementById("subscribe-plan-name").textContent = `Assinar: ${planName}`;
+  document.getElementById("subscribe-code").value = "";
+  document.getElementById("code-step").style.display = "none";
+  document.getElementById("go-checkout-btn").style.display = "none";
+  document.getElementById("subscribe-card").style.display = "block";
+  document.getElementById("subscribe-card").scrollIntoView({ behavior: "smooth" });
+}
+
+document.getElementById("shop-select").addEventListener("change", loadClientPlans);
+
+document.getElementById("send-code-btn").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  const phone = document.getElementById("subscribe-phone").value.replace(/\D/g, "");
+  const shopId = document.getElementById("shop-select").value;
+  if (!phone) { showError("Informe seu telefone."); return; }
+  hideError();
+  btn.disabled = true;
+  btn.textContent = "Enviando...";
+  const res = await fetch("/api/public/client-plans/verify/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, barbershopId: shopId }),
+  });
+  btn.disabled = false;
+  btn.textContent = "Enviar código por WhatsApp";
+  if (!res.ok) {
+    const err = await res.json();
+    showError(err.error || "Erro ao enviar código");
+    return;
+  }
+  document.getElementById("code-step").style.display = "block";
+});
+
+document.getElementById("confirm-code-btn").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  const phone = document.getElementById("subscribe-phone").value.replace(/\D/g, "");
+  const code = document.getElementById("subscribe-code").value.trim();
+  if (!code) { showError("Informe o código recebido."); return; }
+  hideError();
+  btn.disabled = true;
+  btn.textContent = "Confirmando...";
+  const res = await fetch("/api/public/client-plans/verify/confirm", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, code }),
+  });
+  btn.disabled = false;
+  btn.textContent = "Confirmar código";
+  if (!res.ok) {
+    const err = await res.json();
+    showError(err.error || "Código incorreto");
+    return;
+  }
+  document.getElementById("go-checkout-btn").style.display = "block";
+});
+
+document.getElementById("go-checkout-btn").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  const phone = document.getElementById("subscribe-phone").value.replace(/\D/g, "");
+  const name = document.getElementById("subscribe-name").value.trim();
+  if (!name) { showError("Informe seu nome."); return; }
+  hideError();
+  btn.disabled = true;
+  btn.textContent = "Redirecionando...";
+  const res = await fetch(`/api/public/client-plans/${selectedPlanId}/checkout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, name }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    showError(err.error || "Erro ao iniciar pagamento");
+    btn.disabled = false;
+    btn.textContent = "Ir pro pagamento";
+    return;
+  }
+  const body = await res.json();
+  window.location.href = body.url;
+});
 
 function showError(msg) {
   const box = document.getElementById("error-box");

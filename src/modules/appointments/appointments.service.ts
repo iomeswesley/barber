@@ -6,6 +6,8 @@ import { getService } from "@/modules/services/services.repository.js";
 import { getBarber } from "@/modules/barbers/barbers.repository.js";
 import { getBlocksFor } from "@/modules/timeBlocks/timeBlocks.repository.js";
 import { getClientByPhone } from "@/modules/clients/clients.repository.js";
+import { resolveChargedPrice } from "@/modules/clientPlans/clientPlans.service.js";
+import { decrementUsedThisPeriod } from "@/modules/clientPlans/clientPlans.repository.js";
 import {
   getAppointmentById,
   getAppointments,
@@ -102,7 +104,19 @@ export async function createAppointment(input: {
     throw new AppError("Esse horário está bloqueado (folga, feriado ou intervalo). Escolha outro horário.");
   }
 
-  return insertAppointment({ ...input, endTime });
+  // Se o cliente tem uma assinatura de plano ativa nessa barbearia que se
+  // aplica a esse serviço, o preço cobrado reflete o benefício (desconto ou
+  // grátis) — vale pros três canais de agendamento (WhatsApp, autoatendimento
+  // público e manual do dono/barbeiro), já que todos passam por aqui.
+  const charge = await resolveChargedPrice(input.clientId, input.barbershopId, input.serviceId, service.priceCents);
+
+  return insertAppointment({
+    ...input,
+    endTime,
+    priceChargedCents: charge.priceChargedCents,
+    clientPlanSubscriptionId: charge.subscriptionId,
+    planCreditConsumed: charge.creditConsumed,
+  });
 }
 
 export async function rescheduleAppointment(id: number, newDate: string, newStartTime: string): Promise<AppointmentDTO> {
@@ -130,7 +144,12 @@ export async function rescheduleAppointment(id: number, newDate: string, newStar
 }
 
 export async function cancelAppointment(id: number): Promise<AppointmentDTO> {
-  await cancelAppointmentRow(id);
+  const cancelled = await cancelAppointmentRow(id);
+  // Devolve a cota consumida do plano (benefício services_included) pra não
+  // penalizar o cliente por um agendamento que nem aconteceu.
+  if (cancelled.planCreditConsumed && cancelled.clientPlanSubscriptionId) {
+    await decrementUsedThisPeriod(cancelled.clientPlanSubscriptionId);
+  }
   return (await getAppointmentById(id))!;
 }
 

@@ -48,6 +48,9 @@ export async function insertAppointment(data: {
   date: string;
   startTime: string;
   endTime: string;
+  priceChargedCents?: number | null;
+  clientPlanSubscriptionId?: number | null;
+  planCreditConsumed?: boolean;
 }): Promise<AppointmentDTO> {
   const created = await prisma.appointment.create({
     data: {
@@ -58,6 +61,9 @@ export async function insertAppointment(data: {
       date: new Date(`${data.date}T00:00:00`),
       startTime: data.startTime,
       endTime: data.endTime,
+      priceChargedCents: data.priceChargedCents ?? null,
+      clientPlanSubscriptionId: data.clientPlanSubscriptionId ?? null,
+      planCreditConsumed: data.planCreditConsumed ?? false,
     },
     include: appointmentInclude,
   });

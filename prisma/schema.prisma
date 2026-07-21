@@ -44,6 +44,12 @@ enum ClientPlanBenefitType {
   unlimited_service
 }
 
+enum ClientPlanSubscriptionStatus {
+  active
+  past_due
+  canceled
+}
+
 model Barbershop {
   id                    Int      @id @default(autoincrement())
   name                  String
@@ -59,23 +65,24 @@ model Barbershop {
   // vende pros próprios clientes finais (feature separada do billing da
   // plataforma). Onboard feito pelo dono direto no Stripe; `stripeConnectOnboarded`
   // só vira true quando o webhook confirma charges_enabled + payouts_enabled.
-  stripeConnectAccountId String?  @unique @map("stripe_connect_account_id")
-  stripeConnectOnboarded Boolean  @default(false) @map("stripe_connect_onboarded")
+  stripeConnectAccountId String? @unique @map("stripe_connect_account_id")
+  stripeConnectOnboarded Boolean @default(false) @map("stripe_connect_onboarded")
 
-  barbers          Barber[]
-  services         Service[]
-  appointments     Appointment[]
-  users            User[]
-  timeBlocks       TimeBlock[]
-  reviews          Review[]
-  products         Product[]
-  productSales     ProductSale[]
-  auditLogs        AuditLog[]
-  businessHours    BusinessHours[]
-  escalations      Escalation[]
-  pushSubscriptions PushSubscription[]
-  subscription     Subscription?
-  clientPlans      ClientPlan[]
+  barbers                 Barber[]
+  services                Service[]
+  appointments            Appointment[]
+  users                   User[]
+  timeBlocks              TimeBlock[]
+  reviews                 Review[]
+  products                Product[]
+  productSales            ProductSale[]
+  auditLogs               AuditLog[]
+  businessHours           BusinessHours[]
+  escalations             Escalation[]
+  pushSubscriptions       PushSubscription[]
+  subscription            Subscription?
+  clientPlans             ClientPlan[]
+  clientPlanSubscriptions ClientPlanSubscription[]
 
   @@map("barbershops")
 }
@@ -117,20 +124,21 @@ model Service {
 // Global — não tem barbershopId. O vínculo com uma barbearia é feito via
 // Appointment (ver clientBelongsToShop no service layer).
 model Client {
-  id       Int       @id @default(autoincrement())
-  name     String
-  phone    String    @unique
-  birthday DateTime? @db.Date
+  id             Int       @id @default(autoincrement())
+  name           String
+  phone          String    @unique
+  birthday       DateTime? @db.Date
   // Consentimento pra receber mensagens de marketing (ex: "reconquista" de
   // cliente sumido) — a Meta exige opt-in explícito pra esse tipo de
   // mensagem, diferente de lembrete/aviso transacional. Marcado como true
   // quando o cliente confirma um agendamento (o bot avisa nesse momento).
-  marketingOptIn Boolean @default(false) @map("marketing_opt_in")
+  marketingOptIn Boolean   @default(false) @map("marketing_opt_in")
 
-  appointments Appointment[]
-  reviews      Review[]
-  productSales ProductSale[]
-  escalations  Escalation[]
+  appointments            Appointment[]
+  reviews                 Review[]
+  productSales            ProductSale[]
+  escalations             Escalation[]
+  clientPlanSubscriptions ClientPlanSubscription[]
 
   @@map("clients")
 }
@@ -143,18 +151,29 @@ model Appointment {
   clientId         Int               @map("client_id")
   date             DateTime          @db.Date
   startTime        String            @map("start_time")
-  endTime           String            @map("end_time")
+  endTime          String            @map("end_time")
   status           AppointmentStatus @default(confirmed)
   reminderSentAt   DateTime?         @map("reminder_sent_at")
   reviewPromptedAt DateTime?         @map("review_prompted_at")
   createdAt        DateTime          @default(now()) @map("created_at")
 
-  barbershop   Barbershop    @relation(fields: [barbershopId], references: [id])
-  barber       Barber        @relation(fields: [barberId], references: [id])
-  service      Service       @relation(fields: [serviceId], references: [id])
-  client       Client        @relation(fields: [clientId], references: [id])
-  review       Review?
-  productSales ProductSale[]
+  // Preço efetivamente cobrado quando um plano de assinatura do cliente foi
+  // aplicado (desconto ou benefício incluído) — null significa "preço de
+  // tabela normal", lido em tempo de leitura via Service.priceCents
+  // (toAppointmentDTO). planCreditConsumed só é true pro benefício
+  // services_included, e é o que diz pro cancelamento se deve devolver a
+  // cota consumida na ClientPlanSubscription.
+  priceChargedCents        Int?    @map("price_charged_cents")
+  clientPlanSubscriptionId Int?    @map("client_plan_subscription_id")
+  planCreditConsumed       Boolean @default(false) @map("plan_credit_consumed")
+
+  barbershop             Barbershop              @relation(fields: [barbershopId], references: [id])
+  barber                 Barber                  @relation(fields: [barberId], references: [id])
+  service                Service                 @relation(fields: [serviceId], references: [id])
+  client                 Client                  @relation(fields: [clientId], references: [id])
+  clientPlanSubscription ClientPlanSubscription? @relation(fields: [clientPlanSubscriptionId], references: [id])
+  review                 Review?
+  productSales           ProductSale[]
 
   @@index([barbershopId])
   @@index([barberId, date])
@@ -174,16 +193,16 @@ model User {
   // Opcional a nível de schema (usuários do seed/demo não têm) mas exigido
   // pela rota de cadastro pra contas novas. Token de confirmação enviado por
   // e-mail no signup — nulo depois de verificado ou se nunca chegou a pedir.
-  email                       String?   @unique
-  emailVerifiedAt             DateTime? @map("email_verified_at")
-  emailVerificationToken      String?   @unique @map("email_verification_token")
-  emailVerificationExpiresAt  DateTime? @map("email_verification_expires_at")
+  email                      String?   @unique
+  emailVerifiedAt            DateTime? @map("email_verified_at")
+  emailVerificationToken     String?   @unique @map("email_verification_token")
+  emailVerificationExpiresAt DateTime? @map("email_verification_expires_at")
 
   // "Esqueci minha senha" — token separado do de verificação de e-mail (um
   // pedido de reset não pode invalidar um convite de verificação pendente,
   // e vice-versa).
-  passwordResetToken      String?   @unique @map("password_reset_token")
-  passwordResetExpiresAt  DateTime? @map("password_reset_expires_at")
+  passwordResetToken     String?   @unique @map("password_reset_token")
+  passwordResetExpiresAt DateTime? @map("password_reset_expires_at")
 
   barbershop        Barbershop         @relation(fields: [barbershopId], references: [id])
   barber            Barber?            @relation(fields: [barberId], references: [id])
@@ -194,16 +213,16 @@ model User {
 }
 
 model TimeBlock {
-  id           Int      @id @default(autoincrement())
-  barbershopId Int      @map("barbershop_id")
-  barberId     Int?     @map("barber_id")
+  id           Int       @id @default(autoincrement())
+  barbershopId Int       @map("barbershop_id")
+  barberId     Int?      @map("barber_id")
   type         String
   label        String?
   date         DateTime? @db.Date
-  startTime    String   @map("start_time")
-  endTime      String   @map("end_time")
-  recurring    Boolean  @default(false)
-  createdAt    DateTime @default(now()) @map("created_at")
+  startTime    String    @map("start_time")
+  endTime      String    @map("end_time")
+  recurring    Boolean   @default(false)
+  createdAt    DateTime  @default(now()) @map("created_at")
 
   barbershop Barbershop @relation(fields: [barbershopId], references: [id])
   barber     Barber?    @relation(fields: [barberId], references: [id])
@@ -404,9 +423,54 @@ model ClientPlan {
   createdAt       DateTime              @default(now()) @map("created_at")
   updatedAt       DateTime              @updatedAt @map("updated_at")
 
-  barbershop Barbershop @relation(fields: [barbershopId], references: [id])
-  service    Service?   @relation(fields: [serviceId], references: [id])
+  barbershop    Barbershop               @relation(fields: [barbershopId], references: [id])
+  service       Service?                 @relation(fields: [serviceId], references: [id])
+  subscriptions ClientPlanSubscription[]
 
   @@index([barbershopId])
   @@map("client_plans")
+}
+
+// Assinatura de um Client a um ClientPlan de uma barbearia específica —
+// criada pelo webhook do Connect quando o checkout.session.completed chega,
+// nunca diretamente pela rota de checkout (que só inicia a sessão).
+model ClientPlanSubscription {
+  id                   Int                          @id @default(autoincrement())
+  barbershopId         Int                          @map("barbershop_id")
+  clientId             Int                          @map("client_id")
+  clientPlanId         Int                          @map("client_plan_id")
+  status               ClientPlanSubscriptionStatus @default(active)
+  stripeSubscriptionId String?                      @unique @map("stripe_subscription_id")
+  stripeCustomerId     String?                      @map("stripe_customer_id")
+  currentPeriodEnd     DateTime?                    @map("current_period_end")
+  // Consumo do benefício "services_included" no ciclo atual — zerado a cada
+  // renovação (customer.subscription.updated com período novo).
+  usedThisPeriod       Int                          @default(0) @map("used_this_period")
+  createdAt            DateTime                     @default(now()) @map("created_at")
+  updatedAt            DateTime                     @updatedAt @map("updated_at")
+
+  barbershop   Barbershop    @relation(fields: [barbershopId], references: [id])
+  client       Client        @relation(fields: [clientId], references: [id])
+  clientPlan   ClientPlan    @relation(fields: [clientPlanId], references: [id])
+  appointments Appointment[]
+
+  @@unique([clientId, clientPlanId])
+  @@index([barbershopId])
+  @@index([clientId])
+  @@map("client_plan_subscriptions")
+}
+
+// Código de verificação enviado por WhatsApp (Message Template categoria
+// Authentication) antes do cliente conseguir assinar um plano — evita que
+// um erro de digitação no telefone vincule a assinatura a um número errado.
+model PhoneVerification {
+  id         Int       @id @default(autoincrement())
+  phone      String    @unique
+  codeHash   String    @map("code_hash")
+  expiresAt  DateTime  @map("expires_at")
+  attempts   Int       @default(0)
+  verifiedAt DateTime? @map("verified_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@map("phone_verifications")
 }

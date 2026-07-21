@@ -86,3 +86,22 @@ export async function selfServiceRateLimiter(req: Request, res: Response, next: 
     next(err);
   }
 }
+
+const OTP_WINDOW_MS = 15 * 60_000;
+const MAX_OTP_REQUESTS_PER_WINDOW = 3;
+
+// Rate-limita o envio/confirmação de código de verificação de telefone
+// (checkout de plano de assinatura pro cliente) — sem isso, o endpoint de
+// enviar código vira um jeito de floodar WhatsApp (e gerar custo) pra
+// qualquer telefone, e o de confirmar vira força bruta do código de 6 dígitos.
+export async function otpRateLimiter(req: Request, res: Response, next: NextFunction) {
+  try {
+    const key = `otp:${normalizePhone(req.body?.phone) || req.ip || "unknown"}`;
+    if (!(await checkAndRecordHit(key, OTP_WINDOW_MS, MAX_OTP_REQUESTS_PER_WINDOW))) {
+      return res.status(429).json({ error: "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente." });
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
