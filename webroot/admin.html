@@ -1626,9 +1626,8 @@ async function loadBarberPerformance() {
   const res = await fetch(`/api/dashboard/barbers`);
   const barbers = await res.json();
 
-  const colors = isDark()
-    ? ["#b8863a", "#4f8cff", "#0d9488", "#e2593f", "#9085e9"]
-    : ["#9c6b1f", "#2a5fc9", "#0d8a76", "#c2401f", "#6a5acd"];
+  const serviceColor = isDark() ? "#d4af37" : "#9c6b1f";
+  const productColor = isDark() ? "#4f8cff" : "#2a5fc9";
 
   const ctx = document.getElementById("barber-chart").getContext("2d");
   if (barberChart) barberChart.destroy();
@@ -1636,19 +1635,22 @@ async function loadBarberPerformance() {
     type: "bar",
     data: {
       labels: barbers.map((b) => b.name.toUpperCase()),
-      datasets: [{
-        data: barbers.map((b) => b.revenue),
-        backgroundColor: barbers.map((_, i) => colors[i % colors.length]),
-        borderRadius: 8,
-        maxBarThickness: 34,
-      }],
+      datasets: [
+        { label: "Serviços", data: barbers.map((b) => b.revenue), backgroundColor: serviceColor, borderRadius: 6, maxBarThickness: 34 },
+        { label: "Produtos", data: barbers.map((b) => b.productRevenue), backgroundColor: productColor, borderRadius: 6, maxBarThickness: 34 },
+      ],
     },
     options: {
       indexAxis: "y",
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { display: false },
+        legend: {
+          display: true,
+          position: "top",
+          align: "end",
+          labels: { color: cssVar("--text-secondary"), boxWidth: 12, boxHeight: 12, font: { size: 11.5 }, usePointStyle: true, pointStyle: "circle" },
+        },
         tooltip: {
           backgroundColor: isDark() ? "#1a1d26" : "#ffffff",
           titleColor: cssVar("--text-primary"),
@@ -1657,16 +1659,20 @@ async function loadBarberPerformance() {
           borderWidth: 1,
           padding: 10,
           cornerRadius: 10,
-          displayColors: false,
-          callbacks: { label: (item) => "  " + currency(item.parsed.x) },
+          callbacks: {
+            label: (item) => `  ${item.dataset.label}: ${currency(item.parsed.x)}`,
+            footer: (items) => `Total: ${currency(items.reduce((sum, item) => sum + item.parsed.x, 0))}`,
+          },
         },
       },
       scales: {
         x: {
+          stacked: true,
           grid: { color: isDark() ? "rgba(255,255,255,0.06)" : "rgba(20,22,28,0.06)" },
           ticks: { color: cssVar("--text-muted"), font: { size: 11 }, callback: (v) => "R$ " + v },
         },
         y: {
+          stacked: true,
           grid: { display: false },
           ticks: { color: cssVar("--text-secondary"), font: { size: 12, weight: "600" } },
         },

@@ -1,7 +1,7 @@
 import { getAppointments } from "@/modules/appointments/appointments.repository.js";
 import { getBarbers } from "@/modules/barbers/barbers.repository.js";
 import { getBusinessHours } from "@/modules/barbershops/barbershops.repository.js";
-import { getProductSalesRevenue } from "@/modules/products/products.repository.js";
+import { getProductSalesRevenue, getProductSalesWithAppointment } from "@/modules/products/products.repository.js";
 import { localDateStr, timeToMinutes, weekdayForDateStr } from "@/lib/time.js";
 import type { AppointmentDTO } from "@/modules/appointments/appointments.types.js";
 
@@ -374,10 +374,25 @@ export async function getBarberPerformance(barbershopId: number) {
   }
   availableMinutes = Math.max(availableMinutes, 1);
 
+  // Venda de produto não tem barbeiro próprio no schema — só dá pra atribuir
+  // via o agendamento vinculado (appointmentId). Venda avulsa sem agendamento
+  // fica de fora dessa soma por barbeiro (decisão consciente: não dá pra
+  // adivinhar quem atendeu), mas segue contando no faturamento total normal.
+  const { from: monthFrom, to: monthTo } = monthDateRange(now);
+  const barberIdByAppointmentId = new Map(thisMonth.map((a) => [a.id, a.barberId]));
+  const productSales = await getProductSalesWithAppointment(barbershopId, { dateFrom: monthFrom, dateTo: monthTo });
+  const productRevenueByBarberId = new Map<number, number>();
+  for (const sale of productSales) {
+    const barberId = barberIdByAppointmentId.get(sale.appointmentId);
+    if (barberId == null) continue;
+    productRevenueByBarberId.set(barberId, (productRevenueByBarberId.get(barberId) || 0) + sale.amountCents);
+  }
+
   return barbers
     .map((b) => {
       const rows = thisMonth.filter((a) => a.barberId === b.id);
       const revenue = sum(rows.map((a) => a.priceCents)) / 100;
+      const productRevenue = (productRevenueByBarberId.get(b.id) || 0) / 100;
       const count = rows.length;
       const bookedMinutes = sum(rows.map((a) => a.durationMin));
       const occupancyPercent = Math.min(100, Math.round((bookedMinutes / availableMinutes) * 100));
@@ -385,6 +400,7 @@ export async function getBarberPerformance(barbershopId: number) {
         id: b.id,
         name: b.name,
         revenue,
+        productRevenue,
         count,
         occupancyPercent,
         monthlyGoal: b.monthlyGoalCents / 100,

@@ -134,3 +134,33 @@ export async function getProductSalesRevenue(barbershopId: number, { dateFrom, d
     amountCents: s.quantity * s.product.priceCents,
   }));
 }
+
+// Igual getProductSalesRevenue, mas inclui o appointmentId — usado só pra
+// atribuir venda de produto a um barbeiro (via o agendamento vinculado, ver
+// getBarberPerformance). Venda avulsa sem agendamento (appointmentId nulo)
+// não tem como ser atribuída a ninguém, então fica de fora dessa visão por
+// barbeiro (mas continua contando no faturamento total da barbearia).
+export async function getProductSalesWithAppointment(
+  barbershopId: number,
+  { dateFrom, dateTo }: { dateFrom?: string; dateTo?: string } = {}
+) {
+  const sales = await prisma.productSale.findMany({
+    where: {
+      barbershopId,
+      appointmentId: { not: null },
+      ...(dateFrom || dateTo
+        ? {
+            date: {
+              ...(dateFrom ? { gte: new Date(`${dateFrom}T00:00:00`) } : {}),
+              ...(dateTo ? { lte: new Date(`${dateTo}T00:00:00`) } : {}),
+            },
+          }
+        : {}),
+    },
+    include: { product: { select: { priceCents: true } } },
+  });
+  return sales.map((s) => ({
+    appointmentId: s.appointmentId as number,
+    amountCents: s.quantity * s.product.priceCents,
+  }));
+}
