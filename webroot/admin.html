@@ -1626,8 +1626,8 @@ async function loadBarberPerformance() {
   const res = await fetch(`/api/dashboard/barbers`);
   const barbers = await res.json();
 
-  const serviceColor = isDark() ? "#d4af37" : "#9c6b1f";
-  const productColor = isDark() ? "#4f8cff" : "#2a5fc9";
+  const serviceColor = cssVar("--gold-chart") || (isDark() ? "#d4af37" : "#9c6b1f");
+  const productColor = cssVar("--good") || (isDark() ? "#10b981" : "#0ca30c");
 
   const ctx = document.getElementById("barber-chart").getContext("2d");
   if (barberChart) barberChart.destroy();
