@@ -11,8 +11,31 @@ export function getBarber(id: number) {
   return prisma.barber.findUnique({ where: { id } });
 }
 
-export function createBarber(barbershopId: number, name: string) {
-  return prisma.barber.create({ data: { barbershopId, name } });
+// `credentials` opcional: quando informado, cria também o User de acesso do
+// barbeiro (role "barber", vinculado via barberId) na mesma transação — sem
+// isso o barbeiro ficaria cadastrado mas sem conseguir logar no painel dele.
+export function createBarber(
+  barbershopId: number,
+  name: string,
+  credentials?: { username: string; passwordHash: string }
+) {
+  if (!credentials) {
+    return prisma.barber.create({ data: { barbershopId, name } });
+  }
+  return prisma.$transaction(async (tx) => {
+    const barber = await tx.barber.create({ data: { barbershopId, name } });
+    await tx.user.create({
+      data: {
+        barbershopId,
+        barberId: barber.id,
+        role: "barber",
+        username: credentials.username,
+        passwordHash: credentials.passwordHash,
+        name,
+      },
+    });
+    return barber;
+  });
 }
 
 export function updateBarber(

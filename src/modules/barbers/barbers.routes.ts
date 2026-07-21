@@ -5,6 +5,8 @@ import { logAudit } from "@/modules/auditLog/auditLog.repository.js";
 import { toApiBarber } from "@/lib/apiMappers.js";
 import { getBarber, getBarbers, createBarber, updateBarber, setBarberActive } from "./barbers.repository.js";
 import { assertBarberLimitNotExceeded } from "@/modules/billing/billing.service.js";
+import { hashPassword } from "@/lib/auth.js";
+import { getUserByUsername } from "@/modules/auth/users.repository.js";
 
 export const barbersRouter = Router();
 
@@ -15,11 +17,25 @@ barbersRouter.get("/api/manage/barbers", requireAuth, requireOwner, async (req, 
 
 barbersRouter.post("/api/manage/barbers", requireAuth, requireOwner, async (req, res, next) => {
   try {
-    const { name } = req.body || {};
+    const { name, username, password } = req.body || {};
     if (!name || !String(name).trim()) throw new AppError("Nome é obrigatório");
+    if (!username || !String(username).trim()) throw new AppError("Usuário é obrigatório");
+    if (String(password || "").length < 8) throw new AppError("A senha precisa ter pelo menos 8 caracteres");
+
     const barbershopId = req.session.user!.barbershopId;
+    // Checa o limite do plano ANTES do de username, pra dar a mensagem mais
+    // relevante primeiro quando os dois problemas coincidirem (limite do
+    // Starter é o motivo mais provável de travar aqui, não conflito de nome).
     await assertBarberLimitNotExceeded(barbershopId);
-    const barber = await createBarber(barbershopId, String(name).trim());
+
+    const trimmedUsername = String(username).trim();
+    const existingUsername = await getUserByUsername(trimmedUsername);
+    if (existingUsername) throw new AppError("Esse nome de usuário já está em uso.", 409);
+
+    const barber = await createBarber(barbershopId, String(name).trim(), {
+      username: trimmedUsername,
+      passwordHash: hashPassword(String(password)),
+    });
     await logAudit(barbershopId, req.session.user!.name, "Criou barbeiro", barber.name);
     res.status(201).json(toApiBarber(barber));
   } catch (err) {

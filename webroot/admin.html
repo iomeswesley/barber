@@ -1120,7 +1120,10 @@
         <div class="inline-form" id="add-barber-form">
           <div class="form-grid full">
             <div class="form-field"><label>Nome</label><input type="text" id="new-barber-name" /></div>
+            <div class="form-field"><label>Usuário (login)</label><input type="text" id="new-barber-username" autocomplete="off" /></div>
+            <div class="form-field"><label>Senha</label><input type="password" id="new-barber-password" autocomplete="new-password" /></div>
           </div>
+          <div class="hint" style="margin-top:6px;">O barbeiro usa esse usuário e senha pra entrar na própria agenda.</div>
           <div class="form-actions">
             <button class="btn-primary" id="save-barber-btn">Salvar</button>
           </div>
@@ -2161,16 +2164,34 @@ document.getElementById("toggle-add-barber").addEventListener("click", () => {
   document.getElementById("add-barber-form").classList.toggle("open");
 });
 document.getElementById("save-barber-btn").addEventListener("click", async () => {
-  const input = document.getElementById("new-barber-name");
-  if (!input.value.trim()) return;
-  await fetch("/api/manage/barbers", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name: input.value.trim() }),
-  });
-  input.value = "";
-  document.getElementById("add-barber-form").classList.remove("open");
-  loadManageBarbers();
+  const nameInput = document.getElementById("new-barber-name");
+  const usernameInput = document.getElementById("new-barber-username");
+  const passwordInput = document.getElementById("new-barber-password");
+  if (!nameInput.value.trim() || !usernameInput.value.trim() || !passwordInput.value) {
+    await showAlertModal("Preencha nome, usuário e senha.");
+    return;
+  }
+  const btn = document.getElementById("save-barber-btn");
+  btn.disabled = true;
+  try {
+    const res = await fetch("/api/manage/barbers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: nameInput.value.trim(), username: usernameInput.value.trim(), password: passwordInput.value }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      await showAlertModal(data.error || "Não foi possível criar o barbeiro.");
+      return;
+    }
+    nameInput.value = "";
+    usernameInput.value = "";
+    passwordInput.value = "";
+    document.getElementById("add-barber-form").classList.remove("open");
+    loadManageBarbers();
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 async function loadManageServices() {
