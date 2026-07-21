@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ajuda — Painel Premium</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%23e8c76a'/><stop offset='55%25' stop-color='%23d4af37'/><stop offset='100%25' stop-color='%238a6a2f'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%E2%9D%93</text></svg>" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300..800;1,300..800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/theme.css">
+<script src="/assets/theme-toggle.js" defer></script>
+<style>
+  body { padding: 0; }
+  .help-shell { display: flex; min-height: 100vh; }
+  .help-nav {
+    width: 240px; flex-shrink: 0; padding: 24px 16px; position: sticky; top: 0; height: 100vh;
+    overflow-y: auto; border-right: 1px solid var(--card-border);
+    background: rgb(var(--color-bg) / 0.5); backdrop-filter: blur(20px);
+  }
+  .help-nav h1 { font-size: 15px; display: flex; align-items: center; gap: 8px; margin: 0 0 18px; }
+  .help-nav a {
+    display: block; padding: 7px 10px; border-radius: 8px; font-size: 12.5px;
+    color: var(--text-secondary); text-decoration: none; margin-bottom: 2px;
+  }
+  .help-nav a:hover { background: rgba(255,255,255,0.04); color: var(--text-primary); }
+  .help-nav .nav-group { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 700; margin: 16px 0 4px 10px; }
+  .help-nav .nav-group:first-of-type { margin-top: 0; }
+  .help-main { flex: 1; max-width: 760px; padding: 40px 40px 100px; min-width: 0; }
+  .help-main section { margin-bottom: 40px; scroll-margin-top: 20px; }
+  .help-main h2 { font-size: 20px; margin: 0 0 6px; display: flex; align-items: center; gap: 8px; }
+  .help-main h3 { font-size: 14.5px; margin: 22px 0 8px; color: var(--gold); }
+  .help-main p { font-size: 13.5px; line-height: 1.65; color: var(--text-secondary); margin: 0 0 12px; }
+  .help-main ul, .help-main ol { font-size: 13.5px; line-height: 1.7; color: var(--text-secondary); padding-left: 20px; margin: 0 0 12px; }
+  .help-main li { margin-bottom: 4px; }
+  .help-main strong { color: var(--text-primary); }
+  .help-callout {
+    background: var(--gold-soft); border: 1px solid rgb(var(--color-primary) / 0.25); border-radius: 10px;
+    padding: 12px 14px; font-size: 12.5px; color: var(--text-primary); margin: 12px 0;
+  }
+  .help-callout.warn { background: var(--danger-soft); border-color: rgba(240,71,71,0.3); }
+  .top-bar {
+    position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 40px; border-bottom: 1px solid var(--card-border);
+    background: rgb(var(--color-bg) / 0.7); backdrop-filter: blur(20px);
+  }
+  .top-bar a.back { font-size: 12.5px; color: var(--text-secondary); text-decoration: none; }
+  .top-bar a.back:hover { color: var(--gold); }
+  code { background: rgba(255,255,255,0.06); padding: 1px 6px; border-radius: 5px; font-size: 12px; }
+  @media (max-width: 860px) {
+    .help-nav { display: none; }
+    .help-main { padding: 24px 20px 80px; }
+    .top-bar { padding: 12px 20px; }
+  }
+</style>
+</head>
+<body>
+  <div class="bg-blobs" aria-hidden="true">
+    <div class="blob blob-a"></div><div class="blob blob-b"></div><div class="blob blob-c"></div>
+  </div>
+
+  <div class="top-bar">
+    <a href="#" class="back" onclick="history.back(); return false;">← Voltar pro painel</a>
+    <div class="theme-switch" id="theme-switch" title="Alternar tema claro/escuro"><div class="knob" id="theme-knob">🌙</div></div>
+  </div>
+
+  <div class="help-shell">
+    <nav class="help-nav">
+      <h1>❓ Central de Ajuda</h1>
+
+      <div class="nav-group">Começando</div>
+      <a href="#login">Login e contas</a>
+      <a href="#tour">Tour guiado</a>
+
+      <div class="nav-group">Painel do dono</div>
+      <a href="#visao-geral">Visão geral</a>
+      <a href="#agenda">Agenda</a>
+      <a href="#conversas">Conversas do WhatsApp</a>
+      <a href="#historico">Histórico</a>
+      <a href="#estoque">Estoque</a>
+
+      <div class="nav-group">Configurações</div>
+      <a href="#whatsapp-connect">Conectar seu WhatsApp</a>
+      <a href="#cobranca">Cobrança e planos</a>
+      <a href="#planos-clientes">Planos para seus clientes</a>
+      <a href="#horarios">Horário de funcionamento</a>
+      <a href="#bloqueios">Bloqueios de horário</a>
+      <a href="#barbeiros-servicos">Barbeiros e serviços</a>
+      <a href="#backup">Backup do banco</a>
+
+      <div class="nav-group">Outros painéis</div>
+      <a href="#auditoria">Auditoria</a>
+      <a href="#painel-barbeiro">Painel do barbeiro</a>
+
+      <div class="nav-group">Dúvidas comuns</div>
+      <a href="#faq">Perguntas frequentes</a>
+    </nav>
+
+    <main class="help-main">
+      <section id="intro">
+        <h2>👋 Bem-vindo(a)</h2>
+        <p>Essa página explica cada parte do painel — pra você mesmo(a) resolver as dúvidas mais comuns sem precisar chamar o suporte. Se depois de ler ainda ficar alguma dúvida, aí sim é hora de falar com a gente.</p>
+      </section>
+
+      <section id="login">
+        <h2>🔑 Login e contas</h2>
+        <p>Existem dois tipos de conta na barbearia:</p>
+        <ul>
+          <li><strong>Dono</strong> — acesso completo: financeiro, configurações, todos os barbeiros, todos os clientes. Vê o painel em <code>/admin.html</code>.</li>
+          <li><strong>Barbeiro</strong> — vê só a própria agenda, os próprios cortes e a própria comissão. Vê o painel em <code>/barber.html</code>.</li>
+        </ul>
+        <p>Cada barbeiro tem usuário e senha próprios, cadastrados pelo dono (ver <a href="#barbeiros-servicos">Barbeiros e serviços</a>). O login (usuário) não diferencia maiúsculas de minúsculas — "Carlos", "CARLOS" e "carlos" entram na mesma conta.</p>
+        <p>Esqueceu a senha? Tem o link "Esqueci minha senha" na tela de login, que manda um e-mail de redefinição (precisa ter e-mail cadastrado na conta).</p>
+        <div class="help-callout"><strong>Dono que também corta cabelo:</strong> ao cadastrar um barbeiro, marque a opção "Esse barbeiro sou eu" — assim você usa só o seu login de dono de sempre, sem precisar de uma segunda senha, e ainda aparece nos agendamentos, no ranking e na comissão como qualquer outro barbeiro.</div>
+      </section>
+
+      <section id="tour">
+        <h2>🧭 Tour guiado</h2>
+        <p>Na primeira vez que você entra no painel (dono ou barbeiro), um tour automático passa por cada parte da tela explicando o que é. Dá pra pular a qualquer momento clicando em "Pular tour".</p>
+        <p>Quer rever depois? É só clicar no ícone <strong>🧭</strong> no topo do painel, ao lado do sino de notificações.</p>
+      </section>
+
+      <section id="visao-geral">
+        <h2>📊 Visão geral</h2>
+        <p>É a primeira tela que você vê ao entrar. Mostra um resumo do mês:</p>
+        <ul>
+          <li><strong>Faturamento bruto/líquido</strong> — bruto é tudo que entrou (serviço + produto); líquido já desconta a comissão de cada barbeiro.</li>
+          <li><strong>Previsão bruto/líquido</strong> — a mesma conta, mas incluindo agendamentos futuros ainda não realizados nesse mês.</li>
+          <li><strong>Agendamentos realizados</strong>, <strong>ticket médio</strong> e <strong>taxa de no-show</strong> (clientes que não compareceram).</li>
+          <li><strong>Barbeiro do mês</strong> — quem mais faturou.</li>
+          <li>Gráficos de <strong>evolução do faturamento</strong> e <strong>ocupação por hora</strong> (quais horários costumam lotar).</li>
+          <li><strong>Análise por barbeiro</strong> — um gráfico de barras empilhadas mostrando quanto cada barbeiro faturou em serviço (dourado) e em produto (verde).</li>
+        </ul>
+        <p>Todo card com <strong>▲/▼</strong> compara com o mesmo período do mês anterior.</p>
+      </section>
+
+      <section id="agenda">
+        <h2>📅 Agenda</h2>
+        <p>Veja todos os agendamentos da barbearia, filtre por barbeiro, e alterne entre visão de <strong>semana</strong> ou <strong>mês</strong>. Dá pra criar um agendamento manualmente (por telefone, cliente que chegou no balcão) preenchendo nome, telefone, barbeiro, serviço, data e horário.</p>
+        <p>O status de cada agendamento muda sozinho: <strong>Agendado</strong> → <strong>Em andamento</strong> → <strong>Concluído</strong>, conforme o horário passa. <strong>Não compareceu</strong> é marcado manualmente quando o cliente falta.</p>
+      </section>
+
+      <section id="conversas">
+        <h2>💬 Conversas do WhatsApp</h2>
+        <p>Aqui você acompanha, em tempo real, as conversas que a Inteligência Artificial está tendo com seus clientes pelo WhatsApp — ela entende pedidos de agendamento, reagendamento, cancelamento e dúvidas gerais, sozinha.</p>
+        <p>Clique numa conversa da lista pra ver o histórico completo. Se quiser assumir e responder você mesmo (ex: uma dúvida que a IA não soube responder), digite na caixa de resposta embaixo.</p>
+        <div class="help-callout warn"><strong>Janela de 24 horas:</strong> o WhatsApp só permite mandar texto livre pra um cliente até 24h depois da última mensagem dele. Passado esse prazo, se você tentar responder manualmente, aparece um aviso — a mensagem pode não chegar. Lembretes automáticos continuam funcionando fora dessa janela porque usam um formato especial aprovado pela Meta (ver <a href="#faq">Perguntas frequentes</a>).</div>
+        <p>No celular, a tela funciona como o próprio aplicativo do WhatsApp: só a lista OU só a conversa aberta por vez, com um botão "← Conversas" pra voltar.</p>
+      </section>
+
+      <section id="historico">
+        <h2>📈 Histórico</h2>
+        <p>Faturamento detalhado por período (última semana, último mês, últimos 3 meses, tudo, ou um mês específico), com filtro por barbeiro. Mostra também:</p>
+        <ul>
+          <li><strong>Participação por barbeiro</strong> e <strong>por serviço</strong> — gráficos de pizza.</li>
+          <li><strong>Cadastro e histórico de clientes</strong> — quantas vezes cada cliente veio, ticket médio, aniversário, e busca por nome.</li>
+        </ul>
+      </section>
+
+      <section id="estoque">
+        <h2>📦 Estoque</h2>
+        <p>Cadastre os produtos vendidos no balcão (pomada, óleo de barba, etc.) com preço e quantidade em estoque. Quando um agendamento é atendido, dá pra registrar a venda de um produto junto — isso já entra automaticamente no faturamento e, se o produto foi vendido dentro de um agendamento, também conta na comissão de produto do barbeiro responsável.</p>
+        <p>Configure um <strong>alerta de estoque baixo</strong> por produto — quando a quantidade cair até esse número, o produto aparece destacado na seção "Situação do estoque".</p>
+      </section>
+
+      <section id="whatsapp-connect">
+        <h2>📱 Conectar seu WhatsApp</h2>
+        <p>Em <strong>Configurações → WhatsApp</strong>, você conecta o número de WhatsApp Business da sua própria barbearia diretamente pelo painel — sem precisar de nenhum conhecimento técnico ou suporte manual.</p>
+        <ol>
+          <li>Clique em "Conectar meu WhatsApp".</li>
+          <li>Faça login com a conta do Facebook/Meta Business da sua barbearia (ou crie uma, se ainda não tiver).</li>
+          <li>Escolha ou crie o número de WhatsApp que vai usar pra atender os clientes.</li>
+          <li>Confirme o código de verificação que a Meta manda por SMS ou ligação.</li>
+        </ol>
+        <p>Depois disso, a plataforma finaliza a conexão sozinha e a Meta aprova os modelos de mensagem (lembrete, reagendamento, reconquista) — isso geralmente leva poucos minutos, às vezes mais. Enquanto isso, a tela mostra "aguardando aprovação".</p>
+        <div class="help-callout">Enquanto você não conecta seu próprio número, sua barbearia usa o número de demonstração da plataforma — funciona igual, mas é compartilhado com outras barbearias em teste.</div>
+      </section>
+
+      <section id="cobranca">
+        <h2>💳 Cobrança e planos</h2>
+        <p>Dois planos disponíveis:</p>
+        <ul>
+          <li><strong>Starter — R$ 99/mês</strong>: até 2 barbeiros ativos.</li>
+          <li><strong>Pro — R$ 149/mês</strong>: barbeiros ilimitados + planos de assinatura pros seus próprios clientes.</li>
+        </ul>
+        <p>Toda conta nova começa com <strong>7 dias de teste grátis</strong>. Depois disso, escolha um plano na aba Cobrança pra continuar usando o painel. O pagamento é processado pelo Stripe — seus dados de cartão nunca passam pela nossa plataforma.</p>
+        <p>Já assinante? O botão <strong>"Gerenciar assinatura"</strong> abre o portal do Stripe, onde dá pra trocar de plano, atualizar forma de pagamento ou cancelar.</p>
+        <div class="help-callout">Durante o teste grátis, mensagens automáticas (lembrete, reagendamento, reconquista) enviadas pelo número compartilhado têm um limite de uso — uma barrinha de progresso aparece na aba Cobrança se isso te afetar. Conectar seu próprio WhatsApp ou assinar um plano remove esse limite.</div>
+      </section>
+
+      <section id="planos-clientes">
+        <h2>🎟️ Planos para seus clientes (Pro)</h2>
+        <p>Recurso do plano Pro: crie planos de assinatura mensal que os seus próprios clientes finais podem contratar — por exemplo, "N cortes incluídos por mês", "X% de desconto em qualquer serviço" ou "acesso ilimitado a um serviço específico".</p>
+        <p>Pra receber esses pagamentos, você precisa ativar o <strong>Stripe Connect</strong> uma vez (um botão "Ativar recebimento" leva direto pro cadastro do Stripe — CNPJ/CPF e dados bancários ficam só com o Stripe, a plataforma não vê nem guarda isso). Depois disso, crie os planos e o cliente assina direto pelo link público da sua barbearia (ou pelo próprio chat com a IA).</p>
+      </section>
+
+      <section id="horarios">
+        <h2>🕐 Horário de funcionamento</h2>
+        <p>Configure o horário de abertura e fechamento pra cada dia da semana, e marque como "fechado" os dias sem atendimento. Esse horário é usado pra calcular quais horários aparecem disponíveis pro cliente agendar, tanto no chat quanto no painel.</p>
+      </section>
+
+      <section id="bloqueios">
+        <h2>🚫 Bloqueios de horário</h2>
+        <p>Bloqueie um intervalo pra folga, feriado, almoço ou qualquer outro motivo — pode ser pra <strong>toda a barbearia</strong> ou só pra <strong>um barbeiro específico</strong>. Marque "Repete todo dia" pra um bloqueio fixo (ex: almoço todo dia às 12h) sem precisar recriar todo dia; senão, escolha uma data específica.</p>
+      </section>
+
+      <section id="barbeiros-servicos">
+        <h2>✂️ Barbeiros e serviços</h2>
+        <h3>Barbeiros</h3>
+        <p>Ao adicionar um barbeiro, você define usuário e senha (o login dele pro <code>/barber.html</code>), a <strong>comissão de serviço</strong> e a <strong>comissão de produto</strong> — separadas porque nem sempre são a mesma taxa — e a meta mensal (usada na barra de progresso do painel dele).</p>
+        <p>Desativar um barbeiro mantém todo o histórico dele, só some das novas opções de agendamento. O plano <strong>Starter</strong> permite até 2 barbeiros ativos ao mesmo tempo; o <strong>Pro</strong> não tem limite.</p>
+        <h3>Serviços</h3>
+        <p>Cadastre nome, preço e duração de cada serviço — usados pelo chat da IA pra calcular horários disponíveis e valores.</p>
+      </section>
+
+      <section id="backup">
+        <h2>💾 Backup do banco de dados</h2>
+        <p>Uma cópia de segurança é gerada automaticamente a cada 24h (mantendo as últimas 14). Dá pra gerar uma cópia extra a qualquer momento clicando em "Fazer backup agora".</p>
+      </section>
+
+      <section id="auditoria">
+        <h2>📋 Auditoria</h2>
+        <p>Um histórico de todas as ações administrativas feitas no painel — quem criou/editou o quê e quando. Útil pra saber, por exemplo, quem mudou o preço de um serviço ou desativou um barbeiro.</p>
+      </section>
+
+      <section id="painel-barbeiro">
+        <h2>✂️ Painel do barbeiro</h2>
+        <p>Cada barbeiro tem seu próprio painel, mais simples, com:</p>
+        <ul>
+          <li><strong>Meu desempenho do mês</strong>: faturamento gerado, cortes realizados, ticket médio e a comissão (já separada em serviço + produto).</li>
+          <li><strong>Novo agendamento</strong>: marcar um horário manualmente pra um cliente.</li>
+          <li><strong>Minha agenda de hoje</strong> e <strong>minha agenda</strong> (semana/mês).</li>
+          <li><strong>Meus bloqueios de horário</strong>: folgas e imprevistos próprios.</li>
+        </ul>
+      </section>
+
+      <section id="faq">
+        <h2>❔ Perguntas frequentes</h2>
+
+        <h3>O cliente pode marcar horário sozinho, sem falar com a barbearia?</h3>
+        <p>Sim — é a função principal do chat de IA. O cliente manda mensagem no seu número de WhatsApp e a IA conduz toda a conversa: escolhe serviço, barbeiro, dia e horário disponíveis, confirma e já cria o agendamento.</p>
+
+        <h3>Por que às vezes uma mensagem não chega pro cliente?</h3>
+        <p>Regra da própria Meta: texto livre só pode ser enviado até 24h depois da última mensagem do cliente. Passado isso, só mensagens em formato de <strong>modelo aprovado</strong> (usadas pelos lembretes automáticos) conseguem chegar. Isso não afeta o chat normal, porque o cliente geralmente responde dentro dessa janela.</p>
+
+        <h3>Perdi/esqueci a senha de um barbeiro, e agora?</h3>
+        <p>Entre como dono, vá em Configurações → Barbeiros, clique em editar (✏️) no barbeiro e defina uma nova senha no campo "Nova senha" (deixar em branco mantém a atual).</p>
+
+        <h3>Um barbeiro saiu da barbearia, o que eu faço?</h3>
+        <p>Desative o barbeiro (não apague) — assim todo o histórico de agendamentos e faturamento dele fica preservado nos relatórios, só some das opções de novo agendamento.</p>
+
+        <h3>Qual a diferença entre "faturamento bruto" e "líquido"?</h3>
+        <p>Bruto é tudo que entrou (serviço + produto). Líquido já desconta a comissão de cada barbeiro sobre o que ele gerou — por isso o líquido da barbearia sempre é menor que o bruto.</p>
+
+        <h3>Posso mudar de plano depois?</h3>
+        <p>Sim, a qualquer momento, pelo botão "Gerenciar assinatura" na aba Cobrança (portal do Stripe).</p>
+
+        <h3>Meus clientes recebem lembrete automático de horário?</h3>
+        <p>Sim, o sistema manda lembrete perto da hora, aviso automático se algo precisar ser reagendado, e mensagens de reconquista pra clientes que sumiram — tudo sozinho, sem você precisar fazer nada.</p>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
