@@ -19,7 +19,7 @@ export function getBarbersWithUsername(barbershopId: number, { includeInactive =
   return prisma.barber.findMany({
     where: { barbershopId, ...(includeInactive ? {} : { active: true }) },
     orderBy: { id: "asc" },
-    include: { users: { select: { username: true }, take: 1 } },
+    include: { users: { select: { username: true, role: true }, take: 1 } },
   });
 }
 
@@ -64,6 +64,15 @@ export function createBarber(
 
 export function getBarberUser(barberId: number) {
   return prisma.user.findFirst({ where: { barberId } });
+}
+
+// Dono que também é barbeiro (bem comum): em vez de criar um segundo login
+// (role "barber") só pra aparecer nos agendamentos/comissão, vincula o
+// próprio barbeiro criado ao User de dono já existente — um login só,
+// continua com acesso total ao painel, e passa a contar como barbeiro
+// normal em toda a parte de agenda/faturamento/comissão.
+export function linkBarberToOwner(barbershopId: number, barberId: number) {
+  return prisma.user.updateMany({ where: { barbershopId, role: "owner" }, data: { barberId } });
 }
 
 export function createBarberUser(

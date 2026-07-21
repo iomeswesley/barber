@@ -1120,13 +1120,17 @@
         <div class="inline-form" id="add-barber-form">
           <div class="form-grid full">
             <div class="form-field"><label>Nome</label><input type="text" id="new-barber-name" /></div>
-            <div class="form-field"><label>Usuário (login)</label><input type="text" id="new-barber-username" autocomplete="off" /></div>
-            <div class="form-field"><label>Senha</label><input type="password" id="new-barber-password" autocomplete="new-password" /></div>
+            <div class="form-field" id="new-barber-username-field"><label>Usuário (login)</label><input type="text" id="new-barber-username" autocomplete="off" /></div>
+            <div class="form-field" id="new-barber-password-field"><label>Senha</label><input type="password" id="new-barber-password" autocomplete="new-password" /></div>
             <div class="form-field"><label>Comissão de serviço (%)</label><input type="number" step="0.1" min="0" max="100" id="new-barber-service-commission" value="40" /></div>
             <div class="form-field"><label>Comissão de produto (%)</label><input type="number" step="0.1" min="0" max="100" id="new-barber-product-commission" value="0" /></div>
             <div class="form-field"><label>Meta mensal (R$)</label><input type="number" step="0.01" min="0" id="new-barber-goal" value="0" /></div>
           </div>
-          <div class="hint" style="margin-top:6px;">O barbeiro usa esse usuário e senha pra entrar na própria agenda.</div>
+          <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size:12.5px; cursor:pointer;">
+            <input type="checkbox" id="new-barber-is-owner" style="width:auto; accent-color:var(--gold);" />
+            Esse barbeiro sou eu (dono) — não precisa de usuário/senha, uso meu próprio login
+          </label>
+          <div class="hint" style="margin-top:6px;" id="new-barber-login-hint">O barbeiro usa esse usuário e senha pra entrar na própria agenda.</div>
           <div class="form-actions">
             <button class="btn-primary" id="save-barber-btn">Salvar</button>
           </div>
@@ -2088,7 +2092,7 @@ async function loadManageBarbers() {
       (b) => `
     <div class="item-row ${b.active ? "" : "inactive"}">
       <div>
-        <div class="item-info">${b.name}${b.active ? "" : " (inativo)"}</div>
+        <div class="item-info">${b.name}${b.is_owner ? " (você)" : ""}${b.active ? "" : " (inativo)"}</div>
         <div class="item-meta">Comissão serviço ${b.service_commission_percent}% · produto ${b.product_commission_percent}%${b.monthly_goal_cents ? " · Meta " + currency(b.monthly_goal_cents / 100) : ""}</div>
       </div>
       <div class="item-actions">
@@ -2102,10 +2106,20 @@ async function loadManageBarbers() {
         <div class="form-field"><label>Comissão de serviço (%)</label><input type="number" step="0.1" min="0" max="100" id="edit-barber-service-commission-${b.id}" value="${b.service_commission_percent}" /></div>
         <div class="form-field"><label>Comissão de produto (%)</label><input type="number" step="0.1" min="0" max="100" id="edit-barber-product-commission-${b.id}" value="${b.product_commission_percent}" /></div>
         <div class="form-field"><label>Meta mensal (R$)</label><input type="number" step="0.01" min="0" id="edit-barber-goal-${b.id}" value="${b.monthly_goal_cents / 100}" /></div>
-        <div class="form-field"><label>Usuário (login)</label><input type="text" id="edit-barber-username-${b.id}" value="${b.username || ""}" autocomplete="off" /></div>
-        <div class="form-field"><label>Nova senha</label><input type="password" id="edit-barber-password-${b.id}" placeholder="Deixe em branco pra manter" autocomplete="new-password" /></div>
+        ${
+          b.is_owner
+            ? ""
+            : `<div class="form-field"><label>Usuário (login)</label><input type="text" id="edit-barber-username-${b.id}" value="${b.username || ""}" autocomplete="off" /></div>
+        <div class="form-field"><label>Nova senha</label><input type="password" id="edit-barber-password-${b.id}" placeholder="Deixe em branco pra manter" autocomplete="new-password" /></div>`
+        }
       </div>
-      <div class="hint" style="margin-top:6px;">${b.username ? "Preencha a senha só se quiser trocá-la." : "Sem login ainda — preencha usuário e senha pra criar o acesso desse barbeiro."}</div>
+      <div class="hint" style="margin-top:6px;">${
+        b.is_owner
+          ? "Esse barbeiro é a sua própria conta de dono — sem usuário/senha separados."
+          : b.username
+          ? "Preencha a senha só se quiser trocá-la."
+          : "Sem login ainda — preencha usuário e senha pra criar o acesso desse barbeiro."
+      }</div>
       <div class="form-actions">
         <button class="btn-primary" data-save-barber="${b.id}">Salvar</button>
         <button class="btn-secondary" data-cancel-edit-barber="${b.id}">Cancelar</button>
@@ -2153,8 +2167,9 @@ async function loadManageBarbers() {
       const serviceCommissionPercent = document.getElementById(`edit-barber-service-commission-${id}`).value;
       const productCommissionPercent = document.getElementById(`edit-barber-product-commission-${id}`).value;
       const monthlyGoal = document.getElementById(`edit-barber-goal-${id}`).value;
-      const username = document.getElementById(`edit-barber-username-${id}`).value;
-      const password = document.getElementById(`edit-barber-password-${id}`).value;
+      // Barbeiro vinculado à conta de dono não tem esses campos no DOM.
+      const username = document.getElementById(`edit-barber-username-${id}`)?.value || "";
+      const password = document.getElementById(`edit-barber-password-${id}`)?.value || "";
       if (!name || !name.trim()) return;
       const res = await fetch(`/api/manage/barbers/${id}`, {
         method: "PUT",
@@ -2181,14 +2196,24 @@ async function loadManageBarbers() {
 document.getElementById("toggle-add-barber").addEventListener("click", () => {
   document.getElementById("add-barber-form").classList.toggle("open");
 });
+document.getElementById("new-barber-is-owner").addEventListener("change", (e) => {
+  const isOwner = e.target.checked;
+  document.getElementById("new-barber-username-field").style.display = isOwner ? "none" : "";
+  document.getElementById("new-barber-password-field").style.display = isOwner ? "none" : "";
+  document.getElementById("new-barber-login-hint").textContent = isOwner
+    ? "Esse barbeiro fica vinculado ao seu login de dono — sem usuário/senha separados."
+    : "O barbeiro usa esse usuário e senha pra entrar na própria agenda.";
+});
 document.getElementById("save-barber-btn").addEventListener("click", async () => {
   const nameInput = document.getElementById("new-barber-name");
   const usernameInput = document.getElementById("new-barber-username");
   const passwordInput = document.getElementById("new-barber-password");
+  const isOwnerInput = document.getElementById("new-barber-is-owner");
   const serviceCommissionInput = document.getElementById("new-barber-service-commission");
   const productCommissionInput = document.getElementById("new-barber-product-commission");
   const goalInput = document.getElementById("new-barber-goal");
-  if (!nameInput.value.trim() || !usernameInput.value.trim() || !passwordInput.value) {
+  const linkToOwner = isOwnerInput.checked;
+  if (!nameInput.value.trim() || (!linkToOwner && (!usernameInput.value.trim() || !passwordInput.value))) {
     await showAlertModal("Preencha nome, usuário e senha.");
     return;
   }
@@ -2200,8 +2225,9 @@ document.getElementById("save-barber-btn").addEventListener("click", async () =>
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: nameInput.value.trim(),
-        username: usernameInput.value.trim(),
-        password: passwordInput.value,
+        username: linkToOwner ? undefined : usernameInput.value.trim(),
+        password: linkToOwner ? undefined : passwordInput.value,
+        linkToOwner,
         serviceCommissionPercent: Number(serviceCommissionInput.value) || 0,
         productCommissionPercent: Number(productCommissionInput.value) || 0,
         monthlyGoalCents: Math.round(Number(goalInput.value || 0) * 100),
@@ -2215,6 +2241,10 @@ document.getElementById("save-barber-btn").addEventListener("click", async () =>
     nameInput.value = "";
     usernameInput.value = "";
     passwordInput.value = "";
+    isOwnerInput.checked = false;
+    document.getElementById("new-barber-username-field").style.display = "";
+    document.getElementById("new-barber-password-field").style.display = "";
+    document.getElementById("new-barber-login-hint").textContent = "O barbeiro usa esse usuário e senha pra entrar na própria agenda.";
     serviceCommissionInput.value = "40";
     productCommissionInput.value = "0";
     goalInput.value = "0";
