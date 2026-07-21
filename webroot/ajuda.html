@@ -60,7 +60,7 @@
   </div>
 
   <div class="top-bar">
-    <a href="#" class="back" onclick="history.back(); return false;">← Voltar pro painel</a>
+    <a href="#" class="back" id="back-to-panel-link">← Fechar e voltar pro painel</a>
     <div class="theme-switch" id="theme-switch" title="Alternar tema claro/escuro"><div class="knob" id="theme-knob">🌙</div></div>
   </div>
 
@@ -260,5 +260,15 @@
       </section>
     </main>
   </div>
+  <script>
+    // Essa página abre numa aba nova (sem window.opener, de propósito, por
+    // segurança) — history.back() não tem pra onde voltar aqui. "Voltar pro
+    // painel" na prática é só fechar essa aba e deixar quem abriu em segundo
+    // plano à mostra de novo.
+    document.getElementById("back-to-panel-link").addEventListener("click", (e) => {
+      e.preventDefault();
+      window.close();
+    });
+  </script>
 </body>
 </html>

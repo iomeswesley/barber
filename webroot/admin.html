@@ -187,13 +187,18 @@
   .kpi-label { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 1.4px; }
   .kpi-value {
     font-family: "Sora", "Inter", sans-serif;
-    /* clamp() em vez de tamanho fixo — evita que valores maiores (ex: "R$ 4.975")
-       estourem o card em telas estreitas, já que .kpi-card usa overflow:hidden
-       (necessário pro brilho dourado decorativo) e cortava o texto no mobile. */
+    /* Tamanho base — clamp() sozinho não bastava porque só reage ao tamanho da
+       TELA, não ao tamanho do PRÓPRIO TEXTO (um valor com muitos dígitos, tipo
+       "R$ 15.005", ainda quebrava em duas linhas mesmo bem pequeno). O ajuste
+       fino que realmente evita quebra é feito por JS (fitKpiValue), que encolhe
+       a partir daqui até caber numa linha só, não importa quantos dígitos.
+       overflow:hidden + nowrap é só a rede de segurança do instante entre o
+       texto mudar e o JS medir. */
     font-size: clamp(18px, 6vw, 30px);
     font-weight: 800; letter-spacing: -0.03em; margin-top: 2px;
     font-variant-numeric: tabular-nums;
-    overflow-wrap: anywhere;
+    white-space: nowrap;
+    overflow: hidden;
   }
   .kpi-sub { font-size: 12px; color: var(--text-secondary); margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 
@@ -690,7 +695,10 @@
     <div class="theme-switch" id="theme-switch" title="Alternar tema claro/escuro">
       <div class="knob" id="theme-knob">🌙</div>
     </div>
-    <a href="/chat.html" class="link-back">← <span class="full">Simulador de chat</span></a>
+    <a href="/chat.html" class="link-back" style="display:inline-flex; align-items:center; gap:6px;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="#25D366" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z M12.017 2C6.508 2 2.03 6.478 2.03 11.987c0 2.152.68 4.16 1.836 5.798L2 22l4.36-1.844a9.933 9.933 0 0 0 5.657 1.762c5.508 0 9.987-4.478 9.987-9.987C22.004 6.478 17.526 2 12.017 2zm0 18.062a8.03 8.03 0 0 1-4.362-1.271l-.313-.187-3.234 1.369.965-3.253-.204-.334A8.001 8.001 0 1 1 20.03 12.03a8.048 8.048 0 0 1-8.013 8.032z" /></svg>
+      <span class="full">Simulador de chat</span>
+    </a>
     <button id="logout-btn" class="link-back" style="cursor:pointer;">Sair</button>
   </div>
 </header>
@@ -788,7 +796,7 @@
   </div>
 
   <div class="grid-two overview-grid-two">
-    <div class="card panel">
+    <div class="card panel" id="barber-analysis-card">
       <h2>Análise por barbeiro</h2>
       <div class="hint">Faturamento e ocupação da agenda no mês atual</div>
       <div class="barber-bar-wrap"><canvas id="barber-chart"></canvas></div>
@@ -1203,6 +1211,38 @@ function currencyCompact(v) {
   return currency(v);
 }
 
+// Encolhe a fonte de um .kpi-value até caber numa linha só — clamp() no CSS
+// só reage ao tamanho da TELA, não ao tamanho do PRÓPRIO TEXTO, então um
+// valor com muitos dígitos (ex: "R$ 15.005") continuava quebrando em duas
+// linhas mesmo em fonte pequena. Parte do tamanho definido no CSS (não de um
+// valor fixo), só encolhe além disso quando realmente não coube.
+function fitKpiValue(el) {
+  el.style.fontSize = "";
+  const naturalSize = parseFloat(getComputedStyle(el).fontSize);
+  let size = naturalSize;
+  const min = 11;
+  while (el.scrollWidth > el.clientWidth && size > min) {
+    size -= 1;
+    el.style.fontSize = `${size}px`;
+  }
+}
+
+const kpiValueObserver = new MutationObserver((mutations) => {
+  const targets = new Set();
+  mutations.forEach((m) => {
+    const el = m.target.nodeType === Node.TEXT_NODE ? m.target.parentElement : m.target;
+    if (el?.classList?.contains("kpi-value")) targets.add(el);
+  });
+  targets.forEach(fitKpiValue);
+});
+
+function watchKpiValues() {
+  document.querySelectorAll(".kpi-value").forEach((el) => {
+    kpiValueObserver.observe(el, { childList: true, characterData: true, subtree: true });
+    fitKpiValue(el);
+  });
+}
+
 function avatarColor(name) {
   const palette = isDark() ? AVATAR_COLORS : AVATAR_COLORS_LIGHT;
   let hash = 0;
@@ -1242,7 +1282,7 @@ const shopLabel = document.getElementById("shop-label");
 
 const ADMIN_TOUR_STEPS = [
   { selector: "#page-tabs", title: "Bem-vindo(a) ao Painel Premium!", text: "Esse menu no topo leva pra cada parte do seu negócio. Vamos passear por cada uma rapidinho." },
-  { activateSelector: '#page-tabs button[data-page="overview"]', selector: "#page-overview", title: "Visão geral", text: "Faturamento do mês, previsão, gráficos de ocupação e o ranking de barbeiros — o resumo do seu negócio de relance." },
+  { activateSelector: '#page-tabs button[data-page="overview"]', selector: "#barber-analysis-card", title: "Visão geral", text: "Faturamento do mês, previsão, gráficos de ocupação e o ranking de barbeiros — o resumo do seu negócio de relance." },
   { activateSelector: '#page-tabs button[data-page="agenda"]', selector: "#page-agenda", title: "Agenda", text: "Veja e crie agendamentos, filtre por barbeiro e alterne entre visão de semana ou mês." },
   { activateSelector: '#page-tabs button[data-page="conversas"]', selector: "#page-conversas", title: "Conversas do WhatsApp", text: "Acompanhe as conversas que a IA está tendo com seus clientes e responda manualmente quando quiser assumir." },
   { activateSelector: '#page-tabs button[data-page="historico"]', selector: "#page-historico", title: "Histórico", text: "Faturamento detalhado por período, participação de cada barbeiro e serviço, e o cadastro completo de clientes." },
@@ -4015,6 +4055,7 @@ async function setupPush() {
 }
 
 (async () => {
+  watchKpiValues();
   await loadMe();
   meLoaded = true;
   await loadAll();
