@@ -186,8 +186,13 @@
   .kpi-label { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 1.4px; }
   .kpi-value {
     font-family: "Sora", "Inter", sans-serif;
-    font-size: 30px; font-weight: 800; letter-spacing: -0.03em; margin-top: 2px;
+    /* clamp() em vez de tamanho fixo — evita que valores maiores (ex: "R$ 4.975")
+       estourem o card em telas estreitas, já que .kpi-card usa overflow:hidden
+       (necessário pro brilho dourado decorativo) e cortava o texto no mobile. */
+    font-size: clamp(18px, 6vw, 30px);
+    font-weight: 800; letter-spacing: -0.03em; margin-top: 2px;
     font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
   }
   .kpi-sub { font-size: 12px; color: var(--text-secondary); margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 
@@ -619,6 +624,32 @@
   .chat-bubble { max-width: 78%; padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.45; white-space: pre-wrap; }
   .chat-bubble.customer { align-self: flex-start; background: rgba(255,255,255,0.06); border-top-left-radius: 3px; }
   .chat-bubble.bot { align-self: flex-end; background: rgb(var(--color-primary) / 0.18); border-top-right-radius: 3px; }
+
+  .conversas-layout { padding: 0; display: grid; grid-template-columns: 280px 1fr; min-height: 480px; overflow: hidden; }
+  .chat-list-col { border-right: 1px solid var(--card-border); overflow-y: auto; max-height: 640px; }
+  .chat-detail-col { display: flex; flex-direction: column; }
+  .chat-back-btn { display: none; }
+  #chat-transcript-header { padding: 12px 16px; border-bottom: 1px solid var(--card-border); font-size: 13px; font-weight: 700; }
+  #chat-transcript-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; max-height: 600px; }
+  #chat-reply-bar { display: none; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--card-border); align-items: flex-end; }
+
+  /* No mobile, o layout de 2 colunas lado a lado espremia demais a lista e
+     a conversa — troca pra um padrão de app de chat: só a lista OU só a
+     conversa aberta em tela cheia, com botão de voltar, igual o WhatsApp
+     de verdade. */
+  @media (max-width: 640px) {
+    .conversas-layout { grid-template-columns: 1fr; min-height: 0; }
+    .chat-detail-col { display: none; }
+    .chat-back-btn {
+      display: flex; align-items: center; gap: 6px; width: 100%;
+      background: none; border: none; border-bottom: 1px solid var(--card-border);
+      color: var(--text-secondary); font-size: 13px; font-weight: 700;
+      padding: 12px 16px; cursor: pointer; text-align: left;
+    }
+    .conversas-layout.chat-mobile-open .chat-list-col { display: none; }
+    .conversas-layout.chat-mobile-open .chat-detail-col { display: flex; }
+    .chat-list-col, #chat-transcript-body { max-height: none; }
+  }
 </style>
 </head>
 <body>
@@ -851,14 +882,15 @@
 
   <div id="page-conversas" class="page-section" style="display:none;">
     <div class="section-title">Conversas do WhatsApp</div>
-    <div class="card panel" style="padding:0; display:grid; grid-template-columns: 280px 1fr; min-height:480px; overflow:hidden;">
-      <div style="border-right:1px solid var(--card-border); overflow-y:auto; max-height:640px;" id="chat-session-list">
+    <div class="card panel conversas-layout" id="conversas-layout">
+      <div class="chat-list-col" id="chat-session-list">
         <div class="empty-state" style="padding:20px;">Carregando...</div>
       </div>
-      <div style="display:flex; flex-direction:column;">
-        <div style="padding:12px 16px; border-bottom:1px solid var(--card-border); font-size:13px; font-weight:700;" id="chat-transcript-header">Selecione uma conversa</div>
-        <div style="flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:10px; max-height:600px;" id="chat-transcript-body"></div>
-        <div id="chat-reply-bar" style="display:none; gap:8px; padding:12px 16px; border-top:1px solid var(--card-border); align-items:flex-end;">
+      <div class="chat-detail-col">
+        <button type="button" class="chat-back-btn" id="chat-back-btn">← Conversas</button>
+        <div id="chat-transcript-header">Selecione uma conversa</div>
+        <div id="chat-transcript-body"></div>
+        <div id="chat-reply-bar">
           <div class="form-field" style="flex:1; margin:0;">
             <input type="text" id="chat-reply-input" placeholder="Digite uma resposta..." />
           </div>
@@ -2513,6 +2545,7 @@ async function loadChatSessionList() {
 
 async function loadChatTranscript(phone) {
   activeChatPhone = phone;
+  document.getElementById("conversas-layout").classList.add("chat-mobile-open");
   document.querySelectorAll(".chat-session-item").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.phone === phone);
   });
@@ -2569,6 +2602,10 @@ async function sendChatReply() {
     btn.disabled = false;
   }
 }
+
+document.getElementById("chat-back-btn").addEventListener("click", () => {
+  document.getElementById("conversas-layout").classList.remove("chat-mobile-open");
+});
 
 document.getElementById("chat-reply-send-btn").addEventListener("click", sendChatReply);
 document.getElementById("chat-reply-input").addEventListener("keydown", (e) => {
