@@ -1399,7 +1399,13 @@ const weekdayGroupLinesPlugin = {
     ctx.restore();
   },
 };
-Chart.register(weekdayGroupLinesPlugin);
+// Guarda contra o CDN do Chart.js falhar/demorar a carregar (rede instável,
+// bloqueio de terceiros, etc.) — sem isso, essa chamada no topo do script
+// travava a execução de TUDO que vem depois (inclusive a navegação por
+// abas), deixando o painel preso no template vazio até um refresh forçado.
+if (typeof Chart !== "undefined") {
+  Chart.register(weekdayGroupLinesPlugin);
+}
 
 async function loadOccupancyChart() {
   const data = await (await fetch(`/api/dashboard/occupancy-by-hour?range=${currentRange}`)).json();
