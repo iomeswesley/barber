@@ -808,8 +808,13 @@
       tabCounter.textContent = `${index + 1} / ${panels.length}`;
       // No mobile a barra de pílulas rola horizontalmente e a ativa pode ficar
       // fora da tela — sem isso o usuário não teria como saber qual recurso
-      // está selecionado sem arrastar a barra manualmente.
-      tabButtons[index].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      // está selecionado sem arrastar a barra manualmente. Rola só o container
+      // da barra (scrollLeft), nunca a página — scrollIntoView puxava a tela
+      // inteira de volta pra essa seção mesmo com o usuário lendo o rodapé.
+      const btn = tabButtons[index];
+      const bar = btn.parentElement;
+      const target = btn.offsetLeft - (bar.clientWidth - btn.clientWidth) / 2;
+      bar.scrollTo({ left: target, behavior: 'smooth' });
     }
 
     function tick(ts) {
