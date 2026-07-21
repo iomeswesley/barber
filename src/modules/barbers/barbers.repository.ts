@@ -11,19 +11,38 @@ export function getBarber(id: number) {
   return prisma.barber.findUnique({ where: { id } });
 }
 
+// Igual getBarbers, mas trazendo junto o username do User de acesso (quando
+// existir) — só usado na listagem da aba de gerenciamento (dono), pra
+// preencher o formulário de editar sem expor isso na listagem pública de
+// barbeiros (barbershops.routes.ts usa getBarbers puro, sem essa parte).
+export function getBarbersWithUsername(barbershopId: number, { includeInactive = false } = {}) {
+  return prisma.barber.findMany({
+    where: { barbershopId, ...(includeInactive ? {} : { active: true }) },
+    orderBy: { id: "asc" },
+    include: { users: { select: { username: true }, take: 1 } },
+  });
+}
+
 // `credentials` opcional: quando informado, cria também o User de acesso do
 // barbeiro (role "barber", vinculado via barberId) na mesma transação — sem
 // isso o barbeiro ficaria cadastrado mas sem conseguir logar no painel dele.
 export function createBarber(
   barbershopId: number,
   name: string,
-  credentials?: { username: string; passwordHash: string }
+  credentials?: { username: string; passwordHash: string },
+  { commissionPercent, monthlyGoalCents }: { commissionPercent?: number; monthlyGoalCents?: number } = {}
 ) {
+  const barberData = {
+    barbershopId,
+    name,
+    ...(commissionPercent !== undefined ? { commissionPercent } : {}),
+    ...(monthlyGoalCents !== undefined ? { monthlyGoalCents } : {}),
+  };
   if (!credentials) {
-    return prisma.barber.create({ data: { barbershopId, name } });
+    return prisma.barber.create({ data: barberData });
   }
   return prisma.$transaction(async (tx) => {
-    const barber = await tx.barber.create({ data: { barbershopId, name } });
+    const barber = await tx.barber.create({ data: barberData });
     await tx.user.create({
       data: {
         barbershopId,
@@ -35,6 +54,31 @@ export function createBarber(
       },
     });
     return barber;
+  });
+}
+
+export function getBarberUser(barberId: number) {
+  return prisma.user.findFirst({ where: { barberId } });
+}
+
+export function createBarberUser(
+  barbershopId: number,
+  barberId: number,
+  name: string,
+  username: string,
+  passwordHash: string
+) {
+  return prisma.user.create({ data: { barbershopId, barberId, role: "barber", username, passwordHash, name } });
+}
+
+export function updateBarberUser(userId: number, data: { username?: string; passwordHash?: string; name?: string }) {
+  return prisma.user.update({
+    where: { id: userId },
+    data: {
+      ...(data.username !== undefined ? { username: data.username } : {}),
+      ...(data.passwordHash !== undefined ? { passwordHash: data.passwordHash } : {}),
+      ...(data.name !== undefined ? { name: data.name } : {}),
+    },
   });
 }
 
