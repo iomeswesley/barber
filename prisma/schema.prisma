@@ -413,6 +413,14 @@ model Subscription {
   currentPeriodEnd     DateTime?          @map("current_period_end")
   stripeCustomerId     String?            @map("stripe_customer_id")
   stripeSubscriptionId String?            @map("stripe_subscription_id")
+  // "Pontos" de uso do WhatsApp gastos durante o trial usando o número
+  // compartilhado da plataforma (quem já conectou o próprio número via
+  // Embedded Signup não conta aqui — a Meta cobra direto da conta dela).
+  // Cada categoria de mensagem pesa diferente (ver WHATSAPP_TEMPLATE_WEIGHTS
+  // em billing.service.ts); serve pra estimar/limitar gasto sem precisar do
+  // preço exato de cada mensagem, que a Meta só manda via webhook de status
+  // (não implementado ainda).
+  whatsappTrialUsagePoints Int @default(0) @map("whatsapp_trial_usage_points")
   createdAt            DateTime           @default(now()) @map("created_at")
   updatedAt            DateTime           @updatedAt @map("updated_at")
 

@@ -2,6 +2,7 @@ import { getAppointmentsNeedingReminder, getTodaysAppointmentsForReminder } from
 import { markReminderSent } from "@/modules/appointments/appointments.repository.js";
 import { getBarbershop } from "@/modules/barbershops/barbershops.repository.js";
 import { sendWhatsappText, sendWhatsappTemplate, whatsappConfigured, resolveBarbershopAccessToken } from "@/lib/whatsapp.js";
+import { tryConsumeWhatsappTrialBudget } from "@/modules/billing/billing.service.js";
 import type { AppointmentDTO } from "@/modules/appointments/appointments.types.js";
 
 const CHECK_INTERVAL_MS = 60 * 1000; // varre a cada minuto
@@ -39,12 +40,18 @@ async function sendWhatsAppTemplateMessage(
 ) {
   const barbershop = await getBarbershop(barbershopId);
   const accessToken = resolveBarbershopAccessToken(barbershop);
+  const usingSharedToken = !accessToken;
   if (barbershop?.whatsappPhoneNumberId && (accessToken || whatsappConfigured)) {
-    try {
-      await sendWhatsappTemplate(barbershop.whatsappPhoneNumberId, phone, templateName, params, "pt_BR", accessToken);
-      return;
-    } catch (err) {
-      console.error(`[WHATSAPP] Falha ao enviar template "${templateName}", caindo pro stub:`, (err as Error).message);
+    const withinBudget = await tryConsumeWhatsappTrialBudget(barbershopId, usingSharedToken, templateName);
+    if (withinBudget) {
+      try {
+        await sendWhatsappTemplate(barbershop.whatsappPhoneNumberId, phone, templateName, params, "pt_BR", accessToken);
+        return;
+      } catch (err) {
+        console.error(`[WHATSAPP] Falha ao enviar template "${templateName}", caindo pro stub:`, (err as Error).message);
+      }
+    } else {
+      console.log(`[WHATSAPP] Limite de uso do trial atingido pra "${templateName}" (barbearia ${barbershopId}), pulando envio real.`);
     }
   }
   console.log(`\n[LEMBRETE WHATSAPP - STUB] Para: ${phone}\n${fallbackText}\n`);

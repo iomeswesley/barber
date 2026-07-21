@@ -43,6 +43,12 @@ const envSchema = z.object({
   WHATSAPP_APP_ID: z.string().optional(),
   WHATSAPP_CONFIG_ID: z.string().optional(),
   WHATSAPP_TOKEN_ENCRYPTION_KEY: z.string().optional(),
+  // Teto de "pontos" de uso do WhatsApp (não é R$ exato, é uma estimativa —
+  // ver WHATSAPP_TEMPLATE_WEIGHTS em billing.service.ts) que uma barbearia em
+  // trial pode gastar usando o número compartilhado da plataforma antes dos
+  // envios automáticos (lembrete/reagendamento/reconquista) passarem a cair
+  // no stub em vez de sair de verdade.
+  WHATSAPP_TRIAL_USAGE_LIMIT: z.coerce.number().int().positive().default(100),
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().optional(),

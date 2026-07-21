@@ -1009,6 +1009,12 @@
     <div class="section-title">Cobrança</div>
     <div class="card panel" id="billing-card">
       <div class="hint" id="billing-hint">Carregando...</div>
+      <div id="billing-whatsapp-usage" style="display:none; margin-top:10px;">
+        <div class="hint" style="font-size:11.5px; margin-bottom:4px;" id="billing-whatsapp-usage-label"></div>
+        <div style="height:6px; border-radius:999px; background:rgba(255,255,255,0.06); overflow:hidden;">
+          <div id="billing-whatsapp-usage-bar" style="height:100%; border-radius:999px; background:var(--gold);"></div>
+        </div>
+      </div>
       <div id="billing-plans" style="margin-top:14px; display:none; gap:12px; flex-wrap:wrap;"></div>
       <div class="form-actions" id="billing-actions" style="margin-top:14px; display:none;">
         <button class="btn-secondary" id="billing-portal-btn">Gerenciar assinatura</button>
@@ -3537,9 +3543,23 @@ async function loadBillingStatus() {
     return;
   }
 
+  const usageEl = document.getElementById("billing-whatsapp-usage");
   if (data.status === "trialing") {
     hint.textContent = `Você está no período de teste grátis até ${fmtDate(data.trial_ends_at)}. Escolha um plano pra continuar depois disso:`;
-  } else if (data.status === "active") {
+    if (data.whatsapp_trial_usage != null && !data.has_own_whatsapp) {
+      const pct = Math.min(100, Math.round((data.whatsapp_trial_usage / data.whatsapp_trial_usage_limit) * 100));
+      usageEl.style.display = "block";
+      document.getElementById("billing-whatsapp-usage-label").textContent =
+        `Uso de mensagens automáticas no teste grátis: ${pct}%${pct >= 100 ? " — lembretes e reconquista pausados até você conectar seu próprio WhatsApp ou assinar um plano" : ""}`;
+      document.getElementById("billing-whatsapp-usage-bar").style.width = `${pct}%`;
+      document.getElementById("billing-whatsapp-usage-bar").style.background = pct >= 100 ? "var(--danger)" : "var(--gold)";
+    } else {
+      usageEl.style.display = "none";
+    }
+  } else {
+    usageEl.style.display = "none";
+  }
+  if (data.status === "active") {
     hint.textContent = `Assinatura ativa — plano ${data.plan}. Renova em ${fmtDate(data.current_period_end)}.`;
   } else if (data.status === "past_due") {
     hint.textContent = `⚠️ Pagamento pendente no plano ${data.plan}. Atualize sua forma de pagamento pra não perder o acesso.`;

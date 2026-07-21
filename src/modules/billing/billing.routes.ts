@@ -11,6 +11,7 @@ import {
   handleSubscriptionUpdated,
   handleSubscriptionDeleted,
 } from "./billing.service.js";
+import { getBarbershop } from "@/modules/barbershops/barbershops.repository.js";
 import type Stripe from "stripe";
 
 export const billingRouter = Router();
@@ -18,7 +19,10 @@ export const billingRouter = Router();
 const VALID_PLANS: PlanId[] = ["starter", "pro"];
 
 billingRouter.get("/api/billing/status", requireAuth, requireOwner, async (req, res) => {
-  const sub = await getSubscription(req.session.user!.barbershopId);
+  const [sub, shop] = await Promise.all([
+    getSubscription(req.session.user!.barbershopId),
+    getBarbershop(req.session.user!.barbershopId),
+  ]);
   res.json({
     configured: stripeConfigured,
     status: sub?.status || null,
@@ -27,6 +31,12 @@ billingRouter.get("/api/billing/status", requireAuth, requireOwner, async (req, 
     current_period_end: sub?.currentPeriodEnd || null,
     has_subscription: !!sub?.stripeSubscriptionId,
     plans: VALID_PLANS.map((p) => ({ id: p, label: PLAN_LABELS[p], barber_limit: PLAN_LIMITS[p] })),
+    // Só faz sentido mostrar durante o trial usando o número compartilhado —
+    // ver tryConsumeWhatsappTrialBudget (billing.service.ts). Fora disso o
+    // valor existe no banco mas não limita nada.
+    whatsapp_trial_usage: sub?.status === "trialing" ? sub.whatsappTrialUsagePoints : null,
+    whatsapp_trial_usage_limit: env.WHATSAPP_TRIAL_USAGE_LIMIT,
+    has_own_whatsapp: shop?.whatsappConnectionStatus === "connected",
   });
 });
 

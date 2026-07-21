@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma.js";
 import { AppError } from "@/middleware/errorHandler.js";
+import { env } from "@/config/env.js";
 import { stripe, stripeConfigured, priceIdForPlan, planForPriceId, PLAN_LIMITS, type PlanId } from "@/lib/stripe.js";
 import { getOwnerUserForBarbershop } from "@/modules/auth/users.repository.js";
 import { getBarbershop } from "@/modules/barbershops/barbershops.repository.js";
@@ -20,6 +21,44 @@ export function grantTrial(barbershopId: number, plan: PlanId, trialEndsAt: Date
     update: { status: "trialing", plan, trialEndsAt },
     create: { barbershopId, status: "trialing", plan, trialEndsAt },
   });
+}
+
+// Peso relativo de cada template no orçamento de uso do trial — não é preço
+// exato da Meta (isso só vem via webhook de status, não capturado hoje),
+// é uma estimativa proporcional: reconquista (categoria "marketing") é
+// disparado em massa pra clientes antigos sem pedido direto de ninguém, e é
+// a categoria mais cara da Meta — pesa bem mais que lembrete/reagendamento
+// (categoria "utility"), que são avisos pontuais de um agendamento real.
+export const WHATSAPP_TEMPLATE_WEIGHTS: Record<string, number> = {
+  appointment_reminder: 2,
+  appointment_reschedule_notice: 2,
+  come_back_message: 6,
+};
+const DEFAULT_TEMPLATE_WEIGHT = 1;
+
+// Só entra em vigor pra quem ainda usa o número compartilhado da plataforma
+// (usingSharedToken) E está em trial — barbearia paga, ou que já conectou o
+// próprio WhatsApp via Embedded Signup, nunca é limitada aqui. Cobre só os
+// envios automáticos e proativos (lembrete/reagendamento/reconquista) — não
+// as respostas do chat ao cliente nem o código de verificação de plano, que
+// são o próprio produto funcionando e não fazem sentido travar no meio do trial.
+export async function tryConsumeWhatsappTrialBudget(
+  barbershopId: number,
+  usingSharedToken: boolean,
+  templateName: string
+): Promise<boolean> {
+  if (!usingSharedToken) return true;
+  const sub = await getSubscription(barbershopId);
+  if (!sub || sub.status !== "trialing") return true;
+
+  const weight = WHATSAPP_TEMPLATE_WEIGHTS[templateName] ?? DEFAULT_TEMPLATE_WEIGHT;
+  if (sub.whatsappTrialUsagePoints + weight > env.WHATSAPP_TRIAL_USAGE_LIMIT) return false;
+
+  await prisma.subscription.update({
+    where: { barbershopId },
+    data: { whatsappTrialUsagePoints: { increment: weight } },
+  });
+  return true;
 }
 
 async function getOrCreateStripeCustomer(barbershopId: number): Promise<string> {
