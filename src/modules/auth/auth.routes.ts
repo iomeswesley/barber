@@ -130,5 +130,18 @@ authRouter.get("/api/auth/me", requireAuth, async (req, res) => {
     barbershopName: shop?.name || null,
     email: user?.email || null,
     emailVerified: !!user?.emailVerifiedAt,
+    tourSeen: !!user?.tourSeenAt,
   });
+});
+
+// Marca o tour guiado como visto (dispensado ou concluído) — sem isso ele
+// voltaria a abrir sozinho em todo login. Reabrir manualmente ("Ver tour")
+// não passa por aqui.
+authRouter.post("/api/auth/tour-seen", requireAuth, async (req, res, next) => {
+  try {
+    await prisma.user.update({ where: { id: req.session.user!.id }, data: { tourSeenAt: new Date() } });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
 });

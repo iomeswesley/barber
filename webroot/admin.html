@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="/assets/theme.css">
 <script src="/assets/modal.js" defer></script>
 <script src="/assets/theme-toggle.js" defer></script>
+<script src="/assets/tour.js" defer></script>
 <style>
   /* ---------- Header ---------- */
   header.topbar {
@@ -684,6 +685,7 @@
     <button data-page="auditoria">Auditoria</button>
   </div>
   <div class="topbar-right">
+    <button id="tour-btn" class="icon-btn" title="Ver tour guiado" style="font-size:16px;">🧭</button>
     <button id="push-btn" class="icon-btn" title="Ativar notificações push" style="display:none; font-size:16px;">🔔</button>
     <div class="theme-switch" id="theme-switch" title="Alternar tema claro/escuro">
       <div class="knob" id="theme-knob">🌙</div>
@@ -1238,6 +1240,20 @@ const miniCharts = {};
 
 const shopLabel = document.getElementById("shop-label");
 
+const ADMIN_TOUR_STEPS = [
+  { selector: "#page-tabs", title: "Bem-vindo(a) ao Painel Premium!", text: "Esse menu no topo leva pra cada parte do seu negócio. Vamos passear por cada uma rapidinho." },
+  { activateSelector: '#page-tabs button[data-page="overview"]', selector: "#page-overview", title: "Visão geral", text: "Faturamento do mês, previsão, gráficos de ocupação e o ranking de barbeiros — o resumo do seu negócio de relance." },
+  { activateSelector: '#page-tabs button[data-page="agenda"]', selector: "#page-agenda", title: "Agenda", text: "Veja e crie agendamentos, filtre por barbeiro e alterne entre visão de semana ou mês." },
+  { activateSelector: '#page-tabs button[data-page="conversas"]', selector: "#page-conversas", title: "Conversas do WhatsApp", text: "Acompanhe as conversas que a IA está tendo com seus clientes e responda manualmente quando quiser assumir." },
+  { activateSelector: '#page-tabs button[data-page="historico"]', selector: "#page-historico", title: "Histórico", text: "Faturamento detalhado por período, participação de cada barbeiro e serviço, e o cadastro completo de clientes." },
+  { activateSelector: '#page-tabs button[data-page="estoque"]', selector: "#page-estoque", title: "Estoque", text: "Controle os produtos vendidos no balcão e receba alerta quando o estoque estiver baixo." },
+  { activateSelector: '#page-tabs button[data-page="configuracoes"]', selector: "#page-configuracoes", title: "Configurações", text: "Aqui fica praticamente tudo: WhatsApp, cobrança, planos pros seus clientes, horário de funcionamento, bloqueios, barbeiros, serviços e backup." },
+  { activateSelector: '#page-tabs button[data-page="auditoria"]', selector: "#page-auditoria", title: "Auditoria", text: "Um histórico de todas as ações feitas no painel — quem fez o quê e quando." },
+  { selector: "#tour-btn", title: "Pronto!", text: "Quando quiser rever esse tour, é só clicar aqui de novo." },
+];
+
+document.getElementById("tour-btn").addEventListener("click", () => startTour(ADMIN_TOUR_STEPS));
+
 async function loadMe() {
   const res = await fetch("/api/auth/me");
   if (!res.ok) {
@@ -1251,6 +1267,7 @@ async function loadMe() {
   if (me.email && !me.emailVerified) {
     document.getElementById("email-verify-banner").style.display = "flex";
   }
+  if (!me.tourSeen) startTour(ADMIN_TOUR_STEPS);
 }
 
 document.getElementById("resend-verify-btn").addEventListener("click", async (e) => {

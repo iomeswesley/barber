@@ -221,6 +221,11 @@ model User {
   passwordResetToken     String?   @unique @map("password_reset_token")
   passwordResetExpiresAt DateTime? @map("password_reset_expires_at")
 
+  // Nulo = tour guiado ainda não visto (dispara automático no próximo login)
+  // — setado na primeira vez que a pessoa termina ou pula o tour. Reabrir
+  // manualmente depois ("Ver tour") não mexe nisso.
+  tourSeenAt DateTime? @map("tour_seen_at")
+
   barbershop        Barbershop         @relation(fields: [barbershopId], references: [id])
   barber            Barber?            @relation(fields: [barberId], references: [id])
   pushSubscriptions PushSubscription[]

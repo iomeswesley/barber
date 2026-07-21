@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="/assets/theme.css">
 <script src="/assets/modal.js" defer></script>
 <script src="/assets/theme-toggle.js" defer></script>
+<script src="/assets/tour.js" defer></script>
 <style>
   header.topbar {
     display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
@@ -124,6 +125,7 @@
     </div>
   </div>
   <div class="topbar-right">
+    <button id="tour-btn" class="icon-btn" title="Ver tour guiado" style="font-size:16px;">🧭</button>
     <button id="push-btn" class="icon-btn" title="Ativar notificações push" style="display:none; font-size:16px;">🔔</button>
     <div class="theme-switch" id="theme-switch"><div class="knob" id="theme-knob">🌙</div></div>
     <button class="logout" id="logout-btn">Sair</button>
@@ -163,7 +165,7 @@
   </div>
 
   <div class="section-title">Novo agendamento</div>
-  <div class="card" style="padding:18px 20px;">
+  <div class="card" id="new-appt-card" style="padding:18px 20px;">
     <div class="hint" style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">Marque um horário manualmente pra um cliente — por telefone, no balcão etc.</div>
     <div class="form-grid">
       <div class="form-field">
@@ -198,7 +200,7 @@
   <div class="appt-list" id="appt-list"></div>
 
   <div class="section-title">Minha agenda</div>
-  <div class="card" style="padding:18px 20px;">
+  <div class="card" id="my-agenda-card" style="padding:18px 20px;">
     <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:6px;">
       <div class="hint" id="my-agenda-range" style="font-size:12px; color:var(--text-muted);"></div>
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -215,7 +217,7 @@
   </div>
 
   <div class="section-title">Meus bloqueios de horário</div>
-  <div class="card" style="padding:18px 20px;">
+  <div class="card" id="my-blocks-card" style="padding:18px 20px;">
     <div class="hint" style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">Folga, consulta, imprevisto — cadastre aqui seus próprios bloqueios de agenda.</div>
     <div class="form-grid">
       <div class="form-field">
@@ -425,6 +427,17 @@ function wireApptEditHandlers(container, onSaved) {
   });
 }
 
+const BARBER_TOUR_STEPS = [
+  { selector: ".kpi-grid", title: "Seu desempenho do mês", text: "Faturamento gerado, cortes realizados, ticket médio e sua comissão — já separada entre serviço e produto." },
+  { selector: "#new-appt-card", title: "Novo agendamento", text: "Marque um horário manualmente pra um cliente que ligou ou chegou no balcão." },
+  { selector: "#appt-list", title: "Minha agenda de hoje", text: "Os cortes marcados pra hoje, em ordem de horário." },
+  { selector: "#my-agenda-card", title: "Minha agenda", text: "Veja sua agenda completa por semana ou mês, e navegue entre os períodos." },
+  { selector: "#my-blocks-card", title: "Meus bloqueios de horário", text: "Cadastre folgas ou imprevistos pra esses horários saírem da agenda de agendamento automaticamente." },
+  { selector: "#tour-btn", title: "Pronto!", text: "Quando quiser rever esse tour, é só clicar aqui de novo." },
+];
+
+document.getElementById("tour-btn").addEventListener("click", () => startTour(BARBER_TOUR_STEPS));
+
 let meCache = null;
 
 async function loadAll() {
@@ -434,6 +447,7 @@ async function loadAll() {
   meCache = me;
   document.getElementById("barber-name").textContent = me.name;
   document.getElementById("shop-label").textContent = me.barbershopName || "";
+  if (!me.tourSeen) startTour(BARBER_TOUR_STEPS);
   await ensureServicesCache();
   await ensureProductsCache();
   populateNewApptForm();
