@@ -62,6 +62,48 @@ export async function sendWhatsappTemplate(
   }
 }
 
+// Envia um template de categoria Authentication (ex: código de verificação
+// de telefone antes do checkout de plano) — a Meta exige exatamente um botão
+// do tipo OTP nesses templates, então o corpo E o botão precisam receber o
+// código, em componentes separados (diferente de sendWhatsappTemplate).
+export async function sendWhatsappAuthTemplate(
+  phoneNumberId: string,
+  to: string,
+  templateName: string,
+  code: string,
+  languageCode = "pt_BR"
+): Promise<void> {
+  const res = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${phoneNumberId}/messages`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.WHATSAPP_ACCESS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to,
+      type: "template",
+      template: {
+        name: templateName,
+        language: { code: languageCode },
+        components: [
+          { type: "body", parameters: [{ type: "text", text: code }] },
+          {
+            type: "button",
+            sub_type: "copy_code",
+            index: "0",
+            parameters: [{ type: "coupon_code", coupon_code: code }],
+          },
+        ],
+      },
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Falha ao enviar template de autenticação WhatsApp "${templateName}" (${res.status}): ${body}`);
+  }
+}
+
 // Verifica a assinatura HMAC-SHA256 que a Meta envia no header
 // "X-Hub-Signature-256", garantindo que a requisição do webhook realmente
 // veio da Meta (usando o App Secret) e não de terceiros.

@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { stripe, stripeConfigured } from "@/lib/stripe.js";
-import { sendWhatsappTemplate } from "@/lib/whatsapp.js";
+import { sendWhatsappAuthTemplate } from "@/lib/whatsapp.js";
 import { AppError } from "@/middleware/errorHandler.js";
 import { env } from "@/config/env.js";
 import { hashPassword, verifyPassword } from "@/lib/auth.js";
@@ -89,7 +89,7 @@ export async function startPhoneVerification(barbershopId: number, phone: string
   const code = String(crypto.randomInt(100000, 1000000));
   const codeHash = hashPassword(code);
   await upsertPhoneVerification(phone, codeHash, new Date(Date.now() + OTP_EXPIRY_MS));
-  await sendWhatsappTemplate(shop.whatsappPhoneNumberId, phone, "client_plan_otp", [code]);
+  await sendWhatsappAuthTemplate(shop.whatsappPhoneNumberId, phone, "client_plan_otp", code);
 }
 
 export async function confirmPhoneVerification(phone: string, code: string): Promise<void> {
