@@ -648,7 +648,13 @@
     }
     .conversas-layout.chat-mobile-open .chat-list-col { display: none; }
     .conversas-layout.chat-mobile-open .chat-detail-col { display: flex; }
-    .chat-list-col, #chat-transcript-body { max-height: none; }
+    /* Precisa continuar com altura limitada (não "none") pra manter scroll
+       PRÓPRIO desse container — sem isso, quem rola vira a página inteira
+       (do topo, 1ª mensagem) em vez do balão de mensagens pular direto pro
+       final. Usa vh em vez do valor fixo do desktop pra aproveitar melhor
+       a tela do celular. */
+    .chat-list-col { max-height: 75vh; }
+    #chat-transcript-body { max-height: 60vh; }
   }
 </style>
 </head>
