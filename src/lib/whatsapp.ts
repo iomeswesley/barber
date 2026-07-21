@@ -1,17 +1,37 @@
 import crypto from "node:crypto";
 import { env, isProduction } from "@/config/env.js";
+import { decryptSecret } from "@/lib/crypto.js";
 
 export const whatsappConfigured = !!env.WHATSAPP_ACCESS_TOKEN;
+
+// Descriptografa o token da própria barbearia (WhatsApp Connect) quando ela
+// já conectou o número; se não tiver conectado (ou a descriptografia falhar
+// por qualquer motivo) volta undefined, e as funções de envio caem pro token
+// global da plataforma automaticamente.
+export function resolveBarbershopAccessToken(
+  barbershop: { whatsappAccessTokenEnc?: string | null } | null | undefined
+): string | undefined {
+  if (!barbershop?.whatsappAccessTokenEnc) return undefined;
+  try {
+    return decryptSecret(barbershop.whatsappAccessTokenEnc);
+  } catch (err) {
+    console.error("[WHATSAPP] Falha ao descriptografar token da barbearia, caindo pro token global:", (err as Error).message);
+    return undefined;
+  }
+}
 
 const GRAPH_API_VERSION = "v21.0";
 
 // Envia uma mensagem de texto via WhatsApp Cloud API. `to` é o wa_id do
 // destinatário (telefone completo com DDI, sem "+", ex: "5511999998888").
-export async function sendWhatsappText(phoneNumberId: string, to: string, text: string): Promise<void> {
+// `accessToken` é o token da própria barbearia (WhatsApp Connect); quando
+// omitido cai no token global da plataforma — retrocompatível com as
+// barbearias que ainda não conectaram o próprio número.
+export async function sendWhatsappText(phoneNumberId: string, to: string, text: string, accessToken?: string): Promise<void> {
   const res = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${phoneNumberId}/messages`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${env.WHATSAPP_ACCESS_TOKEN}`,
+      Authorization: `Bearer ${accessToken || env.WHATSAPP_ACCESS_TOKEN}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -37,12 +57,13 @@ export async function sendWhatsappTemplate(
   to: string,
   templateName: string,
   params: string[],
-  languageCode = "pt_BR"
+  languageCode = "pt_BR",
+  accessToken?: string
 ): Promise<void> {
   const res = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${phoneNumberId}/messages`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${env.WHATSAPP_ACCESS_TOKEN}`,
+      Authorization: `Bearer ${accessToken || env.WHATSAPP_ACCESS_TOKEN}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -71,12 +92,13 @@ export async function sendWhatsappAuthTemplate(
   to: string,
   templateName: string,
   code: string,
-  languageCode = "pt_BR"
+  languageCode = "pt_BR",
+  accessToken?: string
 ): Promise<void> {
   const res = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${phoneNumberId}/messages`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${env.WHATSAPP_ACCESS_TOKEN}`,
+      Authorization: `Bearer ${accessToken || env.WHATSAPP_ACCESS_TOKEN}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({

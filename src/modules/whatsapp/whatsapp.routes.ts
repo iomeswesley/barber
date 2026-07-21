@@ -2,9 +2,10 @@ import { Router } from "express";
 import { Prisma } from "@prisma/client";
 import { env } from "@/config/env.js";
 import { prisma } from "@/lib/prisma.js";
-import { verifyWebhookSignature, sendWhatsappText, whatsappConfigured } from "@/lib/whatsapp.js";
+import { verifyWebhookSignature, sendWhatsappText, whatsappConfigured, resolveBarbershopAccessToken } from "@/lib/whatsapp.js";
 import { getBarbershopByWhatsappPhoneNumberId } from "@/modules/barbershops/barbershops.repository.js";
 import { sendMessage } from "@/modules/chat/chatEngine.js";
+import { setWhatsappConnectionStatusByWabaId } from "@/modules/whatsappConnect/whatsappConnect.repository.js";
 
 // Registra o wamid como processado; retorna false se já tinha sido
 // registrado antes (reenvio duplicado da Meta), pra quem chamar pular o
@@ -38,15 +39,32 @@ whatsappRouter.get("/api/whatsapp/webhook", (req, res) => {
 
 interface WhatsappWebhookPayload {
   entry?: {
+    id?: string;
     changes?: {
       field?: string;
       value?: {
         metadata?: { phone_number_id?: string };
         contacts?: { profile?: { name?: string }; wa_id?: string }[];
         messages?: { id?: string; from?: string; type?: string; text?: { body?: string } }[];
+        event?: string;
+        message_template_name?: string;
       };
     }[];
   }[];
+}
+
+// Aprovação de template é assíncrona e por WABA (não por número) — a Meta
+// manda um evento desses por template. Simplificação: como o WhatsApp
+// Connect submete todos os templates junto na conexão, tratamos a primeira
+// aprovação como "conectado" e qualquer rejeição como erro (best-effort;
+// não rastreia individualmente cada um dos N templates pendentes).
+async function handleTemplateStatusUpdate(wabaId: string, event: string | undefined, templateName: string | undefined) {
+  if (event === "APPROVED") {
+    await setWhatsappConnectionStatusByWabaId(wabaId, "connected");
+  } else if (event === "REJECTED") {
+    console.error(`[WHATSAPP CONNECT] Template "${templateName}" rejeitado pela Meta na WABA ${wabaId}`);
+    await setWhatsappConnectionStatusByWabaId(wabaId, "error");
+  }
 }
 
 whatsappRouter.post("/api/whatsapp/webhook", async (req, res) => {
@@ -66,6 +84,10 @@ whatsappRouter.post("/api/whatsapp/webhook", async (req, res) => {
     const payload = req.body as WhatsappWebhookPayload;
     for (const entry of payload.entry || []) {
       for (const change of entry.changes || []) {
+        if (change.field === "message_template_status_update") {
+          if (entry.id) await handleTemplateStatusUpdate(entry.id, change.value?.event, change.value?.message_template_name);
+          continue;
+        }
         if (change.field !== "messages") continue;
         const value = change.value;
         const phoneNumberId = value?.metadata?.phone_number_id;
@@ -85,6 +107,7 @@ whatsappRouter.post("/api/whatsapp/webhook", async (req, res) => {
 
         const from = message.from!;
         const pushName = value?.contacts?.[0]?.profile?.name;
+        const accessToken = resolveBarbershopAccessToken(barbershop);
 
         // Áudio, foto, figurinha etc. não vão pra IA (só entende texto) —
         // sem isso, o cliente mandaria algo e não receberia resposta
@@ -93,13 +116,14 @@ whatsappRouter.post("/api/whatsapp/webhook", async (req, res) => {
           await sendWhatsappText(
             phoneNumberId,
             from,
-            "Por enquanto só consigo entender mensagens de texto 🙏 Pode escrever o que você precisa?"
+            "Por enquanto só consigo entender mensagens de texto 🙏 Pode escrever o que você precisa?",
+            accessToken
           );
           continue;
         }
 
         const reply = await sendMessage(barbershop.id, from, message.text.body, from, pushName);
-        await sendWhatsappText(phoneNumberId, from, reply);
+        await sendWhatsappText(phoneNumberId, from, reply, accessToken);
       }
     }
 

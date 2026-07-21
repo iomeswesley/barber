@@ -23,6 +23,7 @@ import { pushRouter } from "@/modules/push/push.routes.js";
 import { dashboardRouter } from "@/modules/dashboard/dashboard.routes.js";
 import { chatRouter } from "@/modules/chat/chat.routes.js";
 import { whatsappRouter } from "@/modules/whatsapp/whatsapp.routes.js";
+import { whatsappConnectRouter } from "@/modules/whatsappConnect/whatsappConnect.routes.js";
 import { onboardingRouter } from "@/modules/onboarding/onboarding.routes.js";
 import { clientsRouter } from "@/modules/clients/clients.routes.js";
 import { billingRouter } from "@/modules/billing/billing.routes.js";
@@ -168,6 +169,7 @@ export function createApp() {
   app.use(dashboardRouter);
   app.use(chatRouter);
   app.use(whatsappRouter);
+  app.use(whatsappConnectRouter);
   app.use(onboardingRouter);
   app.use(clientsRouter);
   app.use(billingRouter);

@@ -32,6 +32,17 @@ const envSchema = z.object({
   WHATSAPP_ACCESS_TOKEN: z.string().optional(),
   WHATSAPP_VERIFY_TOKEN: z.string().optional(),
   WHATSAPP_APP_SECRET: z.string().optional(),
+  // WhatsApp Embedded Signup (self-service) — dono da barbearia conecta o
+  // próprio número direto pelo painel, sem precisar de suporte manual.
+  // WHATSAPP_APP_ID + WHATSAPP_CONFIG_ID vêm do App Dashboard da Meta (a
+  // "Embedded Signup configuration" criada lá gera o config_id); sem eles a
+  // aba de conexão no painel fica desligada (mostra só a orientação, sem
+  // botão). WHATSAPP_TOKEN_ENCRYPTION_KEY é uma chave AES-256 gerada por nós
+  // (32 bytes em base64) pra criptografar o token/PIN de cada barbearia
+  // antes de gravar no banco — nunca reaproveitar a mesma chave de outro uso.
+  WHATSAPP_APP_ID: z.string().optional(),
+  WHATSAPP_CONFIG_ID: z.string().optional(),
+  WHATSAPP_TOKEN_ENCRYPTION_KEY: z.string().optional(),
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().optional(),

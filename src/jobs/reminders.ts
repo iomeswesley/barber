@@ -1,20 +1,22 @@
 import { getAppointmentsNeedingReminder, getTodaysAppointmentsForReminder } from "@/modules/appointments/appointments.service.js";
 import { markReminderSent } from "@/modules/appointments/appointments.repository.js";
 import { getBarbershop } from "@/modules/barbershops/barbershops.repository.js";
-import { sendWhatsappText, sendWhatsappTemplate, whatsappConfigured } from "@/lib/whatsapp.js";
+import { sendWhatsappText, sendWhatsappTemplate, whatsappConfigured, resolveBarbershopAccessToken } from "@/lib/whatsapp.js";
 import type { AppointmentDTO } from "@/modules/appointments/appointments.types.js";
 
 const CHECK_INTERVAL_MS = 60 * 1000; // varre a cada minuto
 
 // Envia via WhatsApp Cloud API quando a barbearia tem um número configurado
-// (whatsappPhoneNumberId) e as credenciais da Meta estão no .env; caso
-// contrário cai no stub de sempre (só loga no console), pra continuar
-// funcionando em barbearias/ambientes sem WhatsApp real conectado.
+// (whatsappPhoneNumberId) e algum token disponível — o próprio (WhatsApp
+// Connect) ou o global da plataforma; caso contrário cai no stub de sempre
+// (só loga no console), pra continuar funcionando em barbearias/ambientes
+// sem WhatsApp real conectado.
 export async function sendWhatsAppMessage(barbershopId: number, phone: string, text: string) {
-  const barbershop = whatsappConfigured ? await getBarbershop(barbershopId) : null;
-  if (barbershop?.whatsappPhoneNumberId) {
+  const barbershop = await getBarbershop(barbershopId);
+  const accessToken = resolveBarbershopAccessToken(barbershop);
+  if (barbershop?.whatsappPhoneNumberId && (accessToken || whatsappConfigured)) {
     try {
-      await sendWhatsappText(barbershop.whatsappPhoneNumberId, phone, text);
+      await sendWhatsappText(barbershop.whatsappPhoneNumberId, phone, text, accessToken);
       return;
     } catch (err) {
       console.error(`[WHATSAPP] Falha ao enviar mensagem real, caindo pro stub:`, (err as Error).message);
@@ -35,10 +37,11 @@ async function sendWhatsAppTemplateMessage(
   params: string[],
   fallbackText: string
 ) {
-  const barbershop = whatsappConfigured ? await getBarbershop(barbershopId) : null;
-  if (barbershop?.whatsappPhoneNumberId) {
+  const barbershop = await getBarbershop(barbershopId);
+  const accessToken = resolveBarbershopAccessToken(barbershop);
+  if (barbershop?.whatsappPhoneNumberId && (accessToken || whatsappConfigured)) {
     try {
-      await sendWhatsappTemplate(barbershop.whatsappPhoneNumberId, phone, templateName, params);
+      await sendWhatsappTemplate(barbershop.whatsappPhoneNumberId, phone, templateName, params, "pt_BR", accessToken);
       return;
     } catch (err) {
       console.error(`[WHATSAPP] Falha ao enviar template "${templateName}", caindo pro stub:`, (err as Error).message);

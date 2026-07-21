@@ -954,6 +954,20 @@
   </div>
 
   <div id="page-configuracoes" class="page-section" style="display:none;">
+    <div class="section-title">WhatsApp</div>
+    <div class="card panel" id="whatsapp-connect-card">
+      <div class="hint" id="whatsapp-connect-hint">Carregando...</div>
+      <ol id="whatsapp-connect-steps" style="margin:14px 0 16px; padding-left:20px; font-size:12.5px; color: var(--text-secondary); line-height:1.7; display:none;">
+        <li>Você vai fazer login com a conta do Facebook/Meta Business da sua barbearia (ou criar uma, se ainda não tiver).</li>
+        <li>Escolha ou crie o número de WhatsApp que vai usar pra atender os clientes por aqui.</li>
+        <li>Confirme o código de verificação que a Meta manda por SMS ou ligação pro número escolhido.</li>
+        <li>Pronto — a plataforma finaliza a conexão sozinha e libera lembretes, reagendamento e o atendimento automático nesse número.</li>
+      </ol>
+      <div class="form-actions" id="whatsapp-connect-actions" style="display:none;">
+        <button class="btn-primary" id="whatsapp-connect-btn">Conectar meu WhatsApp</button>
+      </div>
+    </div>
+
     <div class="section-title">Cobrança</div>
     <div class="card panel" id="billing-card">
       <div class="hint" id="billing-hint">Carregando...</div>
@@ -3260,6 +3274,116 @@ document.getElementById("backup-now-btn").addEventListener("click", async (e) =>
   loadBackups();
 });
 
+/* ---------------- WhatsApp Connect (Embedded Signup) ---------------- */
+const WHATSAPP_STATUS_LABEL = {
+  not_connected: "Nenhum número de WhatsApp conectado ainda. Siga o passo a passo abaixo pra conectar o seu:",
+  pending_templates: "Número conectado! A Meta está aprovando os modelos de mensagem (lembrete, reagendamento, reconquista) — geralmente leva poucos minutos, às vezes mais. Volte aqui depois pra conferir.",
+  connected: "Conectado e funcionando.",
+  error: "Algo deu errado na conexão ou na aprovação dos modelos de mensagem. Tente conectar de novo — se persistir, fale com o suporte.",
+};
+
+let fbSdkLoadPromise = null;
+function loadFacebookSdk(appId) {
+  if (fbSdkLoadPromise) return fbSdkLoadPromise;
+  fbSdkLoadPromise = new Promise((resolve) => {
+    window.fbAsyncInit = function () {
+      FB.init({ appId, autoLogAppEvents: true, xfbml: false, version: "v21.0" });
+      resolve();
+    };
+    const script = document.createElement("script");
+    script.src = "https://connect.facebook.net/pt_BR/sdk.js";
+    script.async = true;
+    document.body.appendChild(script);
+  });
+  return fbSdkLoadPromise;
+}
+
+let whatsappSignupData = null;
+window.addEventListener("message", (event) => {
+  if (!event.origin.endsWith("facebook.com")) return;
+  try {
+    const data = JSON.parse(event.data);
+    if (data.type !== "WA_EMBEDDED_SIGNUP") return;
+    if (data.event === "FINISH") {
+      whatsappSignupData = { wabaId: data.data.waba_id, phoneNumberId: data.data.phone_number_id };
+    }
+  } catch {
+    // Mensagens de outras origens/formatos no mesmo canal — ignora.
+  }
+});
+
+async function loadWhatsappConnectStatus() {
+  const hint = document.getElementById("whatsapp-connect-hint");
+  const steps = document.getElementById("whatsapp-connect-steps");
+  const actions = document.getElementById("whatsapp-connect-actions");
+
+  const config = await (await fetch("/api/manage/whatsapp/connect/config")).json();
+  if (!config.configured) {
+    hint.textContent = "Conexão self-service de WhatsApp ainda não liberada pra sua conta — em breve.";
+    steps.style.display = "none";
+    actions.style.display = "none";
+    return;
+  }
+
+  const status = await (await fetch("/api/manage/whatsapp/connect/status")).json();
+  hint.textContent = WHATSAPP_STATUS_LABEL[status.status] || WHATSAPP_STATUS_LABEL.not_connected;
+  if (status.status === "connected" && status.display_phone) {
+    hint.textContent += ` Número: ${status.display_phone}`;
+  }
+
+  const showConnectFlow = status.status === "not_connected" || status.status === "error";
+  steps.style.display = showConnectFlow ? "block" : "none";
+  actions.style.display = showConnectFlow ? "flex" : "none";
+
+  document.getElementById("whatsapp-connect-btn").onclick = async () => {
+    const btn = document.getElementById("whatsapp-connect-btn");
+    btn.disabled = true;
+    btn.textContent = "Abrindo conexão...";
+    try {
+      await loadFacebookSdk(config.app_id);
+      whatsappSignupData = null;
+      FB.login(
+        async (response) => {
+          const code = response.authResponse?.code;
+          if (!code || !whatsappSignupData) {
+            btn.disabled = false;
+            btn.textContent = "Conectar meu WhatsApp";
+            if (response.status !== "unknown") await showAlertModal("Conexão cancelada ou incompleta. Tente de novo.");
+            return;
+          }
+          btn.textContent = "Finalizando conexão...";
+          try {
+            const res = await fetch("/api/manage/whatsapp/connect/callback", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ code, waba_id: whatsappSignupData.wabaId, phone_number_id: whatsappSignupData.phoneNumberId }),
+            });
+            const body = await res.json();
+            if (!res.ok) {
+              await showAlertModal(body.error || "Erro ao finalizar a conexão do WhatsApp.");
+            }
+          } catch {
+            await showAlertModal("Erro de conexão com o servidor.");
+          }
+          btn.disabled = false;
+          btn.textContent = "Conectar meu WhatsApp";
+          await loadWhatsappConnectStatus();
+        },
+        {
+          config_id: config.config_id,
+          response_type: "code",
+          override_default_response_type: true,
+          extras: { setup: {}, featureType: "", sessionInfoVersion: "3" },
+        }
+      );
+    } catch {
+      btn.disabled = false;
+      btn.textContent = "Conectar meu WhatsApp";
+      await showAlertModal("Não foi possível carregar a conexão com a Meta agora. Tente de novo em instantes.");
+    }
+  };
+}
+
 /* ---------------- Cobrança ---------------- */
 const STATUS_LABEL_BILLING = { trialing: "Em teste grátis", active: "Ativa", past_due: "Pagamento pendente", canceled: "Cancelada" };
 
@@ -3549,7 +3673,7 @@ document.querySelectorAll("#page-tabs button").forEach((btn) => {
     }
     if (page === "configuracoes" && !configuracoesLoaded) {
       configuracoesLoaded = true;
-      await Promise.all([loadManageData(), loadBusinessHours(), loadBackups(), loadBillingStatus(), loadClientPlans()]);
+      await Promise.all([loadManageData(), loadBusinessHours(), loadBackups(), loadBillingStatus(), loadClientPlans(), loadWhatsappConnectStatus()]);
     }
     if (page === "auditoria") {
       auditoriaLoaded = true;

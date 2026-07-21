@@ -68,6 +68,17 @@ model Barbershop {
   stripeConnectAccountId String? @unique @map("stripe_connect_account_id")
   stripeConnectOnboarded Boolean @default(false) @map("stripe_connect_onboarded")
 
+  // WhatsApp Embedded Signup — conexão self-service do número da própria
+  // barbearia (substitui a configuração manual feita hoje pelo suporte).
+  // Token e PIN ficam criptografados (ver src/lib/crypto.ts): diferente do
+  // Stripe Connect, a Cloud API exige guardar o token pra chamar a Graph API
+  // em nome do número. Status: not_connected | pending_templates | connected | error.
+  whatsappWabaId           String? @unique @map("whatsapp_waba_id")
+  whatsappAccessTokenEnc   String? @map("whatsapp_access_token_enc")
+  whatsappPinEnc           String? @map("whatsapp_pin_enc")
+  whatsappDisplayPhone     String? @map("whatsapp_display_phone")
+  whatsappConnectionStatus String  @default("not_connected") @map("whatsapp_connection_status")
+
   barbers                 Barber[]
   services                Service[]
   appointments            Appointment[]
