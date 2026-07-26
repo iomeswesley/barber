@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Painel do Barbeiro</title>
 <link rel="manifest" href="/manifest.json" />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%23e8c76a'/><stop offset='55%25' stop-color='%23d4af37'/><stop offset='100%25' stop-color='%238a6a2f'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%92%88</text></svg>" />
-<meta name="theme-color" content="#0a0c11" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%237cf2a6'/><stop offset='55%25' stop-color='%231fd760'/><stop offset='100%25' stop-color='%230b7a34'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%92%88</text></svg>" />
+<meta name="theme-color" content="#080b0a" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300..800;1,300..800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
@@ -25,7 +25,7 @@
   .brand { display: flex; align-items: center; gap: 12px; }
   .brand .logo {
     width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
-    font-size: 20px; background: linear-gradient(145deg, #e8c76a, var(--gold) 55%, #8a6a2f);
+    font-size: 20px; background: var(--brand-grad-logo);
   }
   .brand h1 { font-size: 16px; margin: 0; font-weight: 700; letter-spacing: -0.01em; }
   .brand p { margin: 0; font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.6px; }
@@ -61,7 +61,7 @@
     display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
     padding: 14px; border-radius: 14px; background: var(--card-bg); border: 1px solid var(--card-border);
   }
-  .avatar { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13.5px; color: #10121a; flex-shrink: 0; background: var(--gold); }
+  .avatar { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13.5px; color: var(--brand-ink); flex-shrink: 0; background: var(--brand); }
   .appt-main .appt-client { font-weight: 700; font-size: 13.5px; }
   .appt-main .appt-service { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
   .appt-side { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
@@ -81,16 +81,16 @@
   .tabs { display: inline-flex; background: rgba(255,255,255,0.04); border: 1px solid var(--card-border); border-radius: 999px; padding: 3px; gap: 2px; }
   html[data-theme="light"] .tabs { background: rgba(20,22,28,0.04); }
   .tabs button { border: none; background: transparent; color: var(--text-secondary); padding: 7px 14px; border-radius: 999px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
-  .tabs button.active { background: linear-gradient(135deg, var(--gold), #a9822f); color: #17130a; }
+  .tabs button.active { background: var(--brand-grad-tab); color: var(--brand-ink); }
 
   .item-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--divider); margin-bottom: 8px; }
   .item-row .item-info { font-size: 13.5px; font-weight: 600; }
   .item-row .item-meta { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; font-weight: 400; }
   .item-actions { display: flex; gap: 6px; flex-shrink: 0; }
   .icon-btn { border: 1px solid var(--card-border); background: var(--card-bg); color: var(--text-secondary); width: 30px; height: 30px; border-radius: 8px; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; transition: all .15s ease; }
-  .icon-btn:hover { border-color: var(--card-border-hover); color: var(--gold); }
+  .icon-btn:hover { border-color: var(--card-border-hover); color: var(--brand); }
   .icon-btn.danger:hover { color: var(--danger); }
-  .add-toggle { font-size: 12.5px; color: var(--gold); cursor: pointer; font-weight: 700; margin-top: 4px; display: inline-block; }
+  .add-toggle { font-size: 12.5px; color: var(--brand); cursor: pointer; font-weight: 700; margin-top: 4px; display: inline-block; }
   .inline-form { display: none; margin-top: 10px; padding-top: 12px; border-top: 1px dashed var(--divider); }
   .inline-form.open { display: block; margin-bottom: 16px; }
   .edit-appt-form { display: none; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: -4px; margin-bottom: 4px; padding: 10px; border-radius: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--divider); }
@@ -102,12 +102,12 @@
   .cal-day { border: 1px solid var(--divider); border-radius: 14px; padding: 8px 6px; background: rgba(255,255,255,0.02); min-height: 80px; overflow: hidden; }
   .cal-day.today { border-color: var(--card-border-hover); }
   .cal-day-head { font-size: 10.5px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; white-space: nowrap; }
-  .cal-appt { font-size: 10px; padding: 4px 5px; border-radius: 7px; margin-bottom: 4px; background: var(--gold-soft); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cal-appt { font-size: 10px; padding: 4px 5px; border-radius: 7px; margin-bottom: 4px; background: var(--brand-soft); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cal-appt.nao_compareceu { background: var(--danger-soft); }
   .cal-appt.concluido { background: var(--good-soft); }
   .cal-month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 10px; }
   .cal-month-cell { border: 1px solid var(--divider); border-radius: 10px; padding: 6px; min-height: 56px; background: rgba(255,255,255,0.02); font-size: 10.5px; }
-  .cal-count { display: inline-block; padding: 1px 6px; border-radius: 999px; background: var(--gold-soft); color: var(--gold); font-weight: 700; font-size: 10px; }
+  .cal-count { display: inline-block; padding: 1px 6px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); font-weight: 700; font-size: 10px; }
 </style>
 </head>
 <body>
@@ -162,7 +162,7 @@
   <div class="card" id="my-goal-card" style="padding:16px 20px; margin-top:16px; display:none;">
     <div class="hint" id="my-goal-hint" style="font-size:12px; color:var(--text-muted); margin-bottom:8px;"></div>
     <div style="width:100%; height:6px; border-radius:999px; background:rgba(255,255,255,0.08); overflow:hidden;">
-      <div id="my-goal-bar" style="height:100%; border-radius:999px; background:linear-gradient(90deg, var(--blue), var(--gold)); width:0%; transition:width .6s ease;"></div>
+      <div id="my-goal-bar" style="height:100%; border-radius:999px; background:linear-gradient(90deg, var(--blue), var(--brand)); width:0%; transition:width .6s ease;"></div>
     </div>
   </div>
 
@@ -750,7 +750,7 @@ async function setupPush() {
   const updateBtnState = async () => {
     const sub = await reg.pushManager.getSubscription();
     if (sub) {
-      pushBtn.style.color = "var(--gold)";
+      pushBtn.style.color = "var(--brand)";
       pushBtn.title = "Notificações ativadas (clique para desativar)";
     } else {
       pushBtn.style.color = "var(--text-secondary)";

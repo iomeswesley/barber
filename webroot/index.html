@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Painel da Barbearia: Agendamento e atendimento via WhatsApp com IA</title>
 <meta name="description" content="Plataforma SaaS multi-tenant para barbearias: atendimento e agendamento automático via WhatsApp com IA, dashboard de faturamento e clientes, e cobrança recorrente via Stripe." />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%23e8c76a'/><stop offset='55%25' stop-color='%23d4af37'/><stop offset='100%25' stop-color='%238a6a2f'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%92%88</text></svg>" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%237cf2a6'/><stop offset='55%25' stop-color='%231fd760'/><stop offset='100%25' stop-color='%230b7a34'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%92%88</text></svg>" />
+<meta name="theme-color" content="#080b0a" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300..800;1,300..800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
@@ -27,7 +28,7 @@
   .brand .logo {
     width: 36px; height: 36px; border-radius: 10px;
     display: flex; align-items: center; justify-content: center; font-size: 18px;
-    background: linear-gradient(145deg, #e8c76a, var(--gold) 55%, #8a6a2f);
+    background: var(--brand-grad-logo);
     box-shadow: 0 0 0 1px rgba(255,255,255,0.2) inset, 0 0 20px -4px rgb(var(--color-primary) / 0.55);
     flex-shrink: 0;
   }
@@ -55,15 +56,15 @@
   section.tight { padding: 64px 0; }
   .eyebrow {
     display: inline-flex; align-items: center; gap: 8px;
-    font-size: 12.5px; font-weight: 700; color: var(--gold);
-    background: var(--gold-soft); border: 1px solid rgb(var(--color-primary) / 0.25);
+    font-size: 12.5px; font-weight: 700; color: var(--brand);
+    background: var(--brand-soft); border: 1px solid rgb(var(--color-primary) / 0.25);
     padding: 6px 14px; border-radius: 999px; margin-bottom: 20px;
   }
   h1 { font-size: clamp(34px, 5vw, 54px); line-height: 1.08; margin: 0 0 20px; color: var(--text-primary); }
   h2 { font-size: clamp(26px, 3.4vw, 38px); line-height: 1.15; margin: 0 0 14px; }
   .section-head { max-width: 640px; margin: 0 auto 48px; text-align: center; }
   .section-head p { color: var(--text-secondary); font-size: 15.5px; line-height: 1.6; }
-  .gold-text { background: linear-gradient(90deg, var(--gold), #f0d9ab); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .brand-text { background: var(--brand-grad-text); -webkit-background-clip: text; background-clip: text; color: transparent; }
 
   /* ---------- Hero ---------- */
   .hero-grid {
@@ -103,21 +104,21 @@
   }
   .chat-avatar {
     width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(145deg, #e8c76a, var(--gold) 55%, #8a6a2f); font-size: 16px; flex-shrink: 0;
+    background: var(--brand-grad-logo); font-size: 16px; flex-shrink: 0;
   }
   .chat-head .name { font-weight: 700; font-size: 13.5px; }
   .chat-head .status { font-size: 11px; color: var(--good); display: flex; align-items: center; gap: 5px; }
   .chat-head .status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--good); }
   .chat-badge {
-    margin-left: auto; font-size: 10.5px; font-weight: 700; color: var(--gold);
-    background: var(--gold-soft); padding: 3px 9px; border-radius: 999px;
+    margin-left: auto; font-size: 10.5px; font-weight: 700; color: var(--brand);
+    background: var(--brand-soft); padding: 3px 9px; border-radius: 999px;
   }
   .chat-body { padding: 18px 16px; display: flex; flex-direction: column; gap: 12px; min-height: 280px; }
   .bubble { max-width: 78%; padding: 10px 13px; border-radius: 14px; font-size: 13px; line-height: 1.5; position: relative; }
   .bubble.in { align-self: flex-start; background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); border-bottom-left-radius: 4px; }
   .bubble.out {
-    align-self: flex-end; background: linear-gradient(135deg, #f0d585, var(--gold) 45%, #9c7a1e);
-    color: #17130a; border-bottom-right-radius: 4px; font-weight: 500;
+    align-self: flex-end; background: var(--brand-grad);
+    color: var(--brand-ink); border-bottom-right-radius: 4px; font-weight: 500;
   }
   .bubble time { display: block; font-size: 10px; opacity: 0.65; margin-top: 4px; }
   .float-toast {
@@ -168,8 +169,8 @@
   }
   .tab-btn:hover { border-color: var(--card-border-hover); color: var(--text-primary); }
   .tab-btn.active {
-    background: linear-gradient(135deg, #f0d585, var(--gold) 45%, #9c7a1e);
-    color: #17130a; border-color: transparent;
+    background: var(--brand-grad);
+    color: var(--brand-ink); border-color: transparent;
   }
   .autoplay-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); margin: 14px 0 26px; }
   .autoplay-row button {
@@ -178,7 +179,7 @@
     display: flex; align-items: center; justify-content: center;
   }
   .progress-track { flex: 1; max-width: 160px; height: 3px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; }
-  .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--gold), #f0d9ab); transition: width .1s linear; }
+  .progress-fill { height: 100%; width: 0%; background: var(--brand-grad-text); transition: width .1s linear; }
   .tab-counter { font-variant-numeric: tabular-nums; white-space: nowrap; flex-shrink: 0; }
   @media (max-width: 480px) {
     .autoplay-row { flex-wrap: wrap; }
@@ -190,9 +191,9 @@
   @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
   .feature-panel .ico-badge {
     width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
-    font-size: 20px; background: var(--gold-soft); margin-bottom: 16px;
+    font-size: 20px; background: var(--brand-soft); margin-bottom: 16px;
   }
-  .feature-panel .kicker { font-size: 12px; font-weight: 700; color: var(--gold); text-transform: uppercase; letter-spacing: 0.04em; }
+  .feature-panel .kicker { font-size: 12px; font-weight: 700; color: var(--brand); text-transform: uppercase; letter-spacing: 0.04em; }
   .feature-panel h3 { font-size: 22px; margin: 6px 0 10px; }
   .feature-panel p.desc { color: var(--text-secondary); font-size: 14.5px; line-height: 1.6; margin-bottom: 18px; }
   .feature-list { list-style: none; padding: 0; margin: 0 0 20px; display: flex; flex-direction: column; gap: 10px; }
@@ -222,7 +223,7 @@
   }
   .mock-pill.good { background: var(--good-soft); color: var(--good); }
   .mock-pill.warn { background: var(--warn-soft); color: var(--warn); }
-  .mock-pill.gold { background: var(--gold-soft); color: var(--gold); }
+  .mock-pill.brand { background: var(--brand-soft); color: var(--brand); }
 
   /* ---------- Steps ---------- */
   .steps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; position: relative; }
@@ -233,8 +234,8 @@
   }
   .step-card { padding: 24px 18px; position: relative; z-index: 1; }
   .step-badge {
-    display: inline-block; font-size: 11px; font-weight: 700; color: var(--gold);
-    background: var(--gold-soft); padding: 4px 10px; border-radius: 999px; margin-bottom: 14px;
+    display: inline-block; font-size: 11px; font-weight: 700; color: var(--brand);
+    background: var(--brand-soft); padding: 4px 10px; border-radius: 999px; margin-bottom: 14px;
   }
   .step-card h4 { font-size: 15.5px; margin: 0 0 8px; }
   .step-card p { font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; margin: 0; }
@@ -251,7 +252,7 @@
   .mini-card { padding: 22px; }
   .mini-card .ico-badge {
     width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
-    font-size: 18px; background: var(--gold-soft); margin-bottom: 14px;
+    font-size: 18px; background: var(--brand-soft); margin-bottom: 14px;
   }
   .mini-card h4 { font-size: 14.5px; margin: 0 0 6px; }
   .mini-card p { font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; margin: 0; }
@@ -264,7 +265,7 @@
   .price-card.featured { border-color: rgb(var(--color-primary) / 0.5); }
   .popular-badge {
     position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
-    background: linear-gradient(135deg, #f0d585, var(--gold) 45%, #9c7a1e); color: #17130a;
+    background: var(--brand-grad); color: var(--brand-ink);
     font-size: 11px; font-weight: 800; padding: 5px 14px; border-radius: 999px;
   }
   .plan-tag {
@@ -280,7 +281,7 @@
   .price-list li { display: flex; align-items: flex-start; gap: 9px; font-size: 13px; color: var(--text-secondary); }
   .price-list li::before { content: "✓"; color: var(--good); font-weight: 700; flex-shrink: 0; }
   .soon-tag {
-    display: inline-block; font-size: 10px; font-weight: 700; color: var(--gold);
+    display: inline-block; font-size: 10px; font-weight: 700; color: var(--brand);
     border: 1px solid rgb(var(--color-primary) / 0.4); border-radius: 999px;
     padding: 1px 8px; margin-left: 6px; vertical-align: middle;
   }
@@ -295,7 +296,7 @@
     display: flex; align-items: center; gap: 12px; padding: 16px 18px; cursor: pointer; user-select: none;
   }
   .faq-q .q-ico {
-    width: 26px; height: 26px; border-radius: 8px; background: var(--gold-soft); color: var(--gold);
+    width: 26px; height: 26px; border-radius: 8px; background: var(--brand-soft); color: var(--brand);
     display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0;
   }
   .faq-q span.txt { font-size: 14px; font-weight: 700; flex: 1; }
@@ -309,7 +310,7 @@
   /* ---------- CTA final ---------- */
   .cta-final {
     text-align: center; padding: 64px 40px; border-radius: 28px;
-    background: linear-gradient(145deg, rgba(212,175,55,0.14), rgba(212,175,55,0.03));
+    background: var(--brand-wash);
     border: 1px solid rgb(var(--color-primary) / 0.25);
   }
   .cta-final h2 { margin-bottom: 12px; }
@@ -325,7 +326,7 @@
   }
   .footer-grid h5 { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 12px; }
   .footer-grid a { display: block; font-size: 13px; color: var(--text-secondary); text-decoration: none; margin-bottom: 9px; }
-  .footer-grid a:hover { color: var(--gold); }
+  .footer-grid a:hover { color: var(--brand); }
   .footer-bottom {
     max-width: 1160px; margin: 30px auto 0; padding-top: 20px; border-top: 1px solid var(--divider);
     font-size: 12px; color: var(--text-muted); text-align: center;
@@ -368,7 +369,7 @@
     <section class="hero-grid">
       <div class="hero-copy">
         <span class="eyebrow">✨ Agendamento e atendimento via WhatsApp com IA</span>
-        <h1>Sua barbearia atendendo e agendando sozinha no <span class="gold-text">WhatsApp</span></h1>
+        <h1>Sua barbearia atendendo e agendando sozinha no <span class="brand-text">WhatsApp</span></h1>
         <p class="lead">
           Conecte o número da sua barbearia, a IA responde clientes, marca, cancela e
           reagenda horários automaticamente, e você acompanha tudo em um painel com
@@ -424,7 +425,7 @@
     <!-- PRODUTO / TABS -->
     <section id="produto" class="tight reveal">
       <div class="section-head" style="text-align:left; max-width:none; margin-bottom:36px;">
-        <h2 style="font-size:clamp(22px, 2.5vw, 32px);">Um painel completo pra atendimento, agenda e <span class="gold-text">CRM</span></h2>
+        <h2 style="font-size:clamp(22px, 2.5vw, 32px);">Um painel completo pra atendimento, agenda e <span class="brand-text">CRM</span></h2>
         <p>Tudo o que a sua barbearia precisa pra atender pelo WhatsApp e gerenciar o dia a dia, no mesmo lugar.</p>
       </div>
 
@@ -462,7 +463,7 @@
         </div>
         <div class="card feature-mock">
           <div class="mock-row"><div><div class="name">verificar_horarios_disponiveis</div><div class="sub">ferramenta da IA</div></div><span class="mock-pill good">ok</span></div>
-          <div class="mock-row"><div><div class="name">criar_agendamento</div><div class="sub">Corte · Carlos · 19:30</div></div><span class="mock-pill gold">executado</span></div>
+          <div class="mock-row"><div><div class="name">criar_agendamento</div><div class="sub">Corte · Carlos · 19:30</div></div><span class="mock-pill brand">executado</span></div>
           <div class="mock-row"><div><div class="name">registrar_avaliacao</div><div class="sub">5 estrelas · "Atendimento rápido"</div></div><span class="mock-pill good">ok</span></div>
           <div class="mock-row"><div><div class="name">escalar_atendimento_humano</div><div class="sub">Cliente pediu desconto especial</div></div><span class="mock-pill warn">escalado</span></div>
         </div>
@@ -485,7 +486,7 @@
         </div>
         <div class="card feature-mock">
           <div class="mock-row"><div><div class="name">09:00 · Rafael</div><div class="sub">Corte + Barba · João</div></div><span class="mock-pill good">confirmado</span></div>
-          <div class="mock-row"><div><div class="name">10:30 · Carlos</div><div class="sub">Corte · Pedro</div></div><span class="mock-pill gold">em andamento</span></div>
+          <div class="mock-row"><div><div class="name">10:30 · Carlos</div><div class="sub">Corte · Pedro</div></div><span class="mock-pill brand">em andamento</span></div>
           <div class="mock-row"><div><div class="name">11:00 · Diego</div><div class="sub">Bloqueado · almoço</div></div><span class="mock-pill warn">bloqueado</span></div>
           <div class="mock-row"><div><div class="name">14:00 · Rafael</div><div class="sub">Corte · Marcos</div></div><span class="mock-pill good">confirmado</span></div>
         </div>
@@ -509,7 +510,7 @@
         <div class="card feature-mock">
           <div class="mock-row"><div><div class="name">Faturamento hoje</div><div class="sub">32 atendimentos</div></div><span class="mock-pill good">R$ 1.480</span></div>
           <div class="mock-row"><div><div class="name">Tendência da semana</div><div class="sub">vs. semana anterior</div></div><span class="mock-pill good">+18%</span></div>
-          <div class="mock-row"><div><div class="name">Pico de ocupação</div><div class="sub">sábado</div></div><span class="mock-pill gold">17h–19h</span></div>
+          <div class="mock-row"><div><div class="name">Pico de ocupação</div><div class="sub">sábado</div></div><span class="mock-pill brand">17h–19h</span></div>
           <div class="mock-row"><div><div class="name">Produtos vendidos</div><div class="sub">pomada, óleo de barba</div></div><span class="mock-pill good">R$ 210</span></div>
         </div>
       </div>
@@ -530,7 +531,7 @@
           <div class="tip-box"><b>Dica:</b> clientes podem solicitar exclusão dos próprios dados (LGPD) direto pelo site.</div>
         </div>
         <div class="card feature-mock">
-          <div class="mock-row"><div><div class="name">Mariana Lima</div><div class="sub">8 visitas · última há 12 dias</div></div><span class="mock-pill gold">★ 5.0</span></div>
+          <div class="mock-row"><div><div class="name">Mariana Lima</div><div class="sub">8 visitas · última há 12 dias</div></div><span class="mock-pill brand">★ 5.0</span></div>
           <div class="mock-row"><div><div class="name">Pedro Alves</div><div class="sub">aniversário em 3 dias</div></div><span class="mock-pill warn">lembrete</span></div>
           <div class="mock-row"><div><div class="name">João Souza</div><div class="sub">sem visita há 45 dias</div></div><span class="mock-pill warn">reconquista</span></div>
           <div class="mock-row"><div><div class="name">Marcos Dias</div><div class="sub">12 visitas · cliente fiel</div></div><span class="mock-pill good">★ 4.9</span></div>
