@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Design system compartilhado — "dark glassmorphism premium" dourado.
+   Design system compartilhado — "dark glassmorphism premium" verde neon.
    Fonte da verdade dos tokens e componentes usados em admin.html, barber.html,
    minha-conta.html e login.html. Cada página mantém no seu próprio <style>
    só o CSS específico daquela tela (layout de grid, componentes únicos).
@@ -13,38 +13,56 @@
   /* Tokens de design (trincas RGB, sem alpha embutido). Compõe alpha no
      ponto de uso via rgb(var(--color-x) / <alpha>), ex:
      rgb(var(--color-surface) / .72). */
-  --color-bg: 10 12 17;
-  --color-surface: 19 22 31;
-  --color-border: 45 48 58;
+  --color-bg: 8 11 10;
+  --color-surface: 16 21 19;
+  --color-border: 34 44 39;
   --color-ink: 255 255 255;
   --color-ink-muted: 156 163 175;
   /* Destaques fixos — não trocam com o tema. */
-  --color-primary: 212 175 55;
-  --color-primary-hover: 245 208 97;
+  --color-primary: 31 215 96;
+  --color-primary-hover: 77 232 133;
   --color-success: 16 185 129;
   --color-info: 33 150 243;
 
   /* Compat: nomes usados nas páginas (e alguns lidos via JS, ex: Chart.js
      em admin.html) — esses precisam ficar com valor literal, não podem
      compor var() aninhado, já que getComputedStyle().getPropertyValue()
-     devolve o valor cru, sem resolver a cadeia. */
-  --bg-page: #0a0c11;
-  --bg-page-2: #10131a;
-  --card-bg: rgba(19,22,31,0.62);
-  --card-bg-solid: #13161f;
-  --card-border: rgba(45,48,58,0.65);
-  --card-border-hover: rgba(212,175,55,0.4);
+     devolve o valor cru, sem resolver a cadeia. Tokens lidos por JS hoje:
+     --brand-chart, --blue-chart, --good, --text-primary/secondary/muted,
+     --card-border. Se um novo token JS precisar entrar aqui, mantenha-o
+     literal também. */
+  --bg-page: #080b0a;
+  --bg-page-2: #101513;
+  --card-bg: rgba(16,21,19,0.62);
+  --card-bg-solid: #101513;
+  --card-border: rgba(34,44,39,0.75);
+  --card-border-hover: rgba(31,215,96,0.4);
   --text-primary: #ffffff;
   --text-secondary: #c7ccd4;
   --text-muted: #9ca3af;
-  --gold: #d4af37;
-  --gold-soft: rgba(212,175,55,0.14);
-  --gold-chart: #d4af37;
+
+  /* Marca — verde neon sobre grafite, inspirado em produtos de automação
+     de WhatsApp (não é o verde oficial do WhatsApp, é uma variação própria). */
+  --brand: #1fd760;
+  --brand-hover: #4de885;
+  --brand-deep: #0e9e43;
+  --brand-alt: #45e3c8;
+  --brand-soft: rgba(31,215,96,0.14);
+  --brand-chart: #1fd760;
+  --brand-ink: #04170c;
+  --brand-glow: rgba(31,215,96,0.35);
+  --brand-grad: linear-gradient(135deg, #4de885, #1fd760 45%, #0e9e43);
+  --brand-grad-logo: linear-gradient(145deg, #7cf2a6, #1fd760 55%, #0b7a34);
+  --brand-grad-tab: linear-gradient(135deg, #1fd760, #0e9e43);
+  --brand-grad-text: linear-gradient(90deg, #1fd760, #45e3c8);
+  --brand-wash: linear-gradient(145deg, rgba(31,215,96,0.14), rgba(31,215,96,0.03));
+
   --blue: #2196f3;
   --blue-soft: rgba(33,150,243,0.14);
-  --blue-chart: #2196f3;
-  --teal-chart: #0d9488;
+  --blue-chart: #4f8cff;
+  --violet-chart: #9085e9;
   --coral-chart: #e2593f;
+  --amber-chart: #f2c14e;
   --good: #10b981;
   --good-soft: rgba(16,185,129,0.14);
   --warn: #fab219;
@@ -53,10 +71,12 @@
   --danger-soft: rgba(240,71,71,0.14);
   /* Sombra composta: profundidade + um fio de luz interno no topo do
      cartão (inset), que é o que vende o efeito de vidro de verdade. */
-  --shadow-card: 0 10px 40px -12px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06);
-  --shadow-hover: 0 22px 60px -14px rgba(0,0,0,0.7), 0 0 0 1px rgb(var(--color-primary) / 0.12), inset 0 1px 0 rgba(255,255,255,0.08);
+  --shadow-card: 0 10px 40px -12px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.05);
+  --shadow-hover: 0 22px 60px -14px rgba(0,0,0,0.75), 0 0 0 1px rgb(var(--color-primary) / 0.12), inset 0 1px 0 rgba(255,255,255,0.07);
   --radius: 24px;
-  --divider: rgba(45,48,58,0.5);
+  --divider: rgba(34,44,39,0.6);
+  --surface-raise: rgba(255,255,255,0.03);
+  --surface-raise-2: rgba(255,255,255,0.06);
 }
 
 html[data-theme="light"] {
@@ -65,24 +85,42 @@ html[data-theme="light"] {
   --color-border: 220 222 227;
   --color-ink: 20 22 28;
   --color-ink-muted: 100 106 116;
+  /* Corrige um bug pré-existente: no dourado, --color-primary nunca era
+     redefinido aqui, então scrollbar/seleção/foco/blobs ficavam dourados
+     mesmo no tema claro. Agora tem um verde escuro dedicado (ver §contraste
+     no docs/design-system-plan.md — #1fd760 não passa em AA sobre branco). */
+  --color-primary: 11 122 52;
+  --color-primary-hover: 6 92 39;
 
   --bg-page: #f5f6f8;
   --bg-page-2: #eceef1;
   --card-bg: rgba(255,255,255,0.72);
   --card-bg-solid: #ffffff;
   --card-border: rgba(220,222,227,0.9);
-  --card-border-hover: rgba(156,107,31,0.4);
+  --card-border-hover: rgba(11,122,52,0.4);
   --text-primary: #14161c;
   --text-secondary: #4b5563;
   --text-muted: #646a74;
-  --gold: #9c6b1f;
-  --gold-soft: rgba(156,107,31,0.10);
-  --gold-chart: #9c6b1f;
+
+  --brand: #0b7a34;
+  --brand-hover: #096a2c;
+  --brand-deep: #05541f;
+  --brand-alt: #0f766e;
+  --brand-soft: rgba(11,122,52,0.10);
+  --brand-chart: #0b7a34;
+  --brand-ink: #ffffff;
+  --brand-glow: rgba(11,122,52,0.28);
+  --brand-grad: linear-gradient(135deg, #0b7a34, #096a2c 45%, #05541f);
+  --brand-grad-tab: linear-gradient(135deg, #0b7a34, #05541f);
+  --brand-grad-text: linear-gradient(90deg, #0b7a34, #12a24c);
+  --brand-wash: linear-gradient(145deg, rgba(11,122,52,0.10), rgba(11,122,52,0.02));
+
   --blue: #2a5fc9;
   --blue-soft: rgba(42,95,201,0.10);
   --blue-chart: #2a5fc9;
-  --teal-chart: #0d8a76;
+  --violet-chart: #6a5acd;
   --coral-chart: #c2401f;
+  --amber-chart: #a9760a;
   --good: #0ca30c;
   --good-soft: rgba(12,163,12,0.12);
   --warn: #a9760a;
@@ -92,6 +130,8 @@ html[data-theme="light"] {
   --shadow-card: 0 10px 30px -14px rgba(20,22,28,0.18);
   --shadow-hover: 0 20px 50px -16px rgba(20,22,28,0.28);
   --divider: rgba(220,222,227,0.7);
+  --surface-raise: rgba(20,22,28,0.03);
+  --surface-raise-2: rgba(20,22,28,0.06);
 }
 
 * { box-sizing: border-box; }
@@ -106,7 +146,7 @@ html, body {
   width: 100%;
 }
 
-/* ---------- Scrollbar (dark glassmorphism dourado) ---------- */
+/* ---------- Scrollbar (dark glassmorphism verde neon) ---------- */
 * {
   scrollbar-width: thin;
   scrollbar-color: rgb(var(--color-primary) / 0.45) transparent;
@@ -238,8 +278,8 @@ a { color: inherit; }
 /* ---------- Botões ---------- */
 .btn-primary {
   border: none; padding: 10px 18px; border-radius: 12px; font-size: 13px; font-weight: 700;
-  background: linear-gradient(135deg, #f0d585, #d4af37 45%, #9c7a1e);
-  color: #17130a; cursor: pointer;
+  background: var(--brand-grad);
+  color: var(--brand-ink); cursor: pointer;
   box-shadow: 0 6px 20px -6px rgb(var(--color-primary) / 0.45), inset 0 1px 0 rgba(255,255,255,0.35);
   transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
 }
@@ -278,7 +318,7 @@ a { color: inherit; }
 html[data-theme="light"] .theme-switch { background: rgba(20,22,28,0.06); }
 .theme-switch .knob {
   width: 22px; height: 22px; border-radius: 50%;
-  background: linear-gradient(145deg, var(--gold), #a9822f);
+  background: linear-gradient(145deg, var(--brand-hover), var(--brand-deep));
   box-shadow: 0 2px 8px rgba(0,0,0,0.35);
   transform: translateX(0);
   transition: transform .3s cubic-bezier(.4,0,.2,1), background .3s ease;
@@ -297,7 +337,7 @@ html[data-theme="light"] .theme-switch .knob { transform: translateX(26px); }
   transition: all .2s ease;
   white-space: nowrap;
 }
-.link-back:hover { color: var(--gold); border-color: var(--card-border-hover); }
+.link-back:hover { color: var(--brand); border-color: var(--card-border-hover); }
 
 /* ---------- Campos de formulário ---------- */
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
@@ -332,7 +372,7 @@ html[data-theme="light"] .theme-switch .knob { transform: translateX(26px); }
   border: 1px solid var(--card-border);
   background: rgba(255,255,255,0.02);
 }
-.form-field.checkbox input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--gold); cursor: pointer; flex-shrink: 0; }
+.form-field.checkbox input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--brand); cursor: pointer; flex-shrink: 0; }
 .form-field.checkbox label { margin: 0; font-size: 12.5px; color: var(--text-secondary); font-weight: 600; cursor: pointer; }
 .form-actions { display: flex; gap: 8px; margin-top: 12px; }
 
@@ -379,7 +419,7 @@ html[data-theme="light"] .theme-switch .knob { transform: translateX(26px); }
 .tour-blocker { position: fixed; inset: 0; z-index: 99999; background: transparent; }
 .tour-highlight {
   position: absolute; z-index: 100000; border-radius: 10px;
-  border: 2px solid var(--gold);
+  border: 2px solid var(--brand);
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.65);
   transition: top .3s ease, left .3s ease, width .3s ease, height .3s ease;
   pointer-events: none;
@@ -392,7 +432,7 @@ html[data-theme="light"] .theme-switch .knob { transform: translateX(26px); }
   transition: top .3s ease, left .3s ease;
 }
 .tour-step-count {
-  font-size: 11px; font-weight: 700; color: var(--gold);
+  font-size: 11px; font-weight: 700; color: var(--brand);
   text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;
 }
 .tour-title { font-size: 14.5px; font-weight: 700; margin-bottom: 6px; color: var(--text-primary); }
@@ -408,7 +448,7 @@ html[data-theme="light"] .theme-switch .knob { transform: translateX(26px); }
   border-radius: 8px; padding: 7px 14px; font-size: 12.5px; font-weight: 700; cursor: pointer;
 }
 .tour-prev { background: rgba(255,255,255,0.04); border: 1px solid var(--card-border); color: var(--text-secondary); }
-.tour-next { background: var(--gold); border: 1px solid var(--gold); color: #1a1305; }
+.tour-next { background: var(--brand); border: 1px solid var(--brand); color: var(--brand-ink); }
 @media (max-width: 640px) {
   .tour-tooltip { max-width: calc(100vw - 24px) !important; }
 }
@@ -418,8 +458,8 @@ html[data-theme="light"] .theme-switch .knob { transform: translateX(26px); }
   position: fixed; right: 20px; bottom: 20px; z-index: 500;
   width: 52px; height: 52px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(145deg, #e8c76a, var(--gold) 55%, #8a6a2f);
-  color: #1a1305; font-size: 22px; font-weight: 800; text-decoration: none;
+  background: var(--brand-grad-logo);
+  color: var(--brand-ink); font-size: 22px; font-weight: 800; text-decoration: none;
   box-shadow: 0 8px 24px rgba(0,0,0,0.35);
   transition: transform .15s ease;
 }

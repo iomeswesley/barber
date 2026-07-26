@@ -1,7 +1,9 @@
 // Service Worker — Barbearia Bot PWA
 // Versão do cache — incrementar para forçar atualização (v2: remove
-// admin.html/barber.html do pré-cache, ver comentário abaixo)
-const CACHE_NAME = "barbearia-bot-v2";
+// admin.html/barber.html do pré-cache, ver comentário abaixo; v3: rebrand
+// dourado → verde neon, força buscar o /login.html com o CSS novo em vez
+// do cacheado com a identidade antiga)
+const CACHE_NAME = "barbearia-bot-v3";
 
 // Assets do shell a colocar em cache para funcionamento offline.
 // admin.html e barber.html NÃO entram aqui: são rotas protegidas por sessão

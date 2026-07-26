@@ -1,6 +1,10 @@
-# Plano: unificar o design system "dark glassmorphism dourado" em todo o projeto
+# Plano: unificar o design system "dark glassmorphism verde neon" em todo o projeto
 
-Status: plano apenas — nada foi implementado. Preparado para execução numa sessão futura.
+Status: histórico — a extração para `theme.css`/`modal.js` descrita abaixo já foi executada.
+Em 2026-07-26 o produto passou por um rebrand de "dark glassmorphism dourado" para "verde
+neon sobre grafite" (identidade de automação de WhatsApp), na branch `feat/rebrand-verde-neon`
+— os tokens de cor mudaram, mas a arquitetura (tokens compartilhados, Chart.js lendo valores
+literais, `chat.html` fora de escopo) continua a mesma descrita aqui.
 
 ## Contexto (descoberto ao auditar o código, não assumido)
 
@@ -46,10 +50,12 @@ Isso é a causa raiz do drift entre páginas. Proposta:
 **Cuidado de especificidade:** o `theme.css` deve ser carregado *antes* do `<style>` inline
 de cada página, pra que overrides locais (se necessários) vençam sem precisar de `!important`.
 
-**Cuidado com Chart.js:** o comentário em `admin.html:24-27` explica que `getComputedStyle().getPropertyValue()`
-não resolve `var()` aninhado — por isso o arquivo mantém constantes "compat" com valor
-hex literal (`--gold`, `--card-bg-solid`, etc.) além dos tokens RGB triplet. Isso precisa
-ser preservado no `theme.css` compartilhado, senão os gráficos do admin quebram.
+**Cuidado com Chart.js:** o comentário em `theme.css` (bloco `:root`) explica que
+`getComputedStyle().getPropertyValue()` não resolve `var()` aninhado — por isso o arquivo
+mantém constantes "compat" com valor hex literal (`--brand-chart`, `--card-bg-solid`, etc.)
+além dos tokens RGB triplet. Isso precisa ser preservado no `theme.css` compartilhado, senão
+os gráficos do admin quebram. Qualquer token novo lido por JS (Chart.js ou não) tem que
+entrar nessa mesma lista de literais — nunca compor `var()` aninhado.
 
 ## Fases de execução
 
@@ -87,6 +93,10 @@ foco de teclado visível (`:focus-visible` já definido nos tokens).
    bot de WhatsApp, e o realismo da paleta verde/branco é funcional (ajuda a visualizar
    como o cliente real vê a conversa), não estético. Se quiser, dá pra aplicar só o fundo
    da página (fora do "telefone") com os blobs, mantendo o mockup do telefone intocado.
+   **Reforçado no rebrand de 2026-07-26:** agora que a marca do produto também é verde
+   (inspirada em WhatsApp), isso importa ainda mais — se `chat.html` adotasse os tokens do
+   painel, o simulador ficaria visualmente indistinguível do resto do app, exatamente o
+   oposto do que uma tela de simulação precisa comunicar.
 3. **Hover "respirando" em `admin.html`** — confirmar na execução se `.card:hover` já tem
    `translateY(-2px) scale(1.008)` ou só `.btn-danger` tem tratamento de hover hoje; se
    faltar, é o único ajuste real pedido que a referência ainda não cobre.

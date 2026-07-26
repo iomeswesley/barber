@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Painel Premium</title>
 <link rel="manifest" href="/manifest.json" />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%23e8c76a'/><stop offset='55%25' stop-color='%23d4af37'/><stop offset='100%25' stop-color='%238a6a2f'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%92%88</text></svg>" />
-<meta name="theme-color" content="#0a0c11" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%237cf2a6'/><stop offset='55%25' stop-color='%231fd760'/><stop offset='100%25' stop-color='%230b7a34'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%92%88</text></svg>" />
+<meta name="theme-color" content="#080b0a" />
 <script src="/assets/vendor/chart.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -43,7 +43,7 @@
     width: 42px; height: 42px; border-radius: 13px;
     display: flex; align-items: center; justify-content: center;
     font-size: 20px;
-    background: linear-gradient(145deg, #e8c76a, var(--gold) 55%, #8a6a2f);
+    background: var(--brand-grad-logo);
     box-shadow: 0 0 0 1px rgba(255,255,255,0.2) inset, 0 0 26px -4px rgb(var(--color-primary) / 0.55);
   }
   .brand .titles h1 { font-size: 16px; margin: 0; font-weight: 700; letter-spacing: -0.01em; }
@@ -99,7 +99,7 @@
   .section-title::before {
     content: "";
     width: 22px; height: 2px; border-radius: 2px;
-    background: linear-gradient(90deg, var(--gold), rgb(var(--color-primary) / 0));
+    background: linear-gradient(90deg, var(--brand), rgb(var(--color-primary) / 0));
     flex-shrink: 0;
   }
   .section-title:first-child { margin-top: 4px; }
@@ -181,7 +181,7 @@
     width: 36px; height: 36px; border-radius: 12px;
     display: flex; align-items: center; justify-content: center;
     font-size: 16px;
-    background: var(--gold-soft);
+    background: var(--brand-soft);
     box-shadow: inset 0 0 0 1px rgb(var(--color-primary) / 0.25);
   }
   .kpi-label { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 1.4px; }
@@ -212,7 +212,7 @@
   .delta.flat { background: rgba(255,255,255,0.06); color: var(--text-muted); }
 
   .barber-of-month-name {
-    background: linear-gradient(90deg, var(--gold), #f0d9ab);
+    background: linear-gradient(90deg, var(--brand), #f0d9ab);
     -webkit-background-clip: text; background-clip: text; color: transparent;
   }
 
@@ -241,11 +241,10 @@
     cursor: pointer; transition: all .2s ease;
   }
   .tabs button.active {
-    background: linear-gradient(135deg, var(--gold), #a9822f);
-    color: #17130a;
-    box-shadow: 0 4px 14px -4px rgba(212,175,106,.6);
+    background: var(--brand-grad-tab);
+    color: var(--brand-ink);
+    box-shadow: 0 4px 14px -4px rgb(var(--color-primary) / .6);
   }
-  html[data-theme="light"] .tabs button.active { color: #fff; box-shadow: 0 4px 14px -4px rgba(156,107,31,.45); }
   .tabs button:not(.active):hover { color: var(--text-primary); }
 
   .chart-wrap { position: relative; height: 280px; }
@@ -293,7 +292,7 @@
   html[data-theme="light"] .occ-bar-track { background: rgba(20,22,28,0.08); }
   .occ-bar-fill {
     height: 100%; border-radius: 999px;
-    background: linear-gradient(90deg, var(--blue), var(--gold));
+    background: linear-gradient(90deg, var(--blue), var(--brand));
     transition: width .6s ease;
   }
   .rank-revenue { text-align: right; font-weight: 800; font-size: 14px; white-space: nowrap; }
@@ -316,7 +315,7 @@
   .avatar {
     width: 42px; height: 42px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 13.5px; color: #10121a;
+    font-weight: 700; font-size: 13.5px; color: var(--brand-ink);
     flex-shrink: 0;
   }
 
@@ -398,14 +397,14 @@
     width: 30px; height: 30px; border-radius: 8px; cursor: pointer; font-size: 13px;
     display: flex; align-items: center; justify-content: center; transition: all .15s ease;
   }
-  .icon-btn:hover { border-color: var(--card-border-hover); color: var(--gold); }
+  .icon-btn:hover { border-color: var(--card-border-hover); color: var(--brand); }
   .icon-btn.danger:hover { color: var(--danger); }
 
-  .add-toggle { font-size: 12.5px; color: var(--gold); cursor: pointer; font-weight: 700; margin-top: 4px; display: inline-block; }
+  .add-toggle { font-size: 12.5px; color: var(--brand); cursor: pointer; font-weight: 700; margin-top: 4px; display: inline-block; }
   .inline-form { display: none; margin-top: 10px; padding-top: 12px; border-top: 1px dashed var(--divider); }
   .inline-form.open { display: block; margin-bottom: 16px; }
 
-  .stars { color: var(--gold); letter-spacing: 1px; font-size: 13px; }
+  .stars { color: var(--brand); letter-spacing: 1px; font-size: 13px; }
   .review-row { padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--divider); margin-bottom: 8px; }
   .review-row .review-head { display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; font-weight: 700; }
   .review-row .review-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
@@ -455,8 +454,8 @@
     font-size: 13px; font-weight: 700; color: var(--text-primary);
   }
   .gcal-daynum.today-badge {
-    background: linear-gradient(135deg, #f0d585, var(--gold) 45%, #9c7a1e);
-    color: #17130a;
+    background: var(--brand-grad);
+    color: var(--brand-ink);
     box-shadow: 0 4px 14px -4px rgb(var(--color-primary) / 0.55);
   }
   .gcal-body { position: relative; }
@@ -542,11 +541,11 @@
   }
   .visit-history-item .vh-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
   .visit-history-item .vh-date { font-size: 12px; font-weight: 700; }
-  .visit-history-item .vh-price { font-size: 12.5px; font-weight: 700; color: var(--gold); white-space: nowrap; }
+  .visit-history-item .vh-price { font-size: 12.5px; font-weight: 700; color: var(--brand); white-space: nowrap; }
   .visit-history-item .vh-meta { font-size: 11.5px; color: var(--text-secondary); margin-top: 2px; }
   .visit-history-item .vh-products { font-size: 11px; color: var(--text-muted); margin-top: 5px; }
   .visit-history-item .vh-products .vh-product-chip {
-    display: inline-block; background: var(--gold-soft); color: var(--gold);
+    display: inline-block; background: var(--brand-soft); color: var(--brand);
     border-radius: 999px; padding: 1px 8px; margin: 2px 4px 0 0; font-weight: 600;
   }
 
@@ -559,10 +558,10 @@
   .cal-month-cell .cal-day-head { margin-bottom: 4px; }
   .cal-month-cell .cal-day-head .gcal-daynum { width: 20px; height: 20px; font-size: 11px; }
   .cal-month-cell .cal-count {
-    display: inline-block; padding: 1px 6px; border-radius: 999px; background: var(--gold-soft);
-    color: var(--gold); font-weight: 700; font-size: 10px;
+    display: inline-block; padding: 1px 6px; border-radius: 999px; background: var(--brand-soft);
+    color: var(--brand); font-weight: 700; font-size: 10px;
   }
-  .cal-month-cell .cal-revenue { font-weight: 700; font-size: 10.5px; color: var(--gold); white-space: nowrap; }
+  .cal-month-cell .cal-revenue { font-weight: 700; font-size: 10.5px; color: var(--brand); white-space: nowrap; }
   .cal-month-cell .cal-commission { font-size: 9.5px; color: var(--text-muted); white-space: nowrap; }
   .edit-appt-form {
     display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; padding-top: 8px;
@@ -1022,7 +1021,7 @@
       <div id="billing-whatsapp-usage" style="display:none; margin-top:10px;">
         <div class="hint" style="font-size:11.5px; margin-bottom:4px;" id="billing-whatsapp-usage-label"></div>
         <div style="height:6px; border-radius:999px; background:rgba(255,255,255,0.06); overflow:hidden;">
-          <div id="billing-whatsapp-usage-bar" style="height:100%; border-radius:999px; background:var(--gold);"></div>
+          <div id="billing-whatsapp-usage-bar" style="height:100%; border-radius:999px; background:var(--brand);"></div>
         </div>
       </div>
       <div id="billing-plans" style="margin-top:14px; display:none; gap:12px; flex-wrap:wrap;"></div>
@@ -1143,7 +1142,7 @@
             <div class="form-field"><label>Meta mensal (R$)</label><input type="number" step="0.01" min="0" id="new-barber-goal" value="0" /></div>
           </div>
           <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size:12.5px; cursor:pointer;">
-            <input type="checkbox" id="new-barber-is-owner" style="width:auto; accent-color:var(--gold);" />
+            <input type="checkbox" id="new-barber-is-owner" style="width:auto; accent-color:var(--brand);" />
             Esse barbeiro sou eu (dono) — não precisa de usuário/senha, uso meu próprio login
           </label>
           <div class="hint" style="margin-top:6px;" id="new-barber-login-hint">O barbeiro usa esse usuário e senha pra entrar na própria agenda.</div>
@@ -1193,8 +1192,8 @@
 </main>
 
 <script>
-const AVATAR_COLORS = ["#b8863a", "#4f8cff", "#0d9488", "#e2593f", "#9085e9"];
-const AVATAR_COLORS_LIGHT = ["#9c6b1f", "#2a5fc9", "#0d8a76", "#c2401f", "#6a5acd"];
+const AVATAR_COLORS = ["#1fd760", "#4f8cff", "#e2593f", "#9085e9", "#f2c14e"];
+const AVATAR_COLORS_LIGHT = ["#0b7a34", "#2a5fc9", "#c2401f", "#6a5acd", "#a9760a"];
 
 function isDark() { return document.documentElement.getAttribute("data-theme") !== "light"; }
 
@@ -1400,18 +1399,18 @@ async function loadRevenueChart() {
   const values = data.map((d) => d.revenue);
 
   const ctx = document.getElementById("revenue-chart").getContext("2d");
-  const gold = cssVar("--gold-chart") || "#b8863a";
+  const gold = cssVar("--brand-chart") || "#1fd760";
   const gridColor = isDark() ? "rgba(255,255,255,0.06)" : "rgba(20,22,28,0.06)";
   const tickColor = cssVar("--text-muted") || "#888";
 
-  // Gradiente vertical: dourado cheio em cima, esvaece pra base — mesma
-  // assinatura visual do fio dourado dos KPI cards, só que em forma de barra.
+  // Gradiente vertical: verde cheio em cima, esvaece pra base — mesma
+  // assinatura visual do fio verde dos KPI cards, só que em forma de barra.
   const gradient = ctx.createLinearGradient(0, 0, 0, 260);
-  gradient.addColorStop(0, isDark() ? "#f0d585" : "#c99a3a");
+  gradient.addColorStop(0, isDark() ? "#4de885" : "#12a24c");
   gradient.addColorStop(1, gold);
   const hoverGradient = ctx.createLinearGradient(0, 0, 0, 260);
-  hoverGradient.addColorStop(0, "#f5d061");
-  hoverGradient.addColorStop(1, "#f0d585");
+  hoverGradient.addColorStop(0, "#7cf2a6");
+  hoverGradient.addColorStop(1, "#4de885");
 
   if (revenueChart) revenueChart.destroy();
   revenueChart = new Chart(ctx, {
@@ -1437,7 +1436,7 @@ async function loadRevenueChart() {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: isDark() ? "#1a1d26" : "#ffffff",
+          backgroundColor: isDark() ? "#101513" : "#ffffff",
           titleColor: cssVar("--text-primary"),
           bodyColor: cssVar("--text-secondary"),
           borderColor: cssVar("--card-border"),
@@ -1532,7 +1531,7 @@ async function loadOccupancyChart() {
   const weekdaysByIndex = data.map((d) => d.weekday);
 
   const ctx = document.getElementById("occupancy-chart").getContext("2d");
-  const gold = cssVar("--gold-chart") || "#b8863a";
+  const gold = cssVar("--brand-chart") || "#1fd760";
   const gridColor = isDark() ? "rgba(255,255,255,0.06)" : "rgba(20,22,28,0.06)";
   const tickColor = cssVar("--text-muted") || "#888";
 
@@ -1541,8 +1540,8 @@ async function loadOccupancyChart() {
   // semana são desenhadas por cima (afterDraw), então "cortam" visualmente
   // a curva bem na troca de um dia pro outro.
   const gradient = ctx.createLinearGradient(0, 0, 0, 260);
-  gradient.addColorStop(0, isDark() ? "rgba(212,175,106,0.45)" : "rgba(156,107,31,0.30)");
-  gradient.addColorStop(1, "rgba(212,175,106,0.0)");
+  gradient.addColorStop(0, isDark() ? "rgba(31,215,96,0.40)" : "rgba(11,122,52,0.26)");
+  gradient.addColorStop(1, "rgba(31,215,96,0.0)");
 
   if (occupancyChart) occupancyChart.destroy();
   occupancyChart = new Chart(ctx, {
@@ -1560,7 +1559,7 @@ async function loadOccupancyChart() {
         pointRadius: 0,
         pointHoverRadius: 5,
         pointBackgroundColor: gold,
-        pointBorderColor: isDark() ? "#0a0c11" : "#ffffff",
+        pointBorderColor: isDark() ? "#080b0a" : "#ffffff",
         pointBorderWidth: 1.5,
       }],
     },
@@ -1580,7 +1579,7 @@ async function loadOccupancyChart() {
           font: "700 10.5px Inter, sans-serif",
         },
         tooltip: {
-          backgroundColor: isDark() ? "#1a1d26" : "#ffffff",
+          backgroundColor: isDark() ? "#101513" : "#ffffff",
           titleColor: cssVar("--text-primary"),
           bodyColor: cssVar("--text-secondary"),
           borderColor: cssVar("--card-border"),
@@ -1621,17 +1620,17 @@ async function loadOccupancyChart() {
 function renderMiniChart(canvasId, values, labels) {
   const canvas = document.getElementById(canvasId);
   const ctx = canvas.getContext("2d");
-  const gold = cssVar("--gold-chart") || "#b8863a";
+  const gold = cssVar("--brand-chart") || "#1fd760";
   const h = canvas.height || 60;
 
   // Mesma linguagem visual do gráfico principal (barras com gradiente
-  // dourado), só que em miniatura — sem eixos, pra caber no KPI card.
+  // verde), só que em miniatura — sem eixos, pra caber no KPI card.
   const gradient = ctx.createLinearGradient(0, 0, 0, h);
-  gradient.addColorStop(0, isDark() ? "#f0d585" : "#c99a3a");
+  gradient.addColorStop(0, isDark() ? "#4de885" : "#12a24c");
   gradient.addColorStop(1, gold);
   const hoverGradient = ctx.createLinearGradient(0, 0, 0, h);
-  hoverGradient.addColorStop(0, "#f5d061");
-  hoverGradient.addColorStop(1, "#f0d585");
+  hoverGradient.addColorStop(0, "#7cf2a6");
+  hoverGradient.addColorStop(1, "#4de885");
 
   if (miniCharts[canvasId]) miniCharts[canvasId].destroy();
   miniCharts[canvasId] = new Chart(ctx, {
@@ -1655,7 +1654,7 @@ function renderMiniChart(canvasId, values, labels) {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: isDark() ? "#1a1d26" : "#ffffff",
+          backgroundColor: isDark() ? "#101513" : "#ffffff",
           titleColor: cssVar("--text-primary"),
           bodyColor: cssVar("--text-secondary"),
           borderColor: cssVar("--card-border"),
@@ -1703,8 +1702,8 @@ async function loadBarberPerformance() {
   const res = await fetch(`/api/dashboard/barbers`);
   const barbers = await res.json();
 
-  const serviceColor = cssVar("--gold-chart") || (isDark() ? "#d4af37" : "#9c6b1f");
-  const productColor = cssVar("--good") || (isDark() ? "#10b981" : "#0ca30c");
+  const serviceColor = cssVar("--brand-chart") || (isDark() ? "#1fd760" : "#0b7a34");
+  const productColor = cssVar("--blue-chart") || (isDark() ? "#4f8cff" : "#2a5fc9");
 
   const ctx = document.getElementById("barber-chart").getContext("2d");
   if (barberChart) barberChart.destroy();
@@ -1729,7 +1728,7 @@ async function loadBarberPerformance() {
           labels: { color: cssVar("--text-secondary"), boxWidth: 12, boxHeight: 12, font: { size: 11.5 }, usePointStyle: true, pointStyle: "circle" },
         },
         tooltip: {
-          backgroundColor: isDark() ? "#1a1d26" : "#ffffff",
+          backgroundColor: isDark() ? "#101513" : "#ffffff",
           titleColor: cssVar("--text-primary"),
           bodyColor: cssVar("--text-secondary"),
           borderColor: cssVar("--card-border"),
@@ -2574,7 +2573,7 @@ async function loadBusinessHours() {
         <span class="hint" style="margin:0;">até</span>
         <input type="time" id="weekday-close-${h.weekday}" value="${h.closes_at}" ${h.closed ? "disabled" : ""} style="width:110px; padding:8px 10px; border-radius:8px; border:1px solid var(--card-border); background:rgba(255,255,255,0.02); color:var(--text-primary);" />
         <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text-secondary); font-weight:600; cursor:pointer;">
-          <input type="checkbox" id="weekday-closed-${h.weekday}" data-weekday-closed="${h.weekday}" ${h.closed ? "checked" : ""} style="accent-color:var(--gold); cursor:pointer;" />
+          <input type="checkbox" id="weekday-closed-${h.weekday}" data-weekday-closed="${h.weekday}" ${h.closed ? "checked" : ""} style="accent-color:var(--brand); cursor:pointer;" />
           Fechado
         </label>
       </div>
@@ -3090,8 +3089,8 @@ let histBarberFilterPopulated = false;
 let histBarberPie = null;
 let histServicePie = null;
 
-const PIE_COLORS_DARK = ["#b8863a", "#4f8cff", "#0d9488", "#e2593f", "#9085e9", "#d4af6a", "#22c55e"];
-const PIE_COLORS_LIGHT = ["#9c6b1f", "#2a5fc9", "#0d8a76", "#c2401f", "#6a5acd", "#a9760a", "#0ca30c"];
+const PIE_COLORS_DARK = ["#1fd760", "#4f8cff", "#e2593f", "#9085e9", "#f2c14e", "#22d3ee", "#ec6ead"];
+const PIE_COLORS_LIGHT = ["#0b7a34", "#2a5fc9", "#c2401f", "#6a5acd", "#a9760a", "#0e7490", "#b03a73"];
 
 async function populateHistBarberFilter() {
   if (histBarberFilterPopulated) return;
@@ -3613,7 +3612,7 @@ async function loadBillingStatus() {
       document.getElementById("billing-whatsapp-usage-label").textContent =
         `Uso de mensagens automáticas no teste grátis: ${pct}%${pct >= 100 ? " — lembretes e reconquista pausados até você conectar seu próprio WhatsApp ou assinar um plano" : " do limite disponível pra teste"}`;
       document.getElementById("billing-whatsapp-usage-bar").style.width = `${pct}%`;
-      document.getElementById("billing-whatsapp-usage-bar").style.background = pct >= 100 ? "var(--danger)" : "var(--gold)";
+      document.getElementById("billing-whatsapp-usage-bar").style.background = pct >= 100 ? "var(--danger)" : "var(--brand)";
     } else {
       usageEl.style.display = "none";
     }
@@ -4021,7 +4020,7 @@ async function setupPush() {
   const updateBtnState = async () => {
     const sub = await reg.pushManager.getSubscription();
     if (sub) {
-      pushBtn.style.color = "var(--gold)";
+      pushBtn.style.color = "var(--brand)";
       pushBtn.title = "Notificações ativadas (clique para desativar)";
     } else {
       pushBtn.style.color = "var(--text-secondary)";

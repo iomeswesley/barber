@@ -4,7 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Meus agendamentos</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%23e8c76a'/><stop offset='55%25' stop-color='%23d4af37'/><stop offset='100%25' stop-color='%238a6a2f'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%92%88</text></svg>" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%237cf2a6'/><stop offset='55%25' stop-color='%231fd760'/><stop offset='100%25' stop-color='%230b7a34'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%92%88</text></svg>" />
+<meta name="theme-color" content="#080b0a" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300..800;1,300..800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
@@ -15,7 +16,7 @@
 
   .wrap { max-width: 480px; margin: 0 auto; }
   .logo-row { text-align: center; margin-bottom: 18px; }
-  .logo { width: 46px; height: 46px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; font-size: 22px; background: linear-gradient(145deg, #e8c76a, var(--gold) 55%, #8a6a2f); }
+  .logo { width: 46px; height: 46px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; font-size: 22px; background: var(--brand-grad-logo); }
   h1 { font-size: 18px; text-align: center; margin: 12px 0 4px; }
   p.hint { text-align: center; color: var(--text-muted); font-size: 12.5px; margin: 0 0 22px; }
 
@@ -28,11 +29,11 @@
     transition: border-color .2s ease;
   }
   select { background-color: var(--card-bg-solid); color-scheme: dark; }
-  input:focus, select:focus { outline: none; border-color: var(--gold); }
+  input:focus, select:focus { outline: none; border-color: var(--brand); }
   button.primary {
     width: 100%; padding: 11px; border: none; border-radius: 10px;
-    background: linear-gradient(135deg, #f0d585, var(--gold) 45%, #9c7a1e);
-    color: #17130a; font-weight: 700; font-size: 13px; cursor: pointer;
+    background: var(--brand-grad);
+    color: var(--brand-ink); font-weight: 700; font-size: 13px; cursor: pointer;
     transition: transform .2s ease, filter .2s ease;
   }
   button.primary:hover { transform: translateY(-1px); filter: brightness(1.08); }
@@ -41,7 +42,7 @@
     background: transparent; color: var(--text-primary); font-size: 12px; cursor: pointer;
     transition: border-color .2s ease, color .2s ease;
   }
-  button.secondary:hover { border-color: var(--card-border-hover); color: var(--gold); }
+  button.secondary:hover { border-color: var(--card-border-hover); color: var(--brand); }
   button.danger-btn { border-color: var(--danger); color: var(--danger); }
   button.danger-btn:hover { border-color: var(--danger); color: var(--danger); filter: brightness(1.15); }
 
@@ -57,12 +58,12 @@
     padding: 7px 12px; border-radius: 8px; border: 1px solid var(--card-border);
     background: rgba(255,255,255,0.03); color: var(--text-primary); font-size: 12px; cursor: pointer;
   }
-  .slot-btn.selected { background: var(--gold); color: #17130a; border-color: var(--gold); font-weight: 700; }
+  .slot-btn.selected { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); font-weight: 700; }
   .reschedule-panel { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--divider); display: none; }
   .history-card { border: 1px solid var(--card-border); border-radius: 14px; padding: 14px; margin-bottom: 12px; background: rgba(255,255,255,0.02); opacity: 0.85; }
   .section-label { font-size: 12px; color: var(--text-muted); font-weight: 700; letter-spacing: .5px; margin: 18px 0 10px; }
   .link-back { display: block; text-align: center; margin-top: 20px; color: var(--text-muted); font-size: 12px; text-decoration: none; }
-  .link-back:hover { color: var(--gold); }
+  .link-back:hover { color: var(--brand); }
 </style>
 </head>
 <body>
