@@ -8,7 +8,7 @@ import { getBarbershops, getBarbershop } from "@/modules/barbershops/barbershops
 import { getBarbers, getBarber, updateBarber, setBarberActive } from "@/modules/barbers/barbers.repository.js";
 import { getServices, getService, updateService, setServiceActive } from "@/modules/services/services.repository.js";
 import { getProducts, getProduct, updateProduct, setProductActive } from "@/modules/products/products.repository.js";
-import { getSubscription, grantTrial } from "@/modules/billing/billing.service.js";
+import { getSubscription, grantTrial, getBillingOverview } from "@/modules/billing/billing.service.js";
 import type { PlanId } from "@/lib/stripe.js";
 
 const VALID_PLANS: PlanId[] = ["starter", "pro"];
@@ -86,6 +86,17 @@ superAdminRouter.get("/api/superadmin/barbershops", requireSuperAdmin, async (_r
   }
 });
 
+// Visão de conjunto de cobrança de todas as barbearias (card de resumo +
+// tabela com destaque no painel) — antes da rota :id de propósito, embora o
+// Express já resolva path literal antes de param independente da ordem.
+superAdminRouter.get("/api/superadmin/barbershops/overview", requireSuperAdmin, async (_req, res, next) => {
+  try {
+    res.json(await getBillingOverview());
+  } catch (err) {
+    next(err);
+  }
+});
+
 superAdminRouter.get("/api/superadmin/barbershops/:id", requireSuperAdmin, async (req, res, next) => {
   try {
     const barbershopId = Number(req.params.id);
@@ -100,12 +111,27 @@ superAdminRouter.get("/api/superadmin/barbershops/:id", requireSuperAdmin, async
     ]);
 
     res.json({
-      barbershop: { id: shop.id, name: shop.name, address: shop.address, phone: shop.phone },
+      barbershop: {
+        id: shop.id,
+        name: shop.name,
+        address: shop.address,
+        phone: shop.phone,
+        whatsappConnectionStatus: shop.whatsappConnectionStatus,
+      },
       barbers,
       services,
       products,
       subscription: subscription
-        ? { status: subscription.status, plan: subscription.plan, trialEndsAt: subscription.trialEndsAt }
+        ? {
+            status: subscription.status,
+            plan: subscription.plan,
+            trialEndsAt: subscription.trialEndsAt,
+            currentPeriodEnd: subscription.currentPeriodEnd,
+            stripeCustomerId: subscription.stripeCustomerId,
+            stripeSubscriptionId: subscription.stripeSubscriptionId,
+            createdAt: subscription.createdAt,
+            updatedAt: subscription.updatedAt,
+          }
         : null,
     });
   } catch (err) {

@@ -53,6 +53,27 @@
   .shop-picker label { display: block; font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; }
   .shop-picker select { width: 100%; padding: 10px 12px; }
   .active-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+
+  /* ---------- Resumo de cobrança + tabela de barbearias ---------- */
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+  @media (max-width: 720px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } }
+  .summary-tile { padding: 14px 16px; }
+  .summary-tile .label { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .summary-tile .value { font-size: 22px; font-weight: 800; margin-top: 6px; }
+  .summary-tile .hint { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .shops-table-wrap { margin-bottom: 18px; }
+  .shops-table-wrap table tr.row-attention { background: var(--danger-soft); }
+  .shops-table-wrap table tr.row-clickable { cursor: pointer; }
+  .shops-table-wrap table tr.row-clickable:hover { filter: brightness(1.08); }
+  .status-tag { font-size: 11px; padding: 3px 8px; border-radius: 999px; font-weight: 600; white-space: nowrap; }
+  .status-tag-active { background: var(--good-soft); color: var(--good); }
+  .status-tag-trialing { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+  .status-tag-past_due, .status-tag-canceled { background: var(--danger-soft); color: var(--danger); }
+  .whatsapp-tag { font-size: 11px; padding: 3px 8px; border-radius: 999px; font-weight: 600; white-space: nowrap; }
+  .whatsapp-tag-connected { background: var(--good-soft); color: var(--good); }
+  .whatsapp-tag-not_connected { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+  .stripe-link { font-size: 12.5px; color: var(--brand); text-decoration: none; }
+  .stripe-link:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -79,6 +100,17 @@
     </div>
 
     <div class="tab-page" id="tab-barbearias">
+      <div class="summary-grid" id="billing-summary">
+        <div class="card summary-tile"><div class="label">Assinantes ativos</div><div class="value">—</div></div>
+        <div class="card summary-tile"><div class="label">MRR (estimativa)</div><div class="value">—</div></div>
+        <div class="card summary-tile"><div class="label">Trial vencendo em breve</div><div class="value">—</div></div>
+        <div class="card summary-tile"><div class="label">Precisam de atenção</div><div class="value">—</div></div>
+      </div>
+
+      <div class="shops-table-wrap card" id="shops-overview-wrap">
+        <div class="loading">Carregando...</div>
+      </div>
+
       <div class="shop-picker">
         <label>Selecionar barbearia</label>
         <select id="shop-select"><option value="">Carregando...</option></select>
@@ -190,10 +222,84 @@ const shopSelect = document.getElementById("shop-select");
 const shopConfig = document.getElementById("shop-config");
 let shopsLoaded = false;
 
+// Compartilhado entre a tabela de visão geral e o card "Cobrança" do detalhe
+// (loadShopConfig) — antes vivia duplicado dentro de loadShopConfig.
+const STATUS_LABEL = { trialing: "Em teste grátis", active: "Ativa", past_due: "Pagamento pendente", canceled: "Cancelada" };
+const WHATSAPP_LABEL = { connected: "WhatsApp próprio conectado", not_connected: "Número compartilhado" };
+
+function centsToBRL(cents) {
+  return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
 async function loadShopList() {
   const res = await apiFetch("/api/superadmin/barbershops");
   const shops = await res.json();
   shopSelect.innerHTML = '<option value="">Selecione...</option>' + shops.map((s) => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join("");
+}
+
+/* ---------------- Resumo de cobrança + tabela de barbearias ---------------- */
+
+const shopsOverviewWrap = document.getElementById("shops-overview-wrap");
+const billingSummary = document.getElementById("billing-summary");
+
+function statusTagHtml(status) {
+  if (!status) return '<span class="status-tag">Sem assinatura</span>';
+  return `<span class="status-tag status-tag-${status}">${escapeHtml(STATUS_LABEL[status] || status)}</span>`;
+}
+
+function whatsappTagHtml(status) {
+  return `<span class="whatsapp-tag whatsapp-tag-${status}">${escapeHtml(WHATSAPP_LABEL[status] || status)}</span>`;
+}
+
+function validUntilLabel(sub) {
+  if (!sub) return "—";
+  const date = sub.status === "active" ? sub.currentPeriodEnd : sub.trialEndsAt;
+  return date ? new Date(date).toLocaleDateString("pt-BR") : "—";
+}
+
+async function loadBillingOverview() {
+  billingSummary.querySelectorAll(".summary-tile .value").forEach((el) => { el.textContent = "…"; });
+  shopsOverviewWrap.innerHTML = '<div class="loading">Carregando...</div>';
+
+  const res = await apiFetch("/api/superadmin/barbershops/overview");
+  const data = await res.json();
+
+  const tiles = billingSummary.querySelectorAll(".summary-tile .value");
+  tiles[0].textContent = String(data.summary.activeCount);
+  tiles[1].textContent = centsToBRL(data.summary.mrrCents);
+  tiles[2].textContent = String(data.summary.trialsExpiringSoonCount);
+  tiles[3].textContent = String(data.summary.attentionCount);
+
+  if (!data.shops.length) {
+    shopsOverviewWrap.innerHTML = '<div class="empty">Nenhuma barbearia cadastrada ainda.</div>';
+    return;
+  }
+
+  const rows = data.shops.map((s) => `
+    <tr data-id="${s.id}" class="row-clickable${s.needsAttention ? " row-attention" : ""}">
+      <td>${escapeHtml(s.name)}</td>
+      <td>${statusTagHtml(s.subscription?.status)}</td>
+      <td>${validUntilLabel(s.subscription)}</td>
+      <td>${whatsappTagHtml(s.whatsappConnectionStatus)}</td>
+      <td>${s.subscription?.stripeCustomerId ? `<a class="stripe-link" href="https://dashboard.stripe.com/customers/${encodeURIComponent(s.subscription.stripeCustomerId)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Ver no Stripe →</a>` : ""}</td>
+    </tr>
+  `).join("");
+
+  shopsOverviewWrap.innerHTML = `
+    <table>
+      <thead><tr><th>Nome</th><th>Status</th><th>Válido até</th><th>WhatsApp</th><th>Stripe</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+
+  shopsOverviewWrap.querySelectorAll("tr[data-id]").forEach((tr) => {
+    tr.addEventListener("click", () => {
+      shopSelect.value = tr.dataset.id;
+      loadShopConfig(tr.dataset.id).catch(() => {
+        shopConfig.innerHTML = '<div class="empty">Erro ao carregar dados da barbearia.</div>';
+      });
+    });
+  });
 }
 
 function barberRowHtml(b) {
@@ -288,16 +394,25 @@ async function loadShopConfig(shopId) {
   const res = await apiFetch(`/api/superadmin/barbershops/${shopId}`);
   const data = await res.json();
 
-  const STATUS_LABEL = { trialing: "Em teste grátis", active: "Ativa", past_due: "Pagamento pendente", canceled: "Cancelada" };
   const sub = data.subscription;
   const subLine = sub
-    ? `${STATUS_LABEL[sub.status] || sub.status} · plano ${sub.plan}${sub.trialEndsAt ? ` · trial até ${new Date(sub.trialEndsAt).toLocaleDateString("pt-BR")}` : ""}`
+    ? `${STATUS_LABEL[sub.status] || sub.status} · plano ${sub.plan}`
+      + (sub.trialEndsAt ? ` · trial até ${new Date(sub.trialEndsAt).toLocaleDateString("pt-BR")}` : "")
+      + (sub.status === "active" && sub.currentPeriodEnd ? ` · ativo até ${new Date(sub.currentPeriodEnd).toLocaleDateString("pt-BR")}` : "")
     : "Sem assinatura registrada";
+  const whatsappLine = whatsappTagHtml(data.barbershop.whatsappConnectionStatus);
+  const stripeLine = sub?.stripeCustomerId
+    ? `<a class="stripe-link" href="https://dashboard.stripe.com/customers/${encodeURIComponent(sub.stripeCustomerId)}" target="_blank" rel="noopener">Ver cliente no Stripe →</a>`
+    : "";
 
   shopConfig.innerHTML = `
     <h2>Cobrança</h2>
     <div class="card" style="padding:16px 18px;">
-      <div style="font-size:13px; margin-bottom:14px;">${subLine}</div>
+      <div style="font-size:13px; margin-bottom:8px;">${subLine}</div>
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
+        ${whatsappLine}
+        ${stripeLine}
+      </div>
       <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
         <div>
           <label style="display:block; font-size:11px; color:var(--text-muted); font-weight:600; margin-bottom:6px;">Plano</label>
@@ -376,6 +491,7 @@ async function loadShopConfig(shopId) {
       showStatus("Teste grátis concedido com sucesso.", true);
       btn.textContent = "Concedido ✓";
       loadShopConfig(shopId).catch(() => {});
+      loadBillingOverview().catch(() => {});
     } catch (err) {
       showStatus(err.message || "Não foi possível conceder o teste grátis.", false);
       btn.textContent = original;
@@ -402,6 +518,9 @@ document.querySelectorAll(".tab-btn").forEach((btn) => {
     if (btn.dataset.tab === "barbearias" && !shopsLoaded) {
       shopsLoaded = true;
       loadShopList().catch(() => { shopSelect.innerHTML = '<option value="">Erro ao carregar</option>'; });
+      loadBillingOverview().catch(() => {
+        shopsOverviewWrap.innerHTML = '<div class="empty">Erro ao carregar visão geral de cobrança.</div>';
+      });
     }
   });
 });

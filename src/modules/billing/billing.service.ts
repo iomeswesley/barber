@@ -1,15 +1,67 @@
 import { prisma } from "@/lib/prisma.js";
 import { AppError } from "@/middleware/errorHandler.js";
 import { env } from "@/config/env.js";
-import { stripe, stripeConfigured, priceIdForPlan, planForPriceId, PLAN_LIMITS, type PlanId } from "@/lib/stripe.js";
+import { stripe, stripeConfigured, priceIdForPlan, planForPriceId, PLAN_LIMITS, PLAN_PRICE_CENTS, type PlanId } from "@/lib/stripe.js";
 import { getOwnerUserForBarbershop } from "@/modules/auth/users.repository.js";
-import { getBarbershop } from "@/modules/barbershops/barbershops.repository.js";
+import { getBarbershop, getBarbershops } from "@/modules/barbershops/barbershops.repository.js";
 import { getBarbers } from "@/modules/barbers/barbers.repository.js";
 import { captureError } from "@/lib/errorReporting.js";
 import type Stripe from "stripe";
 
 export function getSubscription(barbershopId: number) {
   return prisma.subscription.findUnique({ where: { barbershopId } });
+}
+
+// Visão de conjunto pro painel de superadmin — parte de TODAS as barbearias
+// (não só quem já tem Subscription) porque uma barbearia que nunca passou
+// por trial/checkout também é sinal útil ("sem assinatura registrada"), não
+// deve simplesmente sumir da lista.
+export async function getBillingOverview() {
+  const [shops, subs] = await Promise.all([getBarbershops(), prisma.subscription.findMany()]);
+  const subByShop = new Map(subs.map((s) => [s.barbershopId, s]));
+  const now = new Date();
+  const soon = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+
+  const rows = shops.map((shop) => {
+    const sub = subByShop.get(shop.id) ?? null;
+    const trialSoon = !!(sub?.status === "trialing" && sub.trialEndsAt && sub.trialEndsAt >= now && sub.trialEndsAt <= soon);
+    const needsAttention = sub?.status === "past_due" || sub?.status === "canceled" || trialSoon;
+    return {
+      id: shop.id,
+      name: shop.name,
+      whatsappConnectionStatus: shop.whatsappConnectionStatus,
+      subscription: sub
+        ? {
+            status: sub.status,
+            plan: sub.plan,
+            trialEndsAt: sub.trialEndsAt,
+            currentPeriodEnd: sub.currentPeriodEnd,
+            stripeCustomerId: sub.stripeCustomerId,
+          }
+        : null,
+      needsAttention,
+    };
+  });
+
+  return {
+    shops: rows,
+    summary: {
+      activeCount: rows.filter((r) => r.subscription?.status === "active").length,
+      // MRR aqui é uma aproximação a partir do preço hardcoded em
+      // PLAN_PRICE_CENTS, não o valor real cobrado no Stripe — se o preço
+      // mudar direto no Stripe Dashboard sem atualizar esse arquivo (já
+      // aconteceu: um checkout do Starter foi concluído a R$1 quando o preço
+      // foi alterado temporariamente no Stripe), esse número fica
+      // desatualizado silenciosamente. Tratar como estimativa, não como
+      // fonte de verdade financeira — conferir no Stripe Dashboard antes de
+      // qualquer decisão que dependa do valor exato.
+      mrrCents: rows
+        .filter((r) => r.subscription?.status === "active")
+        .reduce((sum, r) => sum + (PLAN_PRICE_CENTS[r.subscription!.plan as PlanId] ?? 0), 0),
+      trialsExpiringSoonCount: rows.filter((r) => r.subscription?.status === "trialing" && r.needsAttention).length,
+      attentionCount: rows.filter((r) => r.needsAttention).length,
+    },
+  };
 }
 
 // Cortesia comercial concedida pelo painel de super-admin — pisa em cima do
