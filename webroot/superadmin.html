@@ -225,7 +225,7 @@ let shopsLoaded = false;
 // Compartilhado entre a tabela de visão geral e o card "Cobrança" do detalhe
 // (loadShopConfig) — antes vivia duplicado dentro de loadShopConfig.
 const STATUS_LABEL = { trialing: "Em teste grátis", active: "Ativa", past_due: "Pagamento pendente", canceled: "Cancelada" };
-const WHATSAPP_LABEL = { connected: "WhatsApp próprio conectado", not_connected: "Número compartilhado" };
+const WHATSAPP_LABEL = { connected: "WhatsApp próprio conectado", not_connected: "WhatsApp não conectado" };
 
 function centsToBRL(cents) {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
