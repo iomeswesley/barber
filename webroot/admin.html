@@ -772,7 +772,7 @@
   </div>
 
   <div class="section-title">Faturamento e ocupação dia a dia</div>
-  <div class="card chart-card">
+  <div class="card chart-card" id="revenue-chart-card">
     <div class="chart-head">
       <div>
         <h2>Evolução do faturamento</h2>
@@ -803,15 +803,15 @@
       <div class="ranking-list" id="ranking-list"></div>
     </div>
 
-    <div class="card panel">
+    <div class="card panel" id="today-appts-card">
       <h2>Agendamentos de hoje</h2>
       <div class="hint" id="today-hint">Carregando agenda do dia...</div>
       <div class="appt-list" id="appt-list"></div>
     </div>
   </div>
 
-  <div class="section-title">Avaliações dos clientes</div>
-  <div class="card panel">
+  <div class="section-title" id="reviews-section-title">Avaliações dos clientes</div>
+  <div class="card panel" id="reviews-card">
     <div class="chart-head" style="margin-bottom:12px;">
       <div class="tabs" id="review-period-tabs">
         <button data-period="all" class="active">Tudo</button>
@@ -1282,7 +1282,11 @@ const shopLabel = document.getElementById("shop-label");
 
 const ADMIN_TOUR_STEPS = [
   { selector: "#page-tabs", title: "Bem-vindo(a) ao Painel Premium!", text: "Esse menu no topo leva pra cada parte do seu negócio. Vamos passear por cada uma rapidinho." },
-  { activateSelector: '#page-tabs button[data-page="overview"]', selector: "#barber-analysis-card", title: "Visão geral", text: "Faturamento do mês, previsão, gráficos de ocupação e o ranking de barbeiros — o resumo do seu negócio de relance." },
+  { activateSelector: '#page-tabs button[data-page="overview"]', selector: "#kpi-grid", title: "Visão geral do mês", text: "Faturamento, previsão, ticket médio, barbeiro do mês e taxa de no-show — o resumo do seu negócio de relance." },
+  { selector: "#revenue-chart-card", title: "Faturamento e ocupação dia a dia", text: "Acompanhe a evolução do faturamento e veja os horários mais ocupados de cada dia da semana." },
+  { selector: "#barber-analysis-card", title: "Análise por barbeiro", text: "Faturamento e ocupação da agenda de cada barbeiro no mês atual, com o ranking completo." },
+  { selector: "#today-appts-card", title: "Agendamentos de hoje", text: "Veja rapidinho os agendamentos do dia sem precisar entrar na agenda." },
+  { selector: "#reviews-card", title: "Avaliações dos clientes", text: "As notas e comentários que os clientes deixam depois do atendimento." },
   { activateSelector: '#page-tabs button[data-page="agenda"]', selector: "#page-agenda", title: "Agenda", text: "Veja e crie agendamentos, filtre por barbeiro e alterne entre visão de semana ou mês." },
   { activateSelector: '#page-tabs button[data-page="conversas"]', selector: "#page-conversas", title: "Conversas do WhatsApp", text: "Acompanhe as conversas que a IA está tendo com seus clientes e responda manualmente quando quiser assumir." },
   { activateSelector: '#page-tabs button[data-page="historico"]', selector: "#page-historico", title: "Histórico", text: "Faturamento detalhado por período, participação de cada barbeiro e serviço, e o cadastro completo de clientes." },
