@@ -3,6 +3,7 @@ import { requireAuth, requireOwner } from "@/middleware/auth.js";
 import { AppError } from "@/middleware/errorHandler.js";
 import { env } from "@/config/env.js";
 import { stripe, stripeConfigured, PLAN_LABELS, PLAN_LIMITS, type PlanId } from "@/lib/stripe.js";
+import { captureError } from "@/lib/errorReporting.js";
 import {
   getSubscription,
   createCheckoutSession,
@@ -78,6 +79,12 @@ billingRouter.post("/api/webhooks/stripe", async (req, res) => {
     event = stripe.webhooks.constructEvent(req.rawBody!, req.headers["stripe-signature"] as string, env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     console.error("[STRIPE] Assinatura de webhook inválida:", err);
+    // Reportado pro Sentry: uma falha de assinatura persistente (secret
+    // desatualizado no Vercel, endpoint duplicado no Stripe) passava batido
+    // — só um console.error que ninguém olha, enquanto pagamentos reais
+    // nunca sincronizavam com o Subscription local (ver incidente Barber
+    // King, 2026-07-26).
+    captureError(err);
     return res.sendStatus(400);
   }
 
@@ -99,9 +106,11 @@ billingRouter.post("/api/webhooks/stripe", async (req, res) => {
     res.sendStatus(200);
   } catch (err) {
     console.error("[STRIPE] Erro processando webhook:", err);
+    captureError(err);
     // 200 mesmo em erro do nosso lado, pra evitar o Stripe reenviar
     // indefinidamente por um bug pontual — mesma decisão já tomada pro
-    // webhook do WhatsApp.
+    // webhook do WhatsApp. O Sentry acima é o que garante que o erro não
+    // desaparece silenciosamente.
     res.sendStatus(200);
   }
 });

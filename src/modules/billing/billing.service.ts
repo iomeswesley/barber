@@ -5,6 +5,7 @@ import { stripe, stripeConfigured, priceIdForPlan, planForPriceId, PLAN_LIMITS, 
 import { getOwnerUserForBarbershop } from "@/modules/auth/users.repository.js";
 import { getBarbershop } from "@/modules/barbershops/barbershops.repository.js";
 import { getBarbers } from "@/modules/barbers/barbers.repository.js";
+import { captureError } from "@/lib/errorReporting.js";
 import type Stripe from "stripe";
 
 export function getSubscription(barbershopId: number) {
@@ -156,36 +157,68 @@ function mapStripeStatus(status: Stripe.Subscription.Status): "trialing" | "acti
 // real no Stripe.
 export async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promise<void> {
   const barbershopId = Number(session.metadata?.barbershopId);
-  if (!barbershopId || !session.subscription) return;
+  if (!barbershopId || !session.subscription) {
+    // Não devia acontecer no fluxo normal (createCheckoutSession sempre seta
+    // esse metadata) — mas se acontecer, um pagamento real fica sem sincronizar
+    // e sem deixar rastro nenhum além disso. Reporta pro Sentry em vez de
+    // simplesmente sumir.
+    captureError(
+      new Error(
+        `checkout.session.completed sem barbershopId/subscription válido (session=${session.id}, metadata=${JSON.stringify(session.metadata)})`
+      )
+    );
+    return;
+  }
   const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription.id;
   const plan = session.metadata?.plan || "starter";
-  await prisma.subscription.update({
+  // upsert, não update: getOrCreateStripeCustomer cria a linha antes do
+  // checkout normalmente, mas se por qualquer motivo ela não existir (linha
+  // apagada manualmente, corrida entre requisições), update() lançaria
+  // "record not found" e um pagamento real ficaria sem sincronizar — mesma
+  // categoria do incidente Barber King (2026-07-26): o pagamento existia no
+  // Stripe, mas nada no nosso banco confirmava isso.
+  await prisma.subscription.upsert({
     where: { barbershopId },
-    data: { status: "active", plan, stripeSubscriptionId: subscriptionId },
+    update: { status: "active", plan, stripeSubscriptionId: subscriptionId },
+    create: { barbershopId, status: "active", plan, stripeSubscriptionId: subscriptionId },
   });
 }
 
 export async function handleSubscriptionUpdated(subscription: Stripe.Subscription): Promise<void> {
   const barbershopId = Number(subscription.metadata?.barbershopId);
-  if (!barbershopId) return;
+  if (!barbershopId) {
+    captureError(new Error(`customer.subscription.updated sem barbershopId no metadata (subscription=${subscription.id})`));
+    return;
+  }
   const priceId = subscription.items.data[0]?.price?.id;
-  const plan = planForPriceId(priceId) || undefined;
+  const plan = planForPriceId(priceId);
   const currentPeriodEndSec = (subscription as unknown as { current_period_end?: number }).current_period_end;
-  await prisma.subscription.update({
+  const status = mapStripeStatus(subscription.status);
+  const currentPeriodEnd = currentPeriodEndSec ? new Date(currentPeriodEndSec * 1000) : undefined;
+  // upsert pelo mesmo motivo de handleCheckoutCompleted: nunca deixar um
+  // evento real do Stripe sem efeito nenhum no banco só porque a linha
+  // ainda não existia. No update, plan só entra se resolvido (senão mantém
+  // o que já tinha); no create, precisa de algum valor — "starter" como
+  // fallback nunca deveria ser exercido na prática (subscription sempre
+  // nasce com um price válido), mas evita um upsert inválido se acontecer.
+  await prisma.subscription.upsert({
     where: { barbershopId },
-    data: {
-      status: mapStripeStatus(subscription.status),
-      ...(plan ? { plan } : {}),
-      stripeSubscriptionId: subscription.id,
-      currentPeriodEnd: currentPeriodEndSec ? new Date(currentPeriodEndSec * 1000) : undefined,
-    },
+    update: { status, ...(plan ? { plan } : {}), stripeSubscriptionId: subscription.id, currentPeriodEnd },
+    create: { barbershopId, status, plan: plan || "starter", stripeSubscriptionId: subscription.id, currentPeriodEnd },
   });
 }
 
 export async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Promise<void> {
   const barbershopId = Number(subscription.metadata?.barbershopId);
-  if (!barbershopId) return;
-  await prisma.subscription.update({ where: { barbershopId }, data: { status: "canceled" } });
+  if (!barbershopId) {
+    captureError(new Error(`customer.subscription.deleted sem barbershopId no metadata (subscription=${subscription.id})`));
+    return;
+  }
+  await prisma.subscription.upsert({
+    where: { barbershopId },
+    update: { status: "canceled" },
+    create: { barbershopId, status: "canceled" },
+  });
 }
 
 // Chamado pelo cron diário (mesma rota de lembretes) — trials que passaram
