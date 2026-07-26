@@ -51,6 +51,20 @@
 
   .topbar-right { display: flex; align-items: center; gap: 14px; }
 
+  /* ---------- Badge de plano (header + Cobrança) ----------
+     Cores propositalmente fora da paleta de marca (verde) — funcionam como
+     "selo" (bronze/prata/ouro), não como identidade visual do produto. */
+  .plan-badge {
+    display: inline-flex; align-items: center; font-size: 10.5px; font-weight: 800;
+    letter-spacing: 0.06em; padding: 4px 10px; border-radius: 999px; text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .plan-badge-trialing { background: linear-gradient(135deg, #e8c9a0, #cd7f32 60%, #8a5522); color: #2b1608; }
+  .plan-badge-starter { background: linear-gradient(135deg, #f2f2f2, #c0c0c0 55%, #8f8f8f); color: #1a1a1a; }
+  .plan-badge-pro { background: linear-gradient(135deg, #f5d576, #d4af37 55%, #9c7a1e); color: #2b2003; }
+  .plan-badge-past_due { background: var(--danger-soft); color: var(--danger); }
+  .plan-badge-none { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+
   #logout-btn.link-back {
     color: var(--danger);
     border-color: rgb(var(--color-bg) / 0);
@@ -675,7 +689,7 @@
   <div class="brand">
     <div class="logo">💈</div>
     <div class="titles">
-      <h1>Painel Premium</h1>
+      <h1>Painel Premium <span id="plan-badge" class="plan-badge" style="display:none; margin-left:6px; vertical-align:middle;"></span></h1>
       <p id="shop-label">Barbearia</p>
     </div>
   </div>
@@ -1017,7 +1031,10 @@
 
     <div class="section-title">Cobrança</div>
     <div class="card panel" id="billing-card">
-      <div class="hint" id="billing-hint">Carregando...</div>
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:4px;">
+        <span id="billing-plan-pill" class="plan-badge" style="display:none;"></span>
+        <div class="hint" id="billing-hint" style="margin-bottom:0;">Carregando...</div>
+      </div>
       <div id="billing-whatsapp-usage" style="display:none; margin-top:10px;">
         <div class="hint" style="font-size:11.5px; margin-bottom:4px;" id="billing-whatsapp-usage-label"></div>
         <div style="height:6px; border-radius:999px; background:rgba(255,255,255,0.06); overflow:hidden;">
@@ -1025,6 +1042,7 @@
         </div>
       </div>
       <div id="billing-plans" style="margin-top:14px; display:none; gap:12px; flex-wrap:wrap;"></div>
+      <div class="form-actions" id="billing-change-plan-actions" style="margin-top:14px; display:none; gap:8px;"></div>
       <div class="form-actions" id="billing-actions" style="margin-top:14px; display:none;">
         <button class="btn-secondary" id="billing-portal-btn">Gerenciar assinatura</button>
       </div>
@@ -3589,14 +3607,50 @@ async function loadWhatsappConnectStatus() {
 
 /* ---------------- Cobrança ---------------- */
 const STATUS_LABEL_BILLING = { trialing: "Em teste grátis", active: "Ativa", past_due: "Pagamento pendente", canceled: "Cancelada" };
+const PLAN_BADGE_TEXT = { starter: "STARTER", pro: "PRO" };
 
 function fmtDate(d) { return d ? new Date(d).toLocaleDateString("pt-BR") : "—"; }
+
+// Classe/texto do "selo" de plano — usado tanto no header (sempre visível)
+// quanto no card de Cobrança (pill ao lado do texto de status).
+function planBadgeInfo(status, plan) {
+  if (status === "trialing") return { cls: "plan-badge-trialing", text: "TRIAL" };
+  if (status === "past_due") return { cls: "plan-badge-past_due", text: "PENDENTE" };
+  if (status === "active" && (plan === "starter" || plan === "pro")) {
+    return { cls: `plan-badge-${plan}`, text: PLAN_BADGE_TEXT[plan] };
+  }
+  return null; // canceled / sem assinatura — sem selo
+}
+
+function updatePlanBadge(status, plan) {
+  const el = document.getElementById("plan-badge");
+  const info = planBadgeInfo(status, plan);
+  if (!info) {
+    el.style.display = "none";
+    return;
+  }
+  el.className = `plan-badge ${info.cls}`;
+  el.textContent = info.text;
+  el.style.display = "inline-flex";
+}
 
 async function loadBillingStatus() {
   const data = await (await fetch("/api/billing/status")).json();
   const hint = document.getElementById("billing-hint");
   const plansEl = document.getElementById("billing-plans");
   const actionsEl = document.getElementById("billing-actions");
+  const changePlanEl = document.getElementById("billing-change-plan-actions");
+  const pillEl = document.getElementById("billing-plan-pill");
+
+  updatePlanBadge(data.status, data.plan);
+  const pillInfo = planBadgeInfo(data.status, data.plan);
+  if (pillInfo) {
+    pillEl.className = `plan-badge ${pillInfo.cls}`;
+    pillEl.textContent = pillInfo.text;
+    pillEl.style.display = "inline-flex";
+  } else {
+    pillEl.style.display = "none";
+  }
 
   if (!data.configured) {
     hint.textContent = `Status: ${STATUS_LABEL_BILLING[data.status] || "—"}${data.plan ? ` · Plano ${data.plan}` : ""}. Cobrança ainda não configurada no servidor — assinatura fica só informativa por enquanto.`;
@@ -3620,7 +3674,7 @@ async function loadBillingStatus() {
     usageEl.style.display = "none";
   }
   if (data.status === "active") {
-    hint.textContent = `Assinatura ativa — plano ${data.plan}. Renova em ${fmtDate(data.current_period_end)}.`;
+    hint.textContent = `Assinatura ativa. Renova em ${fmtDate(data.current_period_end)}.`;
   } else if (data.status === "past_due") {
     hint.textContent = `⚠️ Pagamento pendente no plano ${data.plan}. Atualize sua forma de pagamento pra não perder o acesso.`;
   } else {
@@ -3630,7 +3684,45 @@ async function loadBillingStatus() {
   if (data.status === "active") {
     actionsEl.style.display = "flex";
     plansEl.style.display = "none";
+
+    // Migrar pra outro plano sem sair do painel — troca o price da mesma
+    // assinatura no Stripe (POST /api/billing/change-plan), diferente do
+    // botão "Assinar" acima, que sempre cria uma sessão/assinatura nova.
+    const otherPlans = data.plans.filter((p) => p.id !== data.plan);
+    changePlanEl.style.display = otherPlans.length ? "flex" : "none";
+    changePlanEl.innerHTML = otherPlans
+      .map((p) => `<button class="btn-secondary" data-change-plan="${p.id}">Migrar para ${PLAN_BADGE_TEXT[p.id] || p.id}</button>`)
+      .join("");
+    changePlanEl.querySelectorAll("[data-change-plan]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const newPlan = btn.dataset.changePlan;
+        if (!(await showConfirmModal(`Migrar sua assinatura para o plano ${PLAN_BADGE_TEXT[newPlan] || newPlan}?`, { destructive: false }))) return;
+        btn.disabled = true;
+        const original = btn.textContent;
+        btn.textContent = "Migrando...";
+        try {
+          const res = await fetch("/api/billing/change-plan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ plan: newPlan }),
+          });
+          const body = await res.json();
+          if (!res.ok) {
+            await showAlertModal(body.error || "Não foi possível migrar de plano.");
+            btn.disabled = false;
+            btn.textContent = original;
+            return;
+          }
+          await loadBillingStatus();
+        } catch {
+          await showAlertModal("Erro de conexão com o servidor.");
+          btn.disabled = false;
+          btn.textContent = original;
+        }
+      });
+    });
   } else {
+    changePlanEl.style.display = "none";
     const PLAN_BENEFITS = {
       starter: ["Agendamento automático via WhatsApp com IA", "Painel de gestão para até 2 barbeiros", "Lembretes automáticos por WhatsApp"],
       pro: [
@@ -4064,6 +4156,13 @@ async function setupPush() {
   await loadAll();
   setupPush();
   setInterval(loadAll, 60000);
+  // Selo de plano no header precisa aparecer mesmo sem o dono abrir a aba
+  // Configurações — loadBillingStatus() normal só roda lá (lazy), então
+  // busca só o necessário pro badge aqui, na inicialização da página.
+  fetch("/api/billing/status")
+    .then((r) => r.json())
+    .then((data) => updatePlanBadge(data.status, data.plan))
+    .catch(() => {});
 })();
 </script>
 <a href="/ajuda.html" target="_blank" rel="noopener" class="help-fab" title="Central de Ajuda">❓</a>

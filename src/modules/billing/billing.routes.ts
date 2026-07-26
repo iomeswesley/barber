@@ -7,6 +7,7 @@ import { captureError } from "@/lib/errorReporting.js";
 import {
   getSubscription,
   createCheckoutSession,
+  changePlan,
   createPortalSession,
   handleCheckoutCompleted,
   handleSubscriptionUpdated,
@@ -53,6 +54,17 @@ billingRouter.post("/api/billing/checkout", requireAuth, requireOwner, async (re
       `${base}/admin.html?billing=cancel`
     );
     res.json({ url });
+  } catch (err) {
+    next(err);
+  }
+});
+
+billingRouter.post("/api/billing/change-plan", requireAuth, requireOwner, async (req, res, next) => {
+  try {
+    const plan = String(req.body?.plan || "");
+    if (!VALID_PLANS.includes(plan as PlanId)) throw new AppError("Plano inválido");
+    await changePlan(req.session.user!.barbershopId, plan as PlanId);
+    res.json({ ok: true, plan });
   } catch (err) {
     next(err);
   }

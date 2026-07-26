@@ -157,6 +157,47 @@ export async function createCheckoutSession(
   return session.url;
 }
 
+// Migra o plano de uma assinatura JÁ ativa (troca o price do item existente
+// no Stripe) — diferente de createCheckoutSession, que sempre cria uma
+// sessão nova e criaria uma SEGUNDA assinatura se usado aqui. O webhook
+// customer.subscription.updated confirma a troca depois, mas atualizamos o
+// plano local na hora também pra a UI não esperar o round-trip do webhook.
+export async function changePlan(barbershopId: number, newPlan: PlanId): Promise<void> {
+  if (!stripe) throw new AppError("Cobrança não configurada no servidor.", 503);
+  const sub = await getSubscription(barbershopId);
+  if (!sub?.stripeSubscriptionId) throw new AppError("Essa barbearia não tem uma assinatura ativa pra migrar.", 400);
+  if (sub.plan === newPlan) throw new AppError(`Essa barbearia já está no plano ${newPlan}.`, 400);
+
+  const newPriceId = priceIdForPlan(newPlan);
+  if (!newPriceId) throw new AppError(`Plano "${newPlan}" não está configurado no servidor.`, 503);
+
+  // Downgrade pra Starter tem limite de barbeiros ativos — bloqueia antes de
+  // mexer no Stripe, pra não deixar a assinatura num estado que o painel
+  // não consegue mais operar direito.
+  if (newPlan === "starter") {
+    const limit = PLAN_LIMITS.starter!;
+    const activeCount = (await getBarbers(barbershopId)).length;
+    if (activeCount > limit) {
+      throw new AppError(
+        `Você tem ${activeCount} barbeiros ativos — o plano Starter permite até ${limit}. Desative alguns barbeiros antes de migrar.`,
+        400
+      );
+    }
+  }
+
+  const subscription = await stripe.subscriptions.retrieve(sub.stripeSubscriptionId);
+  const itemId = subscription.items.data[0]?.id;
+  if (!itemId) throw new AppError("Não foi possível localizar o item da assinatura no Stripe.", 502);
+
+  await stripe.subscriptions.update(sub.stripeSubscriptionId, {
+    items: [{ id: itemId, price: newPriceId }],
+    proration_behavior: "create_prorations",
+    metadata: { barbershopId: String(barbershopId), plan: newPlan },
+  });
+
+  await prisma.subscription.update({ where: { barbershopId }, data: { plan: newPlan } });
+}
+
 export async function createPortalSession(barbershopId: number, returnUrl: string): Promise<string> {
   if (!stripe) throw new AppError("Cobrança não configurada no servidor.", 503);
   const sub = await getSubscription(barbershopId);
