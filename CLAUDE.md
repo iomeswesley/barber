@@ -7,7 +7,7 @@ Leia isto no início de qualquer sessão nova. Arquitetura detalhada está no [R
 SaaS multi-tenant de agendamento para barbearias: painel web (dono/barbeiro) + bot de WhatsApp com IA (Anthropic) fazendo o autoatendimento do cliente final. Reescrita profissional (TS/Postgres/Prisma) de um protótipo anterior (`barbearia-bot`, outro diretório, mantido só como referência histórica — não misturar convenções).
 
 - Repo: github.com/iomeswesley/barber, branch `master` (sem branches de feature)
-- Deploy: Vercel, produção em https://barbearia-saas-jet.vercel.app
+- Deploy: Vercel, produção em https://agenda-barb.vercel.app (`barbearia-saas-jet.vercel.app` era o domínio antigo — hoje só redireciona pra esse; **nunca cadastrar webhook do Stripe/Meta nele**, redirect 307 faz a entrega falhar silenciosamente, foi a causa de um pagamento não sincronizar em 2026-07-26)
 - Banco: Postgres via Supabase (Prisma) — **um único banco, sem staging/teste separado**. Dev local aponta pro mesmo banco de produção.
 
 ## Convenções de frontend
