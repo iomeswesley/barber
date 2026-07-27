@@ -185,15 +185,32 @@ export async function changePlan(barbershopId: number, newPlan: PlanId): Promise
     }
   }
 
-  const subscription = await stripe.subscriptions.retrieve(sub.stripeSubscriptionId);
-  const itemId = subscription.items.data[0]?.id;
-  if (!itemId) throw new AppError("Não foi possível localizar o item da assinatura no Stripe.", 502);
+  try {
+    const subscription = await stripe.subscriptions.retrieve(sub.stripeSubscriptionId);
+    const itemId = subscription.items.data[0]?.id;
+    if (!itemId) throw new AppError("Não foi possível localizar o item da assinatura no Stripe.", 502);
 
-  await stripe.subscriptions.update(sub.stripeSubscriptionId, {
-    items: [{ id: itemId, price: newPriceId }],
-    proration_behavior: "create_prorations",
-    metadata: { barbershopId: String(barbershopId), plan: newPlan },
-  });
+    await stripe.subscriptions.update(sub.stripeSubscriptionId, {
+      items: [{ id: itemId, price: newPriceId }],
+      proration_behavior: "create_prorations",
+      metadata: { barbershopId: String(barbershopId), plan: newPlan },
+    });
+  } catch (err) {
+    if (err instanceof AppError) throw err;
+    // A chave de API (restrita) pode não ter as permissões de Subscriptions
+    // habilitadas — mesma categoria de erro já vista ao investigar o
+    // incidente do webhook em 2026-07-26. Sem esse tratamento, o erro cru do
+    // Stripe cai no handler genérico e vira "Erro interno do servidor" sem
+    // nenhuma pista de causa.
+    const stripeErr = err as { type?: string; code?: string; message?: string };
+    if (stripeErr.type === "StripePermissionError" || stripeErr.code === "more_permissions_required") {
+      throw new AppError(
+        "A chave de API do Stripe não tem permissão pra alterar assinaturas — habilite \"Subscriptions\" (leitura e escrita) nas permissões da chave em dashboard.stripe.com/apikeys.",
+        502
+      );
+    }
+    throw new AppError(`Erro do Stripe ao migrar de plano: ${stripeErr.message || "erro desconhecido"}`, 502);
+  }
 
   await prisma.subscription.update({ where: { barbershopId }, data: { plan: newPlan } });
 }
