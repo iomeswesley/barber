@@ -202,13 +202,10 @@ export async function changePlan(barbershopId: number, newPlan: PlanId): Promise
     // incidente do webhook em 2026-07-26. Sem esse tratamento, o erro cru do
     // Stripe cai no handler genérico e vira "Erro interno do servidor" sem
     // nenhuma pista de causa.
+    // A mensagem do Stripe já vem específica sobre qual permissão falta (ex:
+    // "Enabling 'Subscriptions Read' permissions..." vs "...Write...") — bem
+    // mais útil que qualquer texto fixo nosso adivinhando qual é.
     const stripeErr = err as { type?: string; code?: string; message?: string };
-    if (stripeErr.type === "StripePermissionError" || stripeErr.code === "more_permissions_required") {
-      throw new AppError(
-        "A chave de API do Stripe não tem permissão pra alterar assinaturas — habilite \"Subscriptions\" (leitura e escrita) nas permissões da chave em dashboard.stripe.com/apikeys.",
-        502
-      );
-    }
     throw new AppError(`Erro do Stripe ao migrar de plano: ${stripeErr.message || "erro desconhecido"}`, 502);
   }
 
