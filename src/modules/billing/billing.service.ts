@@ -190,9 +190,15 @@ export async function changePlan(barbershopId: number, newPlan: PlanId): Promise
     const itemId = subscription.items.data[0]?.id;
     if (!itemId) throw new AppError("Não foi possível localizar o item da assinatura no Stripe.", 502);
 
+    // always_invoice: cobra a diferença proporcional do restante do ciclo na
+    // hora (não só no próximo boleto/fatura) — é o comportamento esperado de
+    // upgrade num SaaS. error_if_incomplete: se essa cobrança falhar (cartão
+    // recusado, exige autenticação), a troca de plano inteira é revertida —
+    // não deixa a barbearia com o plano trocado e uma fatura pendurada.
     await stripe.subscriptions.update(sub.stripeSubscriptionId, {
       items: [{ id: itemId, price: newPriceId }],
-      proration_behavior: "create_prorations",
+      proration_behavior: "always_invoice",
+      payment_behavior: "error_if_incomplete",
       metadata: { barbershopId: String(barbershopId), plan: newPlan },
     });
   } catch (err) {

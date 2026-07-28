@@ -3696,7 +3696,8 @@ async function loadBillingStatus() {
     changePlanEl.querySelectorAll("[data-change-plan]").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const newPlan = btn.dataset.changePlan;
-        if (!(await showConfirmModal(`Migrar sua assinatura para o plano ${PLAN_BADGE_TEXT[newPlan] || newPlan}?`, { destructive: false }))) return;
+        const confirmMsg = `Migrar sua assinatura para o plano ${PLAN_BADGE_TEXT[newPlan] || newPlan}?\n\nA diferença proporcional do restante do mês é cobrada (ou creditada, se for downgrade) na hora, no cartão já cadastrado.`;
+        if (!(await showConfirmModal(confirmMsg, { destructive: false }))) return;
         btn.disabled = true;
         const original = btn.textContent;
         btn.textContent = "Migrando...";
