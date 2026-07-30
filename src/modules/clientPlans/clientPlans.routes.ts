@@ -260,11 +260,27 @@ clientPlansRouter.post("/api/webhooks/stripe-connect", async (req, res) => {
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(
-      req.rawBody!,
-      req.headers["stripe-signature"] as string,
-      env.STRIPE_CONNECT_WEBHOOK_SECRET
-    );
+    // Esse endpoint recebe uma MISTURA de eventos v1 ("checkout.session.completed",
+    // "customer.subscription.*") e v2 ("v2.core.account[...].updated") — e o
+    // próprio SDK do Stripe exige métodos diferentes pra cada um:
+    // stripe.webhooks.constructEvent() REJEITA notificação v2 (lança erro
+    // "Use stripe.parseEventNotification instead"), e o inverso também é
+    // verdade. Sem essa distinção, todo evento v2 batia como "assinatura
+    // inválida" (400) mesmo com o secret certo — descoberto ao testar o
+    // payload real de conta conectada da Corte Certo.
+    const rawBody = req.rawBody!;
+    let isV2Notification = false;
+    try {
+      isV2Notification = JSON.parse(rawBody.toString("utf8"))?.object === "v2.core.event";
+    } catch {
+      // corpo não é JSON válido — deixa o parser abaixo rejeitar normalmente
+    }
+    const signature = req.headers["stripe-signature"] as string;
+    event = (
+      isV2Notification
+        ? stripe.parseEventNotification(rawBody, signature, env.STRIPE_CONNECT_WEBHOOK_SECRET)
+        : stripe.webhooks.constructEvent(rawBody, signature, env.STRIPE_CONNECT_WEBHOOK_SECRET)
+    ) as unknown as Stripe.Event;
   } catch (err) {
     console.error("[STRIPE CONNECT] Assinatura de webhook inválida:", err);
     return res.sendStatus(400);
