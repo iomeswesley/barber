@@ -13,8 +13,10 @@ import {
   getPhoneVerification,
   incrementPhoneVerificationAttempts,
   markPhoneVerified,
+  upsertPhoneVerifiedTrusted,
   getConnectAccountId,
   getClientPlan,
+  getClientPlans,
   upsertSubscriptionFromCheckout,
   setSubscriptionStatusByStripeId,
   resetUsedThisPeriodByStripeId,
@@ -103,6 +105,21 @@ export async function confirmPhoneVerification(phone: string, code: string): Pro
     throw new AppError("Código incorreto.", 400);
   }
   await markPhoneVerified(phone);
+}
+
+// Ver comentário de upsertPhoneVerifiedTrusted — só pro bot de chat, nunca
+// pro checkout público (minha-conta.html).
+export async function verifyPhoneViaTrustedChannel(phone: string): Promise<void> {
+  await upsertPhoneVerifiedTrusted(phone);
+}
+
+// Lista de planos pra oferecer ao cliente — usado pelo bot de chat. Só
+// mostra algo se a barbearia já concluiu o onboarding do Stripe Connect
+// (senão o cliente veria um plano que não dá pra assinar de verdade).
+export async function getOfferableClientPlans(barbershopId: number) {
+  const connect = await getConnectAccountId(barbershopId);
+  if (!connect?.stripeConnectOnboarded) return [];
+  return getClientPlans(barbershopId, { includeInactive: false });
 }
 
 export async function assertPhoneVerifiedRecently(phone: string): Promise<void> {

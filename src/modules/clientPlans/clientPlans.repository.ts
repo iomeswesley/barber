@@ -143,3 +143,20 @@ export function incrementPhoneVerificationAttempts(phone: string) {
 export function markPhoneVerified(phone: string) {
   return prisma.phoneVerification.update({ where: { phone }, data: { verifiedAt: new Date() } });
 }
+
+// Confia no canal pra provar que o telefone é do próprio cliente — usado só
+// pelo fluxo de chat do WhatsApp, onde o número já vem autenticado pela
+// própria Meta (é o remetente real da mensagem). Diferente do checkout
+// público (minha-conta.html), onde qualquer visitante pode digitar
+// qualquer telefone e por isso passa pelo código OTP de verdade
+// (upsertPhoneVerification + confirmPhoneVerification). codeHash/expiresAt
+// aqui são só placeholders pra satisfazer o schema — assertPhoneVerifiedRecently
+// só olha verifiedAt, nunca essas duas colunas.
+export function upsertPhoneVerifiedTrusted(phone: string) {
+  const now = new Date();
+  return prisma.phoneVerification.upsert({
+    where: { phone },
+    update: { verifiedAt: now },
+    create: { phone, codeHash: "trusted-channel", expiresAt: now, attempts: 0, verifiedAt: now },
+  });
+}

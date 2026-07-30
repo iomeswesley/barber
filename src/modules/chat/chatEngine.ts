@@ -16,6 +16,11 @@ import {
 import { markReviewPrompted } from "@/modules/appointments/appointments.repository.js";
 import { createReview } from "@/modules/reviews/reviews.repository.js";
 import { createEscalation } from "@/modules/escalations/escalations.repository.js";
+import {
+  getOfferableClientPlans,
+  verifyPhoneViaTrustedChannel,
+  createClientPlanCheckoutSession,
+} from "@/modules/clientPlans/clientPlans.service.js";
 import { notifyNewAppointment, notifyEscalation } from "@/modules/push/push.service.js";
 import { sendWhatsappText, whatsappConfigured } from "@/lib/whatsapp.js";
 import { prisma } from "@/lib/prisma.js";
@@ -35,6 +40,18 @@ const WEEKDAYS = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "q
 
 function formatPrice(cents: number): string {
   return `R$ ${Math.round(cents / 100)}`;
+}
+
+function describeClientPlanBenefit(
+  plan: { benefitType: string; benefitValue: number; serviceId: number | null },
+  serviceName?: string
+): string {
+  if (plan.benefitType === "unlimited_service") return `Acesso ilimitado a ${serviceName || "um serviço"}`;
+  if (plan.benefitType === "services_included") {
+    return `${plan.benefitValue}x ${serviceName || "serviço(s)"} incluído(s) por mês`;
+  }
+  if (plan.benefitType === "percent_discount") return `${plan.benefitValue}% de desconto em qualquer serviço`;
+  return "";
 }
 
 // O telefone vai como query param e a rota confere contra o dono do
@@ -70,6 +87,11 @@ Para cancelar ou reagendar:
 - Se o cliente quiser ver, cancelar ou remarcar um agendamento, use listar_meus_agendamentos primeiro para saber quais existem e pegar o ID correto — nunca invente um ID.
 - Confirme com o cliente qual agendamento e a ação (cancelar ou o novo horário) antes de executar cancelar_agendamento ou reagendar_agendamento.
 - Para reagendar, cheque a nova disponibilidade com verificar_horarios_disponiveis antes de confirmar com o cliente.
+
+Planos de assinatura recorrente:
+- Esta barbearia pode oferecer planos de assinatura mensal pros próprios clientes (ex: corte grátis todo mês, desconto fixo). Se o cliente perguntar sobre plano, assinatura, mensalidade ou fidelidade, use listar_planos_assinatura para ver o que está disponível — nunca invente nomes, preços ou benefícios.
+- Se a lista vier vazia, diga que a barbearia ainda não tem planos disponíveis no momento.
+- Se o cliente quiser assinar um plano específico, confirme qual plano antes de chamar assinar_plano_assinatura. NÃO peça telefone nem código de confirmação — o sistema já valida isso automaticamente pelo próprio WhatsApp. A ferramenta retorna um link de pagamento (checkout_url): envie esse link completo, sem alterar, e explique que o pagamento é processado pelo Stripe.
 
 Quando encaminhar para atendimento humano:
 - Se o cliente relatar uma reclamação séria (ex: cobrança indevida, atendimento muito ruim, algo que exige uma decisão que você não pode tomar), uma emergência, ou pedir explicitamente para falar com um humano/atendente, NÃO tente resolver sozinho. Use a ferramenta escalar_atendimento_humano com um resumo curto do motivo (uma vez só por assunto — não chame de novo só porque o cliente repetiu o pedido) e informe de forma empática que a equipe foi avisada e vai entrar em contato diretamente por aqui.
@@ -199,6 +221,23 @@ const tools: Anthropic.Tool[] = [
     },
   },
   {
+    name: "listar_planos_assinatura",
+    description: "Lista os planos de assinatura recorrente que esta barbearia oferece pros próprios clientes (ex: corte grátis mensal, desconto fixo). Use quando o cliente perguntar sobre planos, assinatura, mensalidade ou fidelidade.",
+    input_schema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "assinar_plano_assinatura",
+    description: "Inicia a assinatura de um plano recorrente pro cliente e retorna um link de pagamento do Stripe. O telefone do cliente já é conhecido e validado automaticamente pelo WhatsApp (não faz parte desta ferramenta, não peça código). Só chame depois que o cliente confirmar explicitamente qual plano quer assinar.",
+    input_schema: {
+      type: "object",
+      properties: {
+        plano_id: { type: "integer", description: "ID do plano (obtido de listar_planos_assinatura)" },
+        nome_cliente: { type: "string", description: "Nome do cliente (já conhecido pelo contexto — use-o diretamente)" },
+      },
+      required: ["plano_id", "nome_cliente"],
+    },
+  },
+  {
     name: "registrar_avaliacao",
     description: "Registra a avaliação (nota de 1 a 5 e comentário opcional) de um atendimento já concluído.",
     input_schema: {
@@ -300,6 +339,36 @@ async function executeTool(barbershop: Barbershop, name: string, input: any, cus
       if (input.nota < 1 || input.nota > 5) throw new Error("Nota deve ser entre 1 e 5.");
       await createReview({ appointmentId: input.agendamento_id, rating: input.nota, comment: input.comentario });
       return { avaliacao_registrada: true };
+    }
+    case "listar_planos_assinatura": {
+      const plans = await getOfferableClientPlans(barbershop.id);
+      if (plans.length === 0) return { planos: [], mensagem: "Esta barbearia ainda não tem planos de assinatura disponíveis no momento." };
+      const services = await getServices(barbershop.id);
+      const serviceNameById = new Map(services.map((s) => [s.id, s.name]));
+      return {
+        planos: plans.map((p) => ({
+          id: p.id,
+          nome: p.name,
+          preco_mensal: formatPrice(p.priceCents),
+          beneficio: describeClientPlanBenefit(p, p.serviceId ? serviceNameById.get(p.serviceId) : undefined),
+        })),
+      };
+    }
+    case "assinar_plano_assinatura": {
+      // Diferente do checkout público (minha-conta.html), aqui o telefone já
+      // veio autenticado pela própria Meta (é o remetente real da
+      // mensagem) — dispensa o código OTP que faz sentido só quando
+      // qualquer visitante anônimo pode digitar qualquer telefone.
+      await verifyPhoneViaTrustedChannel(customerPhone);
+      const base = env.PUBLIC_BASE_URL || "";
+      const url = await createClientPlanCheckoutSession(
+        input.plano_id,
+        customerPhone,
+        input.nome_cliente,
+        `${base}/minha-conta.html?plan=success`,
+        `${base}/minha-conta.html?plan=cancel`
+      );
+      return { checkout_url: url, mensagem: "Link de pagamento gerado — envie esse link completo pro cliente concluir a assinatura." };
     }
     default:
       throw new Error(`Ferramenta desconhecida: ${name}`);
