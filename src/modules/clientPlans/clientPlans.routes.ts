@@ -289,6 +289,25 @@ clientPlansRouter.post("/api/webhooks/stripe-connect", async (req, res) => {
         await handleClientPlanSubscriptionDeleted(event.data.object as Stripe.Subscription);
         break;
       default:
+        // Contas criadas em versões recentes da API do Stripe (confirmado:
+        // 2026-06-24.dahlia) não disparam mais "account.updated" (v1) quando
+        // a identidade/requirements mudam — só eventos v2, tipo
+        // "v2.core.account[identity].updated" ou "v2.core.account[requirements].updated".
+        // Esses eventos são "thin": não trazem charges_enabled/payouts_enabled
+        // no payload (só o que mudou em changes.before/after, formato
+        // diferente por sub-recurso). Em vez de tentar interpretar cada
+        // variante, qualquer evento desse tipo só serve de gatilho pra reler
+        // o status real da conta via API v1 (stripe.accounts.retrieve, a
+        // mesma getAccountStatus já usada pelo painel) — sempre confiável,
+        // independente de qual sub-recurso mudou ou de qual formato a Stripe
+        // decidir usar no futuro.
+        if (event.type.startsWith("v2.core.account[")) {
+          const accountId = (event as unknown as { related_object?: { id?: string; type?: string } }).related_object?.id;
+          if (accountId) {
+            const status = await getAccountStatus(accountId);
+            await setConnectOnboardedByAccountId(accountId, status.chargesEnabled && status.payoutsEnabled);
+          }
+        }
         break; // outros eventos de conta conectada (invoice.*, payment_intent.*) não afetam o estado local
     }
     res.sendStatus(200);
