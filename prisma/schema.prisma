@@ -504,3 +504,17 @@ model PhoneVerification {
 
   @@map("phone_verifications")
 }
+
+// Encurtador de link genérico — hoje usado só pro link de checkout do Stripe
+// que o bot manda por WhatsApp (URLs de Checkout Session são bem longas,
+// ruins de mandar numa mensagem). Sem expiração própria: a sessão do Stripe
+// por trás já expira sozinha (24h por padrão), então um link "morto" aqui só
+// redireciona pra uma sessão que o Stripe já vai recusar.
+model ShortLink {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  url       String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("short_links")
+}

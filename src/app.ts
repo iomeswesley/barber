@@ -8,6 +8,7 @@ import { errorHandler, notFoundHandler } from "@/middleware/errorHandler.js";
 import "@/middleware/session.js";
 import "@/middleware/rawBody.js";
 import { sendDailyReminders } from "@/jobs/reminders.js";
+import { resolveShortLink } from "@/lib/shortLink.js";
 import { expireOverdueTrials } from "@/modules/billing/billing.service.js";
 
 import { authRouter } from "@/modules/auth/auth.routes.js";
@@ -132,6 +133,15 @@ export function createApp() {
   // URL antiga da tela de login separada do admin — mantém funcionando
   // como redirect pra não quebrar quem tinha salvo o link.
   app.get("/superadmin-login.html", (_req, res) => res.redirect("/login.html"));
+
+  // Encurtador de link (ver src/lib/shortLink.ts) — hoje usado só pro link
+  // de checkout do Stripe que o bot manda por WhatsApp. Público de propósito
+  // (é justamente o link que vai pro cliente final, sem sessão nenhuma).
+  app.get("/ir/:code", async (req, res) => {
+    const url = await resolveShortLink(req.params.code);
+    if (!url) return res.status(404).send("Link não encontrado ou expirado.");
+    res.redirect(url);
+  });
 
   // Usa process.cwd() em vez de __dirname: __dirname fica em profundidades
   // diferentes conforme o modo (src/ no dev via tsx, dist/src/ compilado),

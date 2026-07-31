@@ -23,6 +23,7 @@ import {
 } from "@/modules/clientPlans/clientPlans.service.js";
 import { notifyNewAppointment, notifyEscalation } from "@/modules/push/push.service.js";
 import { sendWhatsappText, whatsappConfigured } from "@/lib/whatsapp.js";
+import { createShortLink } from "@/lib/shortLink.js";
 import { prisma } from "@/lib/prisma.js";
 import { env } from "@/config/env.js";
 import type { Barbershop, Prisma } from "@prisma/client";
@@ -91,7 +92,7 @@ Para cancelar ou reagendar:
 Planos de assinatura recorrente:
 - Esta barbearia pode oferecer planos de assinatura mensal pros próprios clientes (ex: corte grátis todo mês, desconto fixo). Se o cliente perguntar sobre plano, assinatura, mensalidade ou fidelidade, use listar_planos_assinatura para ver o que está disponível — nunca invente nomes, preços ou benefícios.
 - Se a lista vier vazia, diga que a barbearia ainda não tem planos disponíveis no momento.
-- Se o cliente quiser assinar um plano específico, confirme qual plano antes de chamar assinar_plano_assinatura. NÃO peça telefone nem código de confirmação — o sistema já valida isso automaticamente pelo próprio WhatsApp. A ferramenta retorna um link de pagamento (checkout_url): envie esse link completo, sem alterar, e explique que o pagamento é processado pelo Stripe.
+- Se o cliente quiser assinar um plano específico, confirme qual plano antes de chamar assinar_plano_assinatura. NÃO peça telefone nem código de confirmação — o sistema já valida isso automaticamente pelo próprio WhatsApp. A ferramenta retorna um link de pagamento (checkout_url): envie esse link completo, sem alterar, e explique que o pagamento é processado pelo Stripe. Avise também, de forma breve, que se a tela do link ficar carregando sem abrir, é só tocar em "abrir no navegador" em vez de continuar dentro do próprio WhatsApp (é uma limitação conhecida do navegador embutido, não um erro).
 
 Quando encaminhar para atendimento humano:
 - Se o cliente relatar uma reclamação séria (ex: cobrança indevida, atendimento muito ruim, algo que exige uma decisão que você não pode tomar), uma emergência, ou pedir explicitamente para falar com um humano/atendente, NÃO tente resolver sozinho. Use a ferramenta escalar_atendimento_humano com um resumo curto do motivo (uma vez só por assunto — não chame de novo só porque o cliente repetiu o pedido) e informe de forma empática que a equipe foi avisada e vai entrar em contato diretamente por aqui.
@@ -368,7 +369,13 @@ async function executeTool(barbershop: Barbershop, name: string, input: any, cus
         `${base}/minha-conta.html?plan=success`,
         `${base}/minha-conta.html?plan=cancel`
       );
-      return { checkout_url: url, mensagem: "Link de pagamento gerado — envie esse link completo pro cliente concluir a assinatura." };
+      // URL de Checkout Session do Stripe é enorme — encurta antes de mandar
+      // por WhatsApp (ver src/lib/shortLink.ts).
+      const code = await createShortLink(url);
+      return {
+        checkout_url: `${base}/ir/${code}`,
+        mensagem: "Link de pagamento gerado — envie esse link completo pro cliente concluir a assinatura. Se a tela ficar carregando sem abrir, oriente o cliente a abrir no navegador (Chrome/Safari) em vez de continuar dentro do próprio WhatsApp.",
+      };
     }
     default:
       throw new Error(`Ferramenta desconhecida: ${name}`);
