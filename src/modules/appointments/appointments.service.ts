@@ -113,7 +113,12 @@ export async function createAppointment(input: {
   return insertAppointment({
     ...input,
     endTime,
-    priceChargedCents: charge.priceChargedCents,
+    // Sempre congela um valor concreto aqui, mesmo sem plano de assinatura
+    // (charge.priceChargedCents null) — sem isso, o preço ficava null e era
+    // lido ao vivo de Service.priceCents em toda consulta de histórico
+    // (appointments.types.ts), fazendo qualquer alteração de preço do
+    // serviço reescrever retroativamente o valor de agendamentos passados.
+    priceChargedCents: charge.priceChargedCents ?? service.priceCents,
     clientPlanSubscriptionId: charge.subscriptionId,
     planCreditConsumed: charge.creditConsumed,
   });

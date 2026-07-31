@@ -62,10 +62,12 @@ export function toAppointmentDTO(a: AppointmentWithRelations): AppointmentDTO {
     barberCommissionPercent: Number(a.barber.serviceCommissionPercent),
     serviceName: a.service.name,
     durationMin: a.service.durationMin,
-    // Preço de tabela normalmente; se um plano de assinatura do cliente foi
-    // aplicado na criação, priceChargedCents guarda o valor real cobrado
-    // (com desconto ou grátis) — esse é o único ponto de leitura, então
-    // faturamento/comissão no dashboard já refletem isso automaticamente.
+    // priceChargedCents é sempre gravado no momento da criação (createAppointment)
+    // — com desconto/grátis se um plano de assinatura se aplicou, ou o preço de
+    // tabela da época caso contrário. O fallback pro preço atual do serviço
+    // aqui existe só pra agendamentos gravados antes dessa correção, quando
+    // "sem plano" ainda salvava null e reagia a mudanças de preço do serviço
+    // retroativamente (o próprio bug que motivou essa mudança).
     priceCents: a.priceChargedCents ?? a.service.priceCents,
     clientName: a.client.name,
     clientPhone: a.client.phone,
