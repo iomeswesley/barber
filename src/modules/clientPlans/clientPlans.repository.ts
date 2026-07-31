@@ -66,6 +66,17 @@ export function getActiveSubscriptions(clientId: number, barbershopId: number) {
   });
 }
 
+// Todas as assinaturas (qualquer status) de todos os clientes da barbearia —
+// visão de conjunto pro dono, diferente de getActiveSubscriptions (só as
+// ativas de UM cliente, usada no cálculo de benefício durante o agendamento).
+export function getClientPlanSubscriptions(barbershopId: number) {
+  return prisma.clientPlanSubscription.findMany({
+    where: { barbershopId },
+    include: { client: { select: { name: true, phone: true } }, clientPlan: { select: { name: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 export function incrementUsedThisPeriod(id: number) {
   return prisma.clientPlanSubscription.update({ where: { id }, data: { usedThisPeriod: { increment: 1 } } });
 }

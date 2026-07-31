@@ -31,6 +31,7 @@ import {
   createClientPlan,
   updateClientPlan,
   setClientPlanActive,
+  getClientPlanSubscriptions,
 } from "./clientPlans.repository.js";
 import type { ClientPlanBenefitType } from "@prisma/client";
 import type Stripe from "stripe";
@@ -102,6 +103,30 @@ clientPlansRouter.get("/api/manage/client-plans", requireAuth, requireOwner, asy
     await assertProPlan(barbershopId);
     const plans = await getClientPlans(barbershopId, { includeInactive: true });
     res.json(plans.map(toApiClientPlan));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Visão de conjunto de todas as assinaturas (ativas, atrasadas, canceladas)
+// de todos os clientes — diferente das rotas acima, que só gerenciam os
+// TIPOS de plano oferecidos, não quem de fato assinou.
+clientPlansRouter.get("/api/manage/client-plans/subscriptions", requireAuth, requireOwner, async (req, res, next) => {
+  try {
+    const barbershopId = req.session.user!.barbershopId;
+    await assertProPlan(barbershopId);
+    const subs = await getClientPlanSubscriptions(barbershopId);
+    res.json(
+      subs.map((s) => ({
+        id: s.id,
+        cliente_nome: s.client.name,
+        cliente_telefone: s.client.phone,
+        plano_nome: s.clientPlan.name,
+        status: s.status,
+        valido_ate: s.currentPeriodEnd,
+        assinado_em: s.createdAt,
+      }))
+    );
   } catch (err) {
     next(err);
   }

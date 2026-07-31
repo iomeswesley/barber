@@ -1062,6 +1062,8 @@
       </div>
       <div id="client-plans-manage" style="display:none;">
         <div id="client-plans-list"></div>
+        <div style="font-size:12px; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:.04em; margin:18px 0 8px;">Assinaturas</div>
+        <div id="client-plan-subscriptions-list"></div>
         <span class="add-toggle" id="toggle-add-client-plan">+ Adicionar plano</span>
         <div class="inline-form" id="add-client-plan-form">
           <div class="form-grid">
@@ -3826,6 +3828,34 @@ async function loadClientPlans() {
   manageEl.style.display = "block";
   await populateClientPlanServiceSelect();
   renderClientPlans(plans);
+  loadClientPlanSubscriptions().catch(() => {
+    document.getElementById("client-plan-subscriptions-list").innerHTML = '<div class="empty-state">Erro ao carregar assinaturas.</div>';
+  });
+}
+
+const SUBSCRIPTION_STATUS_LABEL = { active: "Ativa", past_due: "Pagamento pendente", canceled: "Cancelada" };
+
+async function loadClientPlanSubscriptions() {
+  const el = document.getElementById("client-plan-subscriptions-list");
+  const res = await fetch("/api/manage/client-plans/subscriptions");
+  if (!res.ok) throw new Error("Erro ao carregar assinaturas.");
+  const subs = await res.json();
+  if (subs.length === 0) {
+    el.innerHTML = `<div class="empty-state">Nenhum cliente assinou um plano ainda.</div>`;
+    return;
+  }
+  el.innerHTML = subs
+    .map(
+      (s) => `
+    <div class="item-row ${s.status === "canceled" ? "inactive" : ""}">
+      <div>
+        <div class="item-info">${escapeHtml(s.cliente_nome)} · ${escapeHtml(s.plano_nome)}</div>
+        <div class="item-meta">${SUBSCRIPTION_STATUS_LABEL[s.status] || s.status} · desde ${fmtDate(s.assinado_em)}${s.valido_ate ? ` · válido até ${fmtDate(s.valido_ate)}` : ""}</div>
+      </div>
+    </div>
+  `
+    )
+    .join("");
 }
 
 function renderClientPlans(plans) {
