@@ -138,7 +138,7 @@ html[data-theme="light"] {
 html, body {
   margin: 0;
   padding: 0;
-  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: "Segoe UI", system-ui, -apple-system, "Inter", sans-serif;
   /* "clip" em vez de "hidden": impede scroll horizontal igual, mas não cria
      um contexto de scroll próprio em html/body — "hidden" fazia isso e
      quebrava todo position:sticky da página (Safari é o mais afetado). */
@@ -164,7 +164,7 @@ button, input, select, textarea, option {
   font-family: inherit;
 }
 h1, h2, h3 {
-  font-family: "Sora", "Inter", system-ui, sans-serif;
+  font-family: "Segoe UI", system-ui, "Inter", sans-serif;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -353,6 +353,13 @@ html[data-theme="light"] .theme-switch .knob { transform: translateX(26px); }
   border-color: rgb(var(--color-primary) / 0.55);
   box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.14);
 }
+/* Campo obrigatório vazio ao tentar salvar — aplicado via JS (ex:
+   validateRequiredFields em admin.html), removido no próximo input. */
+.form-field input.field-invalid, .form-field select.field-invalid {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px var(--danger-soft);
+}
+.form-field label .required-mark { color: var(--danger); margin-left: 2px; }
 /* Native <select> popups ignoram fundo transparente e caem no padrão
    branco do browser — dá um fundo sólido e theme-aware pra select + options
    ficarem legíveis no dark mode. */

@@ -200,7 +200,7 @@
   }
   .kpi-label { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 1.4px; }
   .kpi-value {
-    font-family: "Sora", "Inter", sans-serif;
+    font-family: "Segoe UI", "Inter", sans-serif;
     /* Tamanho base — clamp() sozinho não bastava porque só reage ao tamanho da
        TELA, não ao tamanho do PRÓPRIO TEXTO (um valor com muitos dígitos, tipo
        "R$ 15.005", ainda quebrava em duas linhas mesmo bem pequeno). O ajuste
@@ -1179,9 +1179,9 @@
         <span class="add-toggle" id="toggle-add-service">+ Adicionar serviço</span>
         <div class="inline-form" id="add-service-form">
           <div class="form-grid">
-            <div class="form-field" style="grid-column: 1 / -1;"><label>Nome</label><input type="text" id="new-service-name" /></div>
-            <div class="form-field"><label>Preço (R$)</label><input type="number" step="0.01" id="new-service-price" /></div>
-            <div class="form-field"><label>Duração (min)</label><input type="number" id="new-service-duration" /></div>
+            <div class="form-field" style="grid-column: 1 / -1;"><label>Nome<span class="required-mark">*</span></label><input type="text" id="new-service-name" /></div>
+            <div class="form-field"><label>Preço (R$)<span class="required-mark">*</span></label><input type="number" step="0.01" id="new-service-price" /></div>
+            <div class="form-field"><label>Duração (min)<span class="required-mark">*</span></label><input type="number" id="new-service-duration" /></div>
           </div>
           <div class="form-actions">
             <button class="btn-primary" id="save-service-btn">Salvar</button>
@@ -2398,17 +2398,22 @@ async function loadManageServices() {
   list.querySelectorAll("[data-save-service]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const id = btn.dataset.saveService;
-      const name = document.getElementById(`edit-service-name-${id}`).value;
-      const price = document.getElementById(`edit-service-price-${id}`).value;
-      const duration = document.getElementById(`edit-service-duration-${id}`).value;
-      if (!name.trim() || !price || !duration) return;
+      const nameEl = document.getElementById(`edit-service-name-${id}`);
+      const priceEl = document.getElementById(`edit-service-price-${id}`);
+      const durationEl = document.getElementById(`edit-service-duration-${id}`);
+      const ok = await validateRequiredFields([
+        { el: nameEl, label: "Nome" },
+        { el: priceEl, label: "Preço" },
+        { el: durationEl, label: "Duração" },
+      ]);
+      if (!ok) return;
       await fetch(`/api/manage/services/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: name.trim(),
-          priceCents: Math.round(Number(price) * 100),
-          durationMin: Number(duration),
+          name: nameEl.value.trim(),
+          priceCents: Math.round(Number(priceEl.value) * 100),
+          durationMin: Number(durationEl.value),
         }),
       });
       loadManageServices();
@@ -2416,14 +2421,42 @@ async function loadManageServices() {
   });
 }
 
+// Marca/desmarca campos vazios com borda vermelha e mostra um alerta listando
+// o que falta — antes disso, tentar salvar com um campo em branco (ex:
+// duração) simplesmente não fazia nada, sem nenhum aviso do motivo.
+function markFieldValidity(el, valid) {
+  el.classList.toggle("field-invalid", !valid);
+}
+async function validateRequiredFields(fields) {
+  const missing = [];
+  fields.forEach(({ el, label }) => {
+    const ok = !!String(el.value ?? "").trim();
+    markFieldValidity(el, ok);
+    if (!ok) missing.push(label);
+  });
+  if (missing.length) {
+    await showAlertModal(`Preencha antes de salvar: ${missing.join(", ")}.`);
+    return false;
+  }
+  return true;
+}
+
 document.getElementById("toggle-add-service").addEventListener("click", () => {
   document.getElementById("add-service-form").classList.toggle("open");
+});
+["new-service-name", "new-service-price", "new-service-duration"].forEach((id) => {
+  document.getElementById(id).addEventListener("input", (e) => markFieldValidity(e.target, true));
 });
 document.getElementById("save-service-btn").addEventListener("click", async () => {
   const name = document.getElementById("new-service-name");
   const price = document.getElementById("new-service-price");
   const duration = document.getElementById("new-service-duration");
-  if (!name.value.trim() || !price.value || !duration.value) return;
+  const ok = await validateRequiredFields([
+    { el: name, label: "Nome" },
+    { el: price, label: "Preço" },
+    { el: duration, label: "Duração" },
+  ]);
+  if (!ok) return;
   await fetch("/api/manage/services", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

@@ -38,6 +38,10 @@ export async function sendVerificationEmail(to: string, ownerName: string, verif
       <p><a href="${verifyUrl}">${verifyUrl}</a></p>
       <p>Esse link expira em 24 horas.</p>
     `,
+    // Filtros de spam penalizam e-mail só-HTML sem alternativa em texto puro
+    // — parte da causa provável de cair em spam (junto do domínio remetente
+    // não bater com a marca do produto, ver EMAIL_FROM no .env).
+    text: `Oi, ${ownerName}!\n\nConfirme seu e-mail pra ativar sua conta no painel da barbearia:\n${verifyUrl}\n\nEsse link expira em 24 horas.`,
   });
   if (error) throw new Error(`Resend: ${error.message}`);
 }
@@ -67,6 +71,7 @@ export async function sendPasswordResetEmail(to: string, name: string, username:
       <p><a href="${resetUrl}">${resetUrl}</a></p>
       <p>Esse link expira em 1 hora. Se não foi você, pode ignorar este e-mail.</p>
     `,
+    text: `Oi, ${name}!\n\nPediram a redefinição da senha da sua conta. Seu usuário de login é ${username}.\n\nSe foi você quem pediu, acesse o link abaixo pra escolher uma senha nova:\n${resetUrl}\n\nEsse link expira em 1 hora. Se não foi você, pode ignorar este e-mail.`,
   });
   if (error) throw new Error(`Resend: ${error.message}`);
 }
@@ -89,6 +94,7 @@ export async function sendAdminGeneratedPasswordEmail(to: string, name: string, 
       <p style="font-size: 18px; font-weight: 700; letter-spacing: 1px;">${newPassword}</p>
       <p>Recomendamos trocar essa senha assim que entrar, pela opção "Esqueci minha senha" na tela de login.</p>
     `,
+    text: `Oi, ${name}!\n\nUm administrador da plataforma redefiniu a senha da sua conta. Seu usuário de login é ${username} e sua nova senha de acesso é:\n${newPassword}\n\nRecomendamos trocar essa senha assim que entrar, pela opção "Esqueci minha senha" na tela de login.`,
   });
   if (error) throw new Error(`Resend: ${error.message}`);
 }
