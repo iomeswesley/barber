@@ -9,6 +9,7 @@ import { getBarbers, getBarber, updateBarber, setBarberActive } from "@/modules/
 import { getServices, getService, updateService, setServiceActive } from "@/modules/services/services.repository.js";
 import { getProducts, getProduct, updateProduct, setProductActive } from "@/modules/products/products.repository.js";
 import { getSubscription, grantTrial, getBillingOverview } from "@/modules/billing/billing.service.js";
+import { serverlessBackupConfigured, runServerlessBackup, listServerlessBackups } from "@/jobs/serverlessBackup.js";
 import type { PlanId } from "@/lib/stripe.js";
 
 const VALID_PLANS: PlanId[] = ["starter", "pro"];
@@ -237,6 +238,28 @@ superAdminRouter.post("/api/superadmin/barbershops/:id/grant-trial", requireSupe
     await grantTrial(barbershopId, plan, trialEndsAt);
 
     res.json({ ok: true, plan, trialEndsAt });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- Backup do banco (off-site, compatível com serverless) ---------------- */
+// Ver src/jobs/serverlessBackup.ts — roda automaticamente todo dia via Vercel
+// Cron (POST /api/cron/backup); estas rotas são pra disparar manualmente e
+// ver o histórico, já que o cron sozinho não deixa rastro nenhum visível.
+
+superAdminRouter.get("/api/superadmin/backups", requireSuperAdmin, async (_req, res, next) => {
+  try {
+    res.json({ configured: serverlessBackupConfigured, backups: await listServerlessBackups() });
+  } catch (err) {
+    next(err);
+  }
+});
+
+superAdminRouter.post("/api/superadmin/backups/run", requireSuperAdmin, async (_req, res, next) => {
+  try {
+    if (!serverlessBackupConfigured) throw new AppError("Backup off-site não configurado no servidor.", 503);
+    res.json({ ok: true, ...(await runServerlessBackup()) });
   } catch (err) {
     next(err);
   }

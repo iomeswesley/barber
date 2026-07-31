@@ -10,6 +10,8 @@ import "@/middleware/rawBody.js";
 import { sendDailyReminders } from "@/jobs/reminders.js";
 import { resolveShortLink } from "@/lib/shortLink.js";
 import { expireOverdueTrials } from "@/modules/billing/billing.service.js";
+import { serverlessBackupConfigured, runServerlessBackup } from "@/jobs/serverlessBackup.js";
+import { captureError } from "@/lib/errorReporting.js";
 
 import { authRouter } from "@/modules/auth/auth.routes.js";
 import { barbershopsRouter } from "@/modules/barbershops/barbershops.routes.js";
@@ -162,6 +164,24 @@ export function createApp() {
     // diário, sem endpoint separado.
     await expireOverdueTrials();
     res.json({ ok: true });
+  });
+
+  // Backup diário compatível com serverless (ver src/jobs/serverlessBackup.ts)
+  // — substitui o backup local via pg_dump (src/jobs/backup.ts), que não
+  // funciona na Vercel. Mesmo esquema de autenticação do cron acima.
+  app.post("/api/cron/backup", async (req, res) => {
+    if (env.CRON_SECRET && req.headers.authorization !== `Bearer ${env.CRON_SECRET}`) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+    if (!serverlessBackupConfigured) return res.status(503).json({ error: "Backup off-site não configurado." });
+    try {
+      const info = await runServerlessBackup();
+      res.json({ ok: true, ...info });
+    } catch (err) {
+      console.error("[BACKUP] Falha no backup agendado:", (err as Error).message);
+      captureError(err);
+      res.status(500).json({ error: "Falha ao gerar backup." });
+    }
   });
 
   /* ---------------- Rotas da API ---------------- */

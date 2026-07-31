@@ -91,12 +91,21 @@
     <div class="tabs">
       <button class="tab-btn active" data-tab="usuarios">Usuários</button>
       <button class="tab-btn" data-tab="barbearias">Barbearias</button>
+      <button class="tab-btn" data-tab="backups">Backups</button>
     </div>
 
     <div class="tab-page active" id="tab-usuarios">
       <div class="card" id="users-wrap">
         <div class="loading">Carregando...</div>
       </div>
+    </div>
+
+    <div class="tab-page" id="tab-backups">
+      <div class="card" style="padding:16px 18px; margin-bottom:18px;">
+        <div class="hint" id="backup-hint" style="margin-bottom:12px;">Carregando...</div>
+        <button class="save-btn" id="backup-run-btn" style="display:none;">Rodar backup agora</button>
+      </div>
+      <div id="backups-wrap"></div>
     </div>
 
     <div class="tab-page" id="tab-barbearias">
@@ -507,6 +516,70 @@ shopSelect.addEventListener("change", () => {
   });
 });
 
+/* ---------------- Backups ---------------- */
+
+let backupsLoaded = false;
+
+function fmtBytes(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+async function loadBackups() {
+  const hint = document.getElementById("backup-hint");
+  const runBtn = document.getElementById("backup-run-btn");
+  const wrap = document.getElementById("backups-wrap");
+  const res = await apiFetch("/api/superadmin/backups");
+  const data = await res.json();
+
+  if (!data.configured) {
+    hint.textContent = "Backup off-site não configurado no servidor (faltam as env vars BACKUP_S3_*).";
+    runBtn.style.display = "none";
+    wrap.innerHTML = "";
+    return;
+  }
+
+  runBtn.style.display = "inline-block";
+  if (data.backups.length === 0) {
+    hint.textContent = "Nenhum backup ainda — roda todo dia às 06:00 (UTC) sozinho, ou clique abaixo pra rodar agora.";
+    wrap.innerHTML = "";
+    return;
+  }
+  const last = new Date(data.backups[0].lastModified);
+  const hoursAgo = Math.round((Date.now() - last.getTime()) / 3600000);
+  hint.textContent = `Último backup: ${last.toLocaleString("pt-BR")} (${hoursAgo}h atrás) · ${data.backups.length} cópia(s) guardada(s).`;
+
+  wrap.innerHTML = `
+    <table>
+      <thead><tr><th>Arquivo</th><th>Tamanho</th><th>Data</th></tr></thead>
+      <tbody>${data.backups
+        .map(
+          (b) => `<tr><td>${escapeHtml(b.key.replace("barbearia-backups/", ""))}</td><td>${fmtBytes(b.sizeBytes)}</td><td>${new Date(b.lastModified).toLocaleString("pt-BR")}</td></tr>`
+        )
+        .join("")}</tbody>
+    </table>
+  `;
+}
+
+document.getElementById("backup-run-btn").addEventListener("click", async () => {
+  const btn = document.getElementById("backup-run-btn");
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = "Rodando...";
+  try {
+    const res = await apiFetch("/api/superadmin/backups/run", { method: "POST" });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || "Falha ao rodar backup.");
+    await loadBackups();
+  } catch (err) {
+    document.getElementById("backup-hint").textContent = `Erro: ${err.message}`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+});
+
 /* ---------------- Abas ---------------- */
 
 document.querySelectorAll(".tab-btn").forEach((btn) => {
@@ -520,6 +593,12 @@ document.querySelectorAll(".tab-btn").forEach((btn) => {
       loadShopList().catch(() => { shopSelect.innerHTML = '<option value="">Erro ao carregar</option>'; });
       loadBillingOverview().catch(() => {
         shopsOverviewWrap.innerHTML = '<div class="empty">Erro ao carregar visão geral de cobrança.</div>';
+      });
+    }
+    if (btn.dataset.tab === "backups" && !backupsLoaded) {
+      backupsLoaded = true;
+      loadBackups().catch(() => {
+        document.getElementById("backup-hint").textContent = "Erro ao carregar backups.";
       });
     }
   });
