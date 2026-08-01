@@ -3629,6 +3629,16 @@ async function loadWhatsappConnectStatus() {
           config_id: config.config_id,
           response_type: "code",
           override_default_response_type: true,
+          // TODO(coexistence): oferecer também o modo "Coexistence" (dono mantém o
+          // WhatsApp Business App normal no celular e a Cloud API no mesmo número, sem
+          // migrar/perder o app). Depende de aprovação como Tech Provider pela Meta
+          // (pendente — ver WHATSAPP_APP_ID/WHATSAPP_CONFIG_ID em whatsappConnect.service.ts).
+          // Muda featureType pra "whatsapp_business_app_onboarding" nesse extras, o dono
+          // digita o número já ativo no app (7+ dias de uso, versão recente do app) e
+          // confirma escaneando um QR Code dentro do próprio WhatsApp Business App —
+          // dali em diante o fluxo de callback abaixo é o mesmo. Detalhes exatos (e se a
+          // config_id do dashboard da Meta precisa de flag própria pra isso) só dá pra
+          // confirmar depois que a aprovação sair: https://developers.facebook.com/docs/whatsapp/embedded-signup/custom-flows/onboarding-business-app-users/
           extras: { setup: {}, featureType: "", sessionInfoVersion: "3" },
         }
       );

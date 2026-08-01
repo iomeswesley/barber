@@ -8,6 +8,14 @@ const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 
 export const whatsappConnectConfigured = !!(env.WHATSAPP_APP_ID && env.WHATSAPP_CONFIG_ID && env.WHATSAPP_APP_SECRET);
 
+// TODO(coexistence): quando a Meta aprovar a conta como Tech Provider (WHATSAPP_APP_ID/
+// WHATSAPP_CONFIG_ID deixarem de estar vazios), implementar o modo "Coexistence" — dono
+// mantém o WhatsApp Business App normal no número enquanto a Cloud API roda em paralelo,
+// sem precisar migrar/perder o app. Ver TODO equivalente no botão de conexão em admin.html
+// (webroot/admin.html, ~linha 3628) pra onde entra o featureType diferente e o passo de QR
+// Code. exchangeCodeForToken/registerPhoneNumber/subscribeAppToWaba abaixo devem valer sem
+// mudança nesse fluxo — a diferença é só na etapa de FB.login do frontend.
+
 function requireConfigured() {
   if (!whatsappConnectConfigured) {
     throw new AppError("Conexão self-service de WhatsApp ainda não configurada no servidor.", 503);
