@@ -14,35 +14,117 @@
 <script src="/assets/theme-toggle.js" defer></script>
 <script src="/assets/tour.js" defer></script>
 <style>
-  /* ---------- Header ---------- */
+  /* ==========================================================================
+     Layout — menu lateral (sidebar)
+
+     Estrutura: <div class="app-shell"><aside class="sidebar">…</aside>
+     <div class="app-main"><header class="topbar">…</header><main>…</main>
+     </div></div>. A navegação entre páginas continua sendo os mesmos botões
+     `#page-tabs button[data-page]` de sempre — só mudou de barra horizontal
+     pra lista vertical, o JS que troca de página (`querySelectorAll("#page-tabs
+     button")`, no fim do arquivo) não precisou mudar uma linha.
+
+     Breakpoint da sidebar: 960px. Abaixo disso ela vira um painel deslizante
+     (off-canvas) acionado pelo botão hambúrguer no topbar, com um scrim atrás
+     — ver .sidebar-toggle / .sidebar-scrim mais abaixo e o JS perto do fim do
+     arquivo (openSidebar/closeSidebar).
+     ========================================================================== */
+  .app-shell { display: flex; align-items: flex-start; min-height: 100vh; }
+
+  .sidebar {
+    width: 248px; flex-shrink: 0;
+    position: sticky; top: 0; height: 100vh;
+    display: flex; flex-direction: column;
+    background: var(--card-bg-solid);
+    border-right: 1px solid var(--divider);
+    transition: background-color .2s ease, border-color .2s ease, transform .25s ease;
+  }
+  .sidebar-brand {
+    display: flex; align-items: center; gap: 12px;
+    padding: 20px 18px;
+    border-bottom: 1px solid var(--divider);
+    flex-shrink: 0;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .brand .logo {
+    width: 42px; height: 42px; border-radius: 13px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+    background: var(--brand-grad-logo);
+  }
+  .brand .titles { min-width: 0; }
+  .brand .titles h1 {
+    font-size: 15px; margin: 0; font-weight: 700; letter-spacing: -0.01em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .brand .titles p {
+    margin: 0; font-size: 10.5px; color: var(--text-muted); letter-spacing: 1.6px; text-transform: uppercase;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* Lista vertical de navegação — item ativo vira pílula com o verde da
+     marca em fundo suave, igual o padrão de sidebar do Google Admin/Cloud
+     Console (nada de barra lateral colorida nem ícone só, sempre ícone +
+     rótulo por extenso). */
+  .sidebar-nav {
+    flex: 1; min-height: 0; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 14px 12px;
+  }
+  .sidebar-nav button {
+    display: flex; align-items: center; gap: 12px;
+    width: 100%; border: none; background: transparent;
+    padding: 10px 14px; border-radius: 10px;
+    color: var(--text-secondary); font-size: 13.5px; font-weight: 600; text-align: left;
+    cursor: pointer; transition: background-color .15s ease, color .15s ease;
+  }
+  .sidebar-nav button .nav-ico { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
+  .sidebar-nav button:not(.active):hover { background: var(--surface-raise); color: var(--text-primary); }
+  .sidebar-nav button.active { background: var(--brand-soft); color: var(--brand); font-weight: 700; }
+
+  .sidebar-footer {
+    flex-shrink: 0; padding: 12px; border-top: 1px solid var(--divider);
+  }
+  .sidebar-footer #logout-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; padding: 10px 14px;
+  }
+
+  /* ---------- Topbar (dentro da coluna de conteúdo) ---------- */
+  .app-main { flex: 1; min-width: 0; }
   header.topbar {
     position: sticky;
     top: 0;
-    z-index: 40;
+    z-index: 30;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     flex-wrap: wrap;
-    gap: 12px 16px;
-    padding: 14px 24px;
+    gap: 10px;
+    padding: 12px 24px;
     background: var(--card-bg-solid);
     border-bottom: 1px solid var(--divider);
     transition: background-color .2s ease, border-color .2s ease;
   }
-  header.topbar .page-tabs { margin: 0; }
-
-
-  .brand { display: flex; align-items: center; gap: 12px; }
-  .brand .logo {
-    width: 42px; height: 42px; border-radius: 13px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px;
-    background: var(--brand-grad-logo);
-  }
-  .brand .titles h1 { font-size: 16px; margin: 0; font-weight: 700; letter-spacing: -0.01em; }
-  .brand .titles p { margin: 0; font-size: 10.5px; color: var(--text-muted); letter-spacing: 1.6px; text-transform: uppercase; }
-
   .topbar-right { display: flex; align-items: center; gap: 14px; }
+
+  /* Botão hambúrguer: fica escondido em telas largas (a sidebar já está
+     sempre visível) e some do fluxo — display:none evita que ganhe foco por
+     Tab quando não está sendo usado. */
+  .sidebar-toggle {
+    display: none;
+    border: 1px solid var(--card-border); background: var(--card-bg); color: var(--text-secondary);
+    width: 36px; height: 36px; border-radius: 10px; font-size: 16px; cursor: pointer;
+    align-items: center; justify-content: center; flex-shrink: 0; margin-right: auto;
+  }
+  .sidebar-toggle:hover { border-color: var(--card-border-hover); color: var(--brand); }
+
+  .sidebar-scrim {
+    display: none;
+    position: fixed; inset: 0; z-index: 45;
+    background: var(--scrim);
+    opacity: 0; transition: opacity .2s ease;
+  }
 
   /* ---------- Badge de plano (header + Cobrança) ----------
      Cores propositalmente fora da paleta de marca (verde) — funcionam como
@@ -560,50 +642,35 @@
   .form-row-3 { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
   @media (max-width: 560px) { .form-row-3 { grid-template-columns: 1fr; } }
 
-  /* ---------- Mobile: cabeçalho reestruturado ----------
+  /* ---------- Sidebar off-canvas (tablet/mobile) ----------
      Fica por último no stylesheet de propósito: várias regras acima
-     (.topbar-right, .tabs, .page-tabs) são redefinidas depois de onde
-     apareciam antes, então um bloco de mesma especificidade posicionado
-     mais cedo no arquivo perderia a cascata pra elas. */
+     (.sidebar, .topbar-right, .sidebar-toggle) são redefinidas depois de onde
+     apareciam antes, então um bloco de mesma especificidade posicionado mais
+     cedo no arquivo perderia a cascata pra elas. */
+  @media (max-width: 960px) {
+    .sidebar {
+      position: fixed; left: 0; top: 0; z-index: 50;
+      width: 264px; max-width: 82vw;
+      transform: translateX(-100%);
+      box-shadow: var(--shadow-hover);
+    }
+    /* .open é alternada em JS (openSidebar/closeSidebar, perto do fim do
+       arquivo) — clique no hambúrguer, no scrim, num item de menu ou Esc. */
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-toggle { display: flex; }
+    .sidebar-scrim.open { display: block; opacity: 1; }
+  }
+
   @media (max-width: 560px) {
     header.topbar { padding: 10px 12px; gap: 8px; }
-    .brand { order: 1; gap: 8px; min-width: 0; flex-shrink: 1; }
-    .brand .titles { min-width: 0; }
-    .brand .titles h1 {
-      font-size: 12.5px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .brand .titles p { font-size: 9px; }
-    .brand .logo { width: 30px; height: 30px; font-size: 15px; border-radius: 9px; flex-shrink: 0; }
-    /* Marca + controles (tema/chat/sair) ficam juntos na 1ª linha do
-       cabeçalho, alinhados à direita da página. Os tabs de página viram
-       uma 2ª linha, ocupando 100% da largura e quebrando em várias linhas
-       em vez de exigir scroll lateral. */
-    .topbar-right { order: 2; width: auto; margin-left: auto; flex-shrink: 0; gap: 5px; }
-    #push-btn.icon-btn { width: 26px; height: 26px; font-size: 12px; }
+    .topbar-right { gap: 5px; }
+    #push-btn.icon-btn, #tour-btn.icon-btn { width: 26px; height: 26px; font-size: 12px; }
     .theme-switch { width: 40px; height: 22px; }
     /* Switch menor no mobile: o deslocamento do knob acompanha (claro à
        direita, escuro à esquerda — mesma lógica do theme.css). */
     .theme-switch .knob { width: 16px; height: 16px; font-size: 9px; transform: translateX(18px); }
     html[data-theme="dark"] .theme-switch .knob { transform: translateX(0); }
     .link-back { padding: 6px 8px; font-size: 11.5px; }
-    header.topbar .page-tabs {
-      order: 3;
-      flex-basis: 100%;
-      width: 100%;
-      flex-wrap: wrap;
-      justify-content: flex-start;
-      border-radius: 14px;
-    }
-    header.topbar .page-tabs button {
-      flex: 1 1 auto;
-      padding: 7px 6px;
-      font-size: 10.5px;
-      white-space: nowrap;
-    }
-    select.shop-select { flex: 1; min-width: 0; }
     .link-back span.full { display: none; }
     main { padding: 16px 14px; }
   }
@@ -659,23 +726,34 @@
 
 
 
-<header class="topbar">
-  <div class="brand">
+<div class="app-shell">
+
+<div class="sidebar-scrim" id="sidebar-scrim"></div>
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
     <div class="logo">💈</div>
     <div class="titles">
       <h1>Painel Premium <span id="plan-badge" class="plan-badge" style="display:none; margin-left:6px; vertical-align:middle;"></span></h1>
       <p id="shop-label">Barbearia</p>
     </div>
   </div>
-  <div class="tabs page-tabs" id="page-tabs">
-    <button data-page="overview" class="active">Visão geral</button>
-    <button data-page="agenda">Agenda</button>
-    <button data-page="conversas">Conversas</button>
-    <button data-page="historico">Histórico</button>
-    <button data-page="estoque">Estoque</button>
-    <button data-page="configuracoes">Configurações</button>
-    <button data-page="auditoria">Auditoria</button>
+  <nav class="sidebar-nav" id="page-tabs">
+    <button data-page="overview" class="active"><span class="nav-ico">🏠</span>Visão geral</button>
+    <button data-page="agenda"><span class="nav-ico">📅</span>Agenda</button>
+    <button data-page="conversas"><span class="nav-ico">💬</span>Conversas</button>
+    <button data-page="historico"><span class="nav-ico">🕐</span>Histórico</button>
+    <button data-page="estoque"><span class="nav-ico">📦</span>Estoque</button>
+    <button data-page="configuracoes"><span class="nav-ico">⚙️</span>Configurações</button>
+    <button data-page="auditoria"><span class="nav-ico">🛡️</span>Auditoria</button>
+  </nav>
+  <div class="sidebar-footer">
+    <button id="logout-btn" class="link-back" style="cursor:pointer;">Sair</button>
   </div>
+</aside>
+
+<div class="app-main">
+<header class="topbar">
+  <button id="sidebar-toggle" class="sidebar-toggle" title="Abrir menu" aria-label="Abrir menu" aria-expanded="false" aria-controls="sidebar">☰</button>
   <div class="topbar-right">
     <button id="tour-btn" class="icon-btn" title="Ver tour guiado" style="font-size:16px;">🧭</button>
     <button id="push-btn" class="icon-btn" title="Ativar notificações push" style="display:none; font-size:16px;">🔔</button>
@@ -686,7 +764,6 @@
       <svg width="15" height="15" viewBox="0 0 24 24" fill="#25D366" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z M12.017 2C6.508 2 2.03 6.478 2.03 11.987c0 2.152.68 4.16 1.836 5.798L2 22l4.36-1.844a9.933 9.933 0 0 0 5.657 1.762c5.508 0 9.987-4.478 9.987-9.987C22.004 6.478 17.526 2 12.017 2zm0 18.062a8.03 8.03 0 0 1-4.362-1.271l-.313-.187-3.234 1.369.965-3.253-.204-.334A8.001 8.001 0 1 1 20.03 12.03a8.048 8.048 0 0 1-8.013 8.032z" /></svg>
       <span class="full">Simulador de chat</span>
     </a>
-    <button id="logout-btn" class="link-back" style="cursor:pointer;">Sair</button>
   </div>
 </header>
 
@@ -1185,6 +1262,9 @@
   </div>
 </main>
 
+</div><!-- /.app-main -->
+</div><!-- /.app-shell -->
+
 <script>
 const AVATAR_COLORS = ["#81c995", "#8ab4f8", "#f28b82", "#c58af9", "#fdd663"];
 const AVATAR_COLORS_LIGHT = ["#1e8e3e", "#1a73e8", "#d93025", "#a142f4", "#f9ab00"];
@@ -1274,7 +1354,7 @@ const miniCharts = {};
 const shopLabel = document.getElementById("shop-label");
 
 const ADMIN_TOUR_STEPS = [
-  { selector: "#page-tabs", title: "Bem-vindo(a) ao Painel Premium!", text: "Esse menu no topo leva pra cada parte do seu negócio. Vamos passear por cada uma rapidinho." },
+  { selector: "#page-tabs", title: "Bem-vindo(a) ao Painel Premium!", text: "Esse menu na lateral leva pra cada parte do seu negócio. Vamos passear por cada uma rapidinho." },
   { activateSelector: '#page-tabs button[data-page="overview"]', selector: "#kpi-grid", title: "Visão geral do mês", text: "Faturamento, previsão, ticket médio, barbeiro do mês e taxa de no-show — o resumo do seu negócio de relance." },
   { selector: "#revenue-chart-card", title: "Faturamento e ocupação dia a dia", text: "Acompanhe a evolução do faturamento e veja os horários mais ocupados de cada dia da semana." },
   { selector: "#barber-analysis-card", title: "Análise por barbeiro", text: "Faturamento e ocupação da agenda de cada barbeiro no mês atual, com o ranking completo." },
@@ -1289,7 +1369,13 @@ const ADMIN_TOUR_STEPS = [
   { selector: "#tour-btn", title: "Pronto!", text: "Quando quiser rever esse tour, é só clicar aqui de novo." },
 ];
 
-document.getElementById("tour-btn").addEventListener("click", () => startTour(ADMIN_TOUR_STEPS));
+document.getElementById("tour-btn").addEventListener("click", () => {
+  // 1º passo do tour aponta pro menu lateral — no mobile ele começa fechado
+  // (off-canvas), então sem abrir aqui o destaque cairia em cima de um
+  // elemento fora da tela.
+  openSidebar();
+  startTour(ADMIN_TOUR_STEPS);
+});
 
 async function loadMe() {
   const res = await fetch("/api/auth/me");
@@ -1331,6 +1417,38 @@ document.getElementById("resend-verify-btn").addEventListener("click", async (e)
 document.getElementById("logout-btn").addEventListener("click", async () => {
   await fetch("/api/auth/logout", { method: "POST" });
   window.location.href = "/login.html";
+});
+
+/* ---------------- Sidebar off-canvas (tablet/mobile) ----------------
+   Acima de 960px a sidebar já fica sempre visível (ver CSS) e nada aqui se
+   aplica — esses handlers só importam abaixo do breakpoint, quando ela vira
+   um painel deslizante. */
+const sidebarEl = document.getElementById("sidebar");
+const sidebarToggleBtn = document.getElementById("sidebar-toggle");
+const sidebarScrimEl = document.getElementById("sidebar-scrim");
+
+function openSidebar() {
+  sidebarEl.classList.add("open");
+  sidebarScrimEl.classList.add("open");
+  sidebarToggleBtn.setAttribute("aria-expanded", "true");
+}
+function closeSidebar() {
+  sidebarEl.classList.remove("open");
+  sidebarScrimEl.classList.remove("open");
+  sidebarToggleBtn.setAttribute("aria-expanded", "false");
+}
+sidebarToggleBtn.addEventListener("click", () => {
+  if (sidebarEl.classList.contains("open")) closeSidebar(); else openSidebar();
+});
+sidebarScrimEl.addEventListener("click", closeSidebar);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && sidebarEl.classList.contains("open")) closeSidebar();
+});
+// Trocar de página fecha a sidebar no mobile — sem isso o painel ficaria
+// aberto por cima do conteúdo depois de escolher a página, obrigando a
+// fechar manualmente pra ver o que acabou de abrir.
+document.querySelectorAll("#page-tabs button").forEach((btn) => {
+  btn.addEventListener("click", closeSidebar);
 });
 
 /* ---------------- KPIs ---------------- */
