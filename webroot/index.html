@@ -20,6 +20,13 @@
     padding: 14px 28px;
     background: var(--card-bg-solid);
     border-bottom: 1px solid var(--divider);
+    /* Promove o header pra sua própria camada de composição — sem isso,
+       navegadores mobile (principalmente iOS Safari) recalculam o elemento
+       "sticky" junto com o resto da página a cada frame de scroll, e com uma
+       página longa e pesada isso aparece como o cabeçalho "vibrando"/tremendo
+       enquanto rola. translateZ(0) não desloca nada, só isola o repaint. */
+    transform: translateZ(0);
+    backface-visibility: hidden;
   }
   .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
   .brand .logo {
@@ -182,6 +189,12 @@
     .progress-track { order: 3; flex-basis: 100%; max-width: none; }
   }
 
+  /* min-height calculado em JS (measureFeaturePanelsHeight) = altura do
+     painel mais alto entre os 6. Sem isso, trocar de aba no auto-play muda a
+     altura da seção (cada recurso tem texto de tamanho diferente) e o resto
+     da página "pula" pra cima/baixo a cada troca — sensação de página se
+     mexendo sozinha, mesmo sem o usuário ter rolado nada. */
+  .feature-panels { position: relative; }
   .feature-panel { display: none; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
   .feature-panel.active { display: grid; animation: fadeIn .4s ease; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -437,6 +450,7 @@
         <button id="tab-next" title="Próximo recurso" aria-label="Próximo recurso">»</button>
       </div>
 
+      <div class="feature-panels" id="feature-panels">
       <!-- Painel 0: IA -->
       <div class="feature-panel active" data-panel="0">
         <div>
@@ -574,6 +588,7 @@
           <div class="mock-row"><div><div class="name">Avaliação recebida</div><div class="sub">Pedro · ★★★★★</div></div><span class="mock-pill good">registrada</span></div>
           <div class="mock-row"><div><div class="name">Backup diário</div><div class="sub">banco de dados</div></div><span class="mock-pill good">concluído</span></div>
         </div>
+      </div>
       </div>
     </section>
 
@@ -784,6 +799,7 @@
     // ---- Tabs de recursos com auto-play ----
     const tabButtons = document.querySelectorAll('.tab-btn');
     const panels = document.querySelectorAll('.feature-panel');
+    const featurePanelsWrap = document.getElementById('feature-panels');
     const progressFill = document.getElementById('progress-fill');
     const autoplayToggle = document.getElementById('autoplay-toggle');
     const autoplayLabel = document.getElementById('autoplay-label');
@@ -852,7 +868,31 @@
       showTab((current + 1) % panels.length);
       stopAutoplay();
     });
+
+    // Fixa a altura do wrapper na do painel mais alto entre os 6 — cada
+    // recurso tem texto de tamanho diferente, então sem isso a seção mudava
+    // de altura a cada troca de aba (manual ou automática) e empurrava todo
+    // o resto da página, dando a sensação de a página se mexer sozinha.
+    // Recalcula no resize (debounced) porque o breakpoint de 860px muda o
+    // layout de 2 colunas pra 1 — a altura máxima é bem diferente entre eles.
+    function measureFeaturePanelsHeight() {
+      let max = 0;
+      panels.forEach((p) => {
+        const wasActive = p.classList.contains('active');
+        if (!wasActive) p.style.display = 'grid';
+        max = Math.max(max, p.scrollHeight);
+        if (!wasActive) p.style.display = '';
+      });
+      featurePanelsWrap.style.minHeight = max + 'px';
+    }
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(measureFeaturePanelsHeight, 150);
+    });
+
     showTab(0);
+    measureFeaturePanelsHeight();
     startAutoplay();
 
     // ---- FAQ accordion ----
