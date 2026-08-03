@@ -202,33 +202,27 @@
     .kpi-grid { grid-template-columns: repeat(4, 1fr); }
   }
 
-  /* ---------- KPI split layout: big revenue card left, stacked cards right ---------- */
-  .kpi-split-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-  @media (min-width: 900px) {
-    .kpi-split-grid { grid-template-columns: 1.8fr 1fr; align-items: stretch; }
-  }
-  .kpi-revenue-card { padding: 20px 22px; }
-  .kpi-revenue-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
-    height: 100%;
-  }
-  @media (max-width: 640px) {
-    .kpi-revenue-card { padding: 16px; }
-    .kpi-revenue-grid { grid-template-columns: 1fr; gap: 14px; }
-  }
-  .kpi-revenue-item { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-  .mini-chart-wrap { position: relative; flex: 1; min-height: 56px; margin-top: 10px; }
-  .kpi-stack { display: flex; flex-direction: column; gap: 12px; }
-  .kpi-stack .kpi-card { flex: 1; }
-  .kpi-card-compact { padding: 12px 20px; }
-  .kpi-card-compact .kpi-top { margin-bottom: 6px; }
-  .kpi-card-compact .kpi-value { font-size: 21px; }
+  /* ---------- KPI grid: 3 colunas x 2 linhas (bruto/líquido/agendamentos,
+     previsão bruto/previsão líquido/ticket médio), igual ao mockup de
+     referência do produto. Cada card é independente (não tem mais um card
+     grande de faturamento com 4 itens internos + uma coluna estreita ao
+     lado) — todos usam a mesma altura de linha via grid stretch (padrão),
+     então os 2 cards sem mini-gráfico (agendamentos, ticket médio — sem
+     série diária disponível na API hoje) ficam com espaço em branco embaixo
+     em vez de description desalinhada. */
+  /* align-items:start (não o stretch padrão do grid) — os 2 cards sem
+     mini-gráfico (agendamentos, ticket médio) ficam na altura natural deles
+     em vez de esticados até a altura do vizinho com gráfico, o que deixava
+     um vazio grande embaixo do valor. */
+  .kpi-grid-6 { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
+  @media (min-width: 640px) { .kpi-grid-6 { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 1100px) { .kpi-grid-6 { grid-template-columns: repeat(3, 1fr); } }
+  .mini-chart-wrap { position: relative; min-height: 56px; margin-top: 10px; }
+
+  /* Barbeiro do mês / Taxa de no-show — linha própria abaixo do grid de 6,
+     como no mockup (não ficam mais empilhados numa coluna estreita). */
+  .kpi-secondary-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 16px; }
+  @media (min-width: 640px) { .kpi-secondary-grid { grid-template-columns: repeat(2, 1fr); } }
 
   /* ---------- Scrollbar customizada ---------- */
   .ranking-list, .appt-list, #review-list, .modal-scroll {
@@ -777,56 +771,53 @@
   <div id="page-overview" class="page-section">
   <div class="alert-banner" id="alert-banner" style="display:none;"></div>
   <div class="section-title">Visão geral do mês</div>
-  <div class="kpi-split-grid" id="kpi-grid">
-    <div class="card kpi-revenue-card">
-      <div class="kpi-revenue-grid">
-        <div class="kpi-revenue-item">
-          <div class="kpi-top"><span class="kpi-label">Faturamento bruto</span><span class="kpi-icon">💰</span></div>
-          <div class="kpi-value" id="kpi-revenue-bruto">—</div>
-          <div class="kpi-sub" id="kpi-revenue-bruto-sub"></div>
-          <div class="mini-chart-wrap"><canvas id="mini-chart-bruto"></canvas></div>
-        </div>
-        <div class="kpi-revenue-item">
-          <div class="kpi-top"><span class="kpi-label">Faturamento líquido</span><span class="kpi-icon">💵</span></div>
-          <div class="kpi-value" id="kpi-revenue-liquido">—</div>
-          <div class="kpi-sub" id="kpi-revenue-liquido-sub"></div>
-          <div class="mini-chart-wrap"><canvas id="mini-chart-liquido"></canvas></div>
-        </div>
-        <div class="kpi-revenue-item">
-          <div class="kpi-top"><span class="kpi-label">Previsão bruto</span><span class="kpi-icon">🔮</span></div>
-          <div class="kpi-value" id="kpi-revenue-previsao-bruto">—</div>
-          <div class="kpi-sub" id="kpi-revenue-previsao-bruto-sub"></div>
-          <div class="mini-chart-wrap"><canvas id="mini-chart-previsao-bruto"></canvas></div>
-        </div>
-        <div class="kpi-revenue-item">
-          <div class="kpi-top"><span class="kpi-label">Previsão líquido</span><span class="kpi-icon">📊</span></div>
-          <div class="kpi-value" id="kpi-revenue-previsao-liquido">—</div>
-          <div class="kpi-sub" id="kpi-revenue-previsao-liquido-sub"></div>
-          <div class="mini-chart-wrap"><canvas id="mini-chart-previsao-liquido"></canvas></div>
-        </div>
-      </div>
+  <div class="kpi-grid-6" id="kpi-grid">
+    <div class="card kpi-card">
+      <div class="kpi-top"><span class="kpi-label">Faturamento bruto</span><span class="kpi-icon">💰</span></div>
+      <div class="kpi-value" id="kpi-revenue-bruto">—</div>
+      <div class="kpi-sub" id="kpi-revenue-bruto-sub"></div>
+      <div class="mini-chart-wrap"><canvas id="mini-chart-bruto"></canvas></div>
     </div>
-    <div class="kpi-stack">
-      <div class="card kpi-card kpi-card-compact">
-        <div class="kpi-top"><span class="kpi-label">Agendamentos realizados</span><span class="kpi-icon">✅</span></div>
-        <div class="kpi-value" id="kpi-count">—</div>
-        <div class="kpi-sub" id="kpi-count-sub"></div>
-      </div>
-      <div class="card kpi-card kpi-card-compact">
-        <div class="kpi-top"><span class="kpi-label">Ticket médio</span><span class="kpi-icon">🎟️</span></div>
-        <div class="kpi-value" id="kpi-ticket">—</div>
-        <div class="kpi-sub" id="kpi-ticket-sub"></div>
-      </div>
-      <div class="card kpi-card kpi-card-compact">
-        <div class="kpi-top"><span class="kpi-label">Barbeiro do mês</span><span class="kpi-icon">🏆</span></div>
-        <div class="kpi-value barber-of-month-name" id="kpi-barber">—</div>
-        <div class="kpi-sub" id="kpi-barber-sub"></div>
-      </div>
-      <div class="card kpi-card kpi-card-compact">
-        <div class="kpi-top"><span class="kpi-label">Taxa de no-show</span><span class="kpi-icon">🚫</span></div>
-        <div class="kpi-value" id="kpi-noshow">—</div>
-        <div class="kpi-sub" id="kpi-noshow-sub"></div>
-      </div>
+    <div class="card kpi-card">
+      <div class="kpi-top"><span class="kpi-label">Faturamento líquido</span><span class="kpi-icon">💵</span></div>
+      <div class="kpi-value" id="kpi-revenue-liquido">—</div>
+      <div class="kpi-sub" id="kpi-revenue-liquido-sub"></div>
+      <div class="mini-chart-wrap"><canvas id="mini-chart-liquido"></canvas></div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-top"><span class="kpi-label">Agendamentos realizados</span><span class="kpi-icon">✅</span></div>
+      <div class="kpi-value" id="kpi-count">—</div>
+      <div class="kpi-sub" id="kpi-count-sub"></div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-top"><span class="kpi-label">Previsão bruto</span><span class="kpi-icon">🔮</span></div>
+      <div class="kpi-value" id="kpi-revenue-previsao-bruto">—</div>
+      <div class="kpi-sub" id="kpi-revenue-previsao-bruto-sub"></div>
+      <div class="mini-chart-wrap"><canvas id="mini-chart-previsao-bruto"></canvas></div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-top"><span class="kpi-label">Previsão líquido</span><span class="kpi-icon">📊</span></div>
+      <div class="kpi-value" id="kpi-revenue-previsao-liquido">—</div>
+      <div class="kpi-sub" id="kpi-revenue-previsao-liquido-sub"></div>
+      <div class="mini-chart-wrap"><canvas id="mini-chart-previsao-liquido"></canvas></div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-top"><span class="kpi-label">Ticket médio</span><span class="kpi-icon">🎟️</span></div>
+      <div class="kpi-value" id="kpi-ticket">—</div>
+      <div class="kpi-sub" id="kpi-ticket-sub"></div>
+    </div>
+  </div>
+
+  <div class="kpi-secondary-grid">
+    <div class="card kpi-card">
+      <div class="kpi-top"><span class="kpi-label">Barbeiro do mês</span><span class="kpi-icon">🏆</span></div>
+      <div class="kpi-value barber-of-month-name" id="kpi-barber">—</div>
+      <div class="kpi-sub" id="kpi-barber-sub"></div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-top"><span class="kpi-label">Taxa de no-show</span><span class="kpi-icon">🚫</span></div>
+      <div class="kpi-value" id="kpi-noshow">—</div>
+      <div class="kpi-sub" id="kpi-noshow-sub"></div>
     </div>
   </div>
 
