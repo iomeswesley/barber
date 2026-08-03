@@ -19,10 +19,10 @@
     applyTheme(current === "light" ? "dark" : "light");
   });
 
-  // Init roda antes de qualquer gráfico existir na página — seta o tema
-  // direto (sem disparar "themechange") pra não acionar um refresh de
-  // chart prematuro. O evento só dispara depois, no toggle manual.
-  const savedTheme = localStorage.getItem("theme") || "dark";
-  document.documentElement.setAttribute("data-theme", savedTheme);
-  themeKnob.textContent = savedTheme === "light" ? "☀️" : "🌙";
+  // O tema em si já foi aplicado por assets/theme-init.js, que roda síncrono
+  // no <head> pra evitar flash — aqui só resta sincronizar o ícone do switch.
+  // Nada de disparar "themechange" neste ponto: os gráficos ainda nem existem
+  // e o evento provocaria um refresh prematuro. Ele só dispara no clique.
+  const currentTheme = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+  themeKnob.textContent = currentTheme === "light" ? "☀️" : "🌙";
 })();

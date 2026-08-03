@@ -1,14 +1,12 @@
 <!doctype html>
-<html lang="pt-BR" data-theme="dark">
+<html lang="pt-BR" data-theme="light">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Ajuda — Painel Premium</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%237cf2a6'/><stop offset='55%25' stop-color='%231fd760'/><stop offset='100%25' stop-color='%230b7a34'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%E2%9D%93</text></svg>" />
-<meta name="theme-color" content="#080b0a" />
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300..800;1,300..800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%232fa04f'/><stop offset='55%25' stop-color='%231e8e3e'/><stop offset='100%25' stop-color='%230d652d'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%E2%9D%93</text></svg>" />
+<meta name="theme-color" content="#f8f9fa" />
+<script src="/assets/theme-init.js"></script>
 <link rel="stylesheet" href="/assets/theme.css">
 <script src="/assets/theme-toggle.js" defer></script>
 <style>
@@ -17,14 +15,14 @@
   .help-nav {
     width: 240px; flex-shrink: 0; padding: 24px 16px; position: sticky; top: 0; height: 100vh;
     overflow-y: auto; border-right: 1px solid var(--card-border);
-    background: rgb(var(--color-bg) / 0.5); backdrop-filter: blur(20px);
+    background: var(--card-bg-solid);
   }
   .help-nav h1 { font-size: 15px; display: flex; align-items: center; gap: 8px; margin: 0 0 18px; }
   .help-nav a {
     display: block; padding: 7px 10px; border-radius: 8px; font-size: 12.5px;
     color: var(--text-secondary); text-decoration: none; margin-bottom: 2px;
   }
-  .help-nav a:hover { background: rgba(255,255,255,0.04); color: var(--text-primary); }
+  .help-nav a:hover { background: var(--surface-raise-2); color: var(--text-primary); }
   .help-nav .nav-group { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 700; margin: 16px 0 4px 10px; }
   .help-nav .nav-group:first-of-type { margin-top: 0; }
   .help-main { flex: 1; max-width: 760px; padding: 40px 40px 100px; min-width: 0; }
@@ -43,11 +41,11 @@
   .top-bar {
     position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between;
     padding: 12px 40px; border-bottom: 1px solid var(--card-border);
-    background: rgb(var(--color-bg) / 0.7); backdrop-filter: blur(20px);
+    background: var(--card-bg-solid);
   }
   .top-bar a.back { font-size: 12.5px; color: var(--text-secondary); text-decoration: none; }
   .top-bar a.back:hover { color: var(--brand); }
-  code { background: rgba(255,255,255,0.06); padding: 1px 6px; border-radius: 5px; font-size: 12px; }
+  code { background: var(--surface-raise-2); padding: 1px 6px; border-radius: 5px; font-size: 12px; }
   @media (max-width: 860px) {
     .help-nav { display: none; }
     .help-main { padding: 24px 20px 80px; }
@@ -56,9 +54,7 @@
 </style>
 </head>
 <body>
-  <div class="bg-blobs" aria-hidden="true">
-    <div class="blob blob-a"></div><div class="blob blob-b"></div><div class="blob blob-c"></div>
-  </div>
+
 
   <div class="top-bar">
     <a href="#" class="back" id="back-to-panel-link">← Fechar e voltar pro painel</a>

@@ -1,16 +1,14 @@
 <!doctype html>
-<html lang="pt-BR" data-theme="dark">
+<html lang="pt-BR" data-theme="light">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Painel Premium</title>
 <link rel="manifest" href="/manifest.json" />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%237cf2a6'/><stop offset='55%25' stop-color='%231fd760'/><stop offset='100%25' stop-color='%230b7a34'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%92%88</text></svg>" />
-<meta name="theme-color" content="#080b0a" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%232fa04f'/><stop offset='55%25' stop-color='%231e8e3e'/><stop offset='100%25' stop-color='%230d652d'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%92%88</text></svg>" />
+<meta name="theme-color" content="#f8f9fa" />
 <script src="/assets/vendor/chart.umd.min.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300..800;1,300..800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="/assets/theme-init.js"></script>
 <link rel="stylesheet" href="/assets/theme.css">
 <script src="/assets/modal.js" defer></script>
 <script src="/assets/theme-toggle.js" defer></script>
@@ -27,14 +25,10 @@
     flex-wrap: wrap;
     gap: 12px 16px;
     padding: 14px 24px;
-    background: rgb(var(--color-bg) / 0.55);
-    backdrop-filter: blur(20px) saturate(160%);
+    background: var(--card-bg-solid);
     border-bottom: 1px solid var(--divider);
-    /* Fio dourado sutil na base do header — costura com o resto do tema. */
-    box-shadow: 0 1px 0 rgb(var(--color-primary) / 0.10);
-    transition: background-color .4s ease, border-color .4s ease;
+    transition: background-color .2s ease, border-color .2s ease;
   }
-  html[data-theme="light"] header.topbar { background: rgb(var(--color-bg) / 0.7); }
   header.topbar .page-tabs { margin: 0; }
 
 
@@ -44,7 +38,6 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 20px;
     background: var(--brand-grad-logo);
-    box-shadow: 0 0 0 1px rgba(255,255,255,0.2) inset, 0 0 26px -4px rgb(var(--color-primary) / 0.55);
   }
   .brand .titles h1 { font-size: 16px; margin: 0; font-weight: 700; letter-spacing: -0.01em; }
   .brand .titles p { margin: 0; font-size: 10.5px; color: var(--text-muted); letter-spacing: 1.6px; text-transform: uppercase; }
@@ -63,7 +56,7 @@
   .plan-badge-starter { background: linear-gradient(135deg, #f2f2f2, #c0c0c0 55%, #8f8f8f); color: #1a1a1a; }
   .plan-badge-pro { background: linear-gradient(135deg, #f5d576, #d4af37 55%, #9c7a1e); color: #2b2003; }
   .plan-badge-past_due { background: var(--danger-soft); color: var(--danger); }
-  .plan-badge-none { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+  .plan-badge-none { background: var(--surface-raise-2); color: var(--text-muted); }
 
   #logout-btn.link-back {
     color: var(--danger);
@@ -86,7 +79,6 @@
     font-size: 13.5px;
     font-weight: 600;
     cursor: pointer;
-    backdrop-filter: blur(10px);
     background-image: linear-gradient(45deg, transparent 50%, var(--text-secondary) 50%), linear-gradient(135deg, var(--text-secondary) 50%, transparent 50%);
     background-position: calc(100% - 18px) center, calc(100% - 13px) center;
     background-size: 5px 5px, 5px 5px;
@@ -109,11 +101,11 @@
     align-items: center;
     gap: 10px;
   }
-  /* Traço dourado antes do rótulo — recurso editorial que amarra as seções. */
+  /* Traço curto antes do rótulo — recurso editorial que amarra as seções. */
   .section-title::before {
     content: "";
     width: 22px; height: 2px; border-radius: 2px;
-    background: linear-gradient(90deg, var(--brand), rgb(var(--color-primary) / 0));
+    background: var(--brand);
     flex-shrink: 0;
   }
   .section-title:first-child { margin-top: 4px; }
@@ -177,19 +169,9 @@
 
   .kpi-card { padding: 20px 22px; position: relative; overflow: hidden; }
   /* Fio dourado que desvanece — assinatura visual dos cartões de métrica. */
-  .kpi-card::before {
-    content: "";
-    position: absolute; inset: 0 0 auto 0; height: 2px;
-    background: linear-gradient(90deg, rgb(var(--color-primary) / 0.95), rgb(var(--color-primary) / 0));
-  }
-  /* Brilho dourado difuso no canto superior, atrás do conteúdo. */
-  .kpi-card::after {
-    content: "";
-    position: absolute; top: -40px; right: -40px;
-    width: 140px; height: 140px; border-radius: 50%;
-    background: radial-gradient(circle, rgb(var(--color-primary) / 0.13), transparent 70%);
-    pointer-events: none;
-  }
+  /* O fio de destaque no topo e o brilho difuso no canto saíram no redesign
+     Google style — o cartão agora se distingue por borda e elevação, não por
+     efeito de luz. O ícone colorido do canto continua sendo o acento visual. */
   .kpi-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
   .kpi-icon {
     width: 36px; height: 36px; border-radius: 12px;
@@ -223,12 +205,9 @@
   }
   .delta.up { background: var(--good-soft); color: var(--good); }
   .delta.down { background: var(--danger-soft); color: var(--danger); }
-  .delta.flat { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+  .delta.flat { background: var(--surface-raise-2); color: var(--text-muted); }
 
-  .barber-of-month-name {
-    background: linear-gradient(90deg, var(--brand), #f0d9ab);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-  }
+  .barber-of-month-name { color: var(--brand); }
 
   /* ---------- Chart card ---------- */
   .chart-card { padding: 20px 22px 12px; }
@@ -241,13 +220,12 @@
 
   .tabs {
     display: inline-flex;
-    background: rgba(255,255,255,0.04);
+    background: var(--surface-raise);
     border: 1px solid var(--card-border);
     border-radius: 999px;
     padding: 3px;
     gap: 2px;
   }
-  html[data-theme="light"] .tabs { background: rgba(20,22,28,0.04); }
   .tabs button {
     border: none; background: transparent; color: var(--text-secondary);
     padding: 7px 14px; border-radius: 999px; font-size: 11.5px; font-weight: 700;
@@ -290,7 +268,7 @@
     gap: 10px;
     padding: 10px 12px;
     border-radius: 12px;
-    background: rgba(255,255,255,0.02);
+    background: var(--surface-raise);
     border: 1px solid var(--divider);
     transition: background-color .2s ease, border-color .2s ease;
   }
@@ -301,12 +279,11 @@
   .rank-occupancy { width: 100%; }
   .occ-bar-track {
     width: 100%; height: 6px; border-radius: 999px;
-    background: rgba(255,255,255,0.08); overflow: hidden; margin-top: 6px;
+    background: var(--surface-raise-2); overflow: hidden; margin-top: 6px;
   }
-  html[data-theme="light"] .occ-bar-track { background: rgba(20,22,28,0.08); }
   .occ-bar-fill {
     height: 100%; border-radius: 999px;
-    background: linear-gradient(90deg, var(--blue), var(--brand));
+    background: var(--brand);
     transition: width .6s ease;
   }
   .rank-revenue { text-align: right; font-weight: 800; font-size: 14px; white-space: nowrap; }
@@ -320,7 +297,7 @@
     align-items: center;
     padding: 12px;
     border-radius: 14px;
-    background: rgba(255,255,255,0.02);
+    background: var(--surface-raise);
     border: 1px solid var(--divider);
     transition: background-color .2s ease, border-color .2s ease, transform .2s ease;
   }
@@ -377,7 +354,7 @@
   }
 
   .skeleton {
-    background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.09) 37%, rgba(255,255,255,0.04) 63%);
+    background: linear-gradient(90deg, var(--surface-raise) 25%, var(--surface-raise-2) 37%, var(--surface-raise) 63%);
     background-size: 400% 100%;
     animation: shimmer 1.4s ease infinite;
     border-radius: 10px;
@@ -398,7 +375,7 @@
 
   .item-row {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,0.02);
+    padding: 10px 12px; border-radius: 12px; background: var(--surface-raise);
     border: 1px solid var(--divider); margin-bottom: 8px;
   }
   .item-row .item-info { font-size: 13.5px; font-weight: 600; }
@@ -419,7 +396,7 @@
   .inline-form.open { display: block; margin-bottom: 16px; }
 
   .stars { color: var(--brand); letter-spacing: 1px; font-size: 13px; }
-  .review-row { padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--divider); margin-bottom: 8px; }
+  .review-row { padding: 12px; border-radius: 12px; background: var(--surface-raise); border: 1px solid var(--divider); margin-bottom: 8px; }
   .review-row .review-head { display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; font-weight: 700; }
   .review-row .review-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
   .review-row .review-comment { font-size: 12.5px; color: var(--text-secondary); margin-top: 6px; font-style: italic; }
@@ -451,8 +428,7 @@
   }
   .gcal-header {
     position: sticky; top: 0; z-index: 3;
-    background: rgb(var(--color-bg) / 0.9);
-    backdrop-filter: blur(10px);
+    background: var(--card-bg-solid);
     border-bottom: 1px solid var(--divider);
   }
   .gcal-gutter { border-right: 1px solid var(--divider); }
@@ -541,7 +517,7 @@
   }
   @media (max-width: 560px) { .client-stat-grid { grid-template-columns: repeat(2, 1fr); } }
   .client-stat-item {
-    background: rgba(255,255,255,0.03); border: 1px solid var(--divider); border-radius: 12px;
+    background: var(--surface-raise); border: 1px solid var(--divider); border-radius: 12px;
     padding: 10px; text-align: center;
   }
   .client-stat-item .stat-value { font-size: 15px; font-weight: 800; }
@@ -551,7 +527,7 @@
   .modal-section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-muted); font-weight: 700; margin: 18px 0 8px; }
   .visit-history-item {
     border: 1px solid var(--divider); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px;
-    background: rgba(255,255,255,0.02);
+    background: var(--surface-raise);
   }
   .visit-history-item .vh-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
   .visit-history-item .vh-date { font-size: 12px; font-weight: 700; }
@@ -566,7 +542,7 @@
   .cal-month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 10px; }
   .cal-month-cell {
     border: 1px solid var(--divider); border-radius: 10px; padding: 6px; min-height: 72px;
-    background: rgba(255,255,255,0.02); font-size: 10.5px;
+    background: var(--surface-raise); font-size: 10.5px;
   }
   .cal-month-cell.today { border-color: var(--card-border-hover); }
   .cal-month-cell .cal-day-head { margin-bottom: 4px; }
@@ -608,8 +584,10 @@
     .topbar-right { order: 2; width: auto; margin-left: auto; flex-shrink: 0; gap: 5px; }
     #push-btn.icon-btn { width: 26px; height: 26px; font-size: 12px; }
     .theme-switch { width: 40px; height: 22px; }
-    .theme-switch .knob { width: 16px; height: 16px; font-size: 9px; }
-    html[data-theme="light"] .theme-switch .knob { transform: translateX(18px); }
+    /* Switch menor no mobile: o deslocamento do knob acompanha (claro à
+       direita, escuro à esquerda — mesma lógica do theme.css). */
+    .theme-switch .knob { width: 16px; height: 16px; font-size: 9px; transform: translateX(18px); }
+    html[data-theme="dark"] .theme-switch .knob { transform: translateX(0); }
     .link-back { padding: 6px 8px; font-size: 11.5px; }
     header.topbar .page-tabs {
       order: 3;
@@ -635,13 +613,13 @@
     display: block; width: 100%; text-align: left; padding: 12px 14px; border: none; border-bottom: 1px solid var(--card-border);
     background: none; color: var(--text-primary); cursor: pointer; font-size: 12.5px;
   }
-  .chat-session-item:hover { background: rgba(255,255,255,0.03); }
+  .chat-session-item:hover { background: var(--surface-raise); }
   .chat-session-item.active { background: rgb(var(--color-primary) / 0.12); }
   .chat-session-item .csi-name { font-weight: 700; font-size: 13px; }
   .chat-session-item .csi-phone { color: var(--text-muted); font-size: 11.5px; margin-top: 2px; }
   .chat-session-item .csi-time { color: var(--text-muted); font-size: 10.5px; margin-top: 4px; }
   .chat-bubble { max-width: 78%; padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.45; white-space: pre-wrap; }
-  .chat-bubble.customer { align-self: flex-start; background: rgba(255,255,255,0.06); border-top-left-radius: 3px; }
+  .chat-bubble.customer { align-self: flex-start; background: var(--surface-raise-2); border-top-left-radius: 3px; }
   .chat-bubble.bot { align-self: flex-end; background: rgb(var(--color-primary) / 0.18); border-top-right-radius: 3px; }
 
   .conversas-layout { padding: 0; display: grid; grid-template-columns: 280px 1fr; min-height: 480px; overflow: hidden; }
@@ -679,11 +657,7 @@
 </head>
 <body>
 
-<div class="bg-blobs" aria-hidden="true">
-  <div class="blob blob-a"></div>
-  <div class="blob blob-b"></div>
-  <div class="blob blob-c"></div>
-</div>
+
 
 <header class="topbar">
   <div class="brand">
@@ -1037,7 +1011,7 @@
       </div>
       <div id="billing-whatsapp-usage" style="display:none; margin-top:10px;">
         <div class="hint" style="font-size:11.5px; margin-bottom:4px;" id="billing-whatsapp-usage-label"></div>
-        <div style="height:6px; border-radius:999px; background:rgba(255,255,255,0.06); overflow:hidden;">
+        <div style="height:6px; border-radius:999px; background:var(--surface-raise-2); overflow:hidden;">
           <div id="billing-whatsapp-usage-bar" style="height:100%; border-radius:999px; background:var(--brand);"></div>
         </div>
       </div>
@@ -1212,10 +1186,10 @@
 </main>
 
 <script>
-const AVATAR_COLORS = ["#1fd760", "#4f8cff", "#e2593f", "#9085e9", "#f2c14e"];
-const AVATAR_COLORS_LIGHT = ["#0b7a34", "#2a5fc9", "#c2401f", "#6a5acd", "#a9760a"];
+const AVATAR_COLORS = ["#81c995", "#8ab4f8", "#f28b82", "#c58af9", "#fdd663"];
+const AVATAR_COLORS_LIGHT = ["#1e8e3e", "#1a73e8", "#d93025", "#a142f4", "#f9ab00"];
 
-function isDark() { return document.documentElement.getAttribute("data-theme") !== "light"; }
+function isDark() { return document.documentElement.getAttribute("data-theme") === "dark"; }
 
 function currency(v) {
   return new Intl.NumberFormat("pt-BR", {
@@ -1419,18 +1393,18 @@ async function loadRevenueChart() {
   const values = data.map((d) => d.revenue);
 
   const ctx = document.getElementById("revenue-chart").getContext("2d");
-  const gold = cssVar("--brand-chart") || "#1fd760";
+  const gold = cssVar("--brand-chart") || "#1e8e3e";
   const gridColor = isDark() ? "rgba(255,255,255,0.06)" : "rgba(20,22,28,0.06)";
   const tickColor = cssVar("--text-muted") || "#888";
 
   // Gradiente vertical: verde cheio em cima, esvaece pra base — mesma
   // assinatura visual do fio verde dos KPI cards, só que em forma de barra.
   const gradient = ctx.createLinearGradient(0, 0, 0, 260);
-  gradient.addColorStop(0, isDark() ? "#4de885" : "#12a24c");
+  gradient.addColorStop(0, isDark() ? "#81c995" : "#1e8e3e");
   gradient.addColorStop(1, gold);
   const hoverGradient = ctx.createLinearGradient(0, 0, 0, 260);
-  hoverGradient.addColorStop(0, "#7cf2a6");
-  hoverGradient.addColorStop(1, "#4de885");
+  hoverGradient.addColorStop(0, isDark() ? "#a8d9b6" : "#2fa04f");
+  hoverGradient.addColorStop(1, isDark() ? "#81c995" : "#1e8e3e");
 
   if (revenueChart) revenueChart.destroy();
   revenueChart = new Chart(ctx, {
@@ -1456,7 +1430,7 @@ async function loadRevenueChart() {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: isDark() ? "#101513" : "#ffffff",
+          backgroundColor: isDark() ? "#292a2d" : "#ffffff",
           titleColor: cssVar("--text-primary"),
           bodyColor: cssVar("--text-secondary"),
           borderColor: cssVar("--card-border"),
@@ -1551,7 +1525,7 @@ async function loadOccupancyChart() {
   const weekdaysByIndex = data.map((d) => d.weekday);
 
   const ctx = document.getElementById("occupancy-chart").getContext("2d");
-  const gold = cssVar("--brand-chart") || "#1fd760";
+  const gold = cssVar("--brand-chart") || "#1e8e3e";
   const gridColor = isDark() ? "rgba(255,255,255,0.06)" : "rgba(20,22,28,0.06)";
   const tickColor = cssVar("--text-muted") || "#888";
 
@@ -1560,7 +1534,7 @@ async function loadOccupancyChart() {
   // semana são desenhadas por cima (afterDraw), então "cortam" visualmente
   // a curva bem na troca de um dia pro outro.
   const gradient = ctx.createLinearGradient(0, 0, 0, 260);
-  gradient.addColorStop(0, isDark() ? "rgba(31,215,96,0.40)" : "rgba(11,122,52,0.26)");
+  gradient.addColorStop(0, isDark() ? "rgba(129,201,149,0.35)" : "rgba(30,142,62,0.22)");
   gradient.addColorStop(1, "rgba(31,215,96,0.0)");
 
   if (occupancyChart) occupancyChart.destroy();
@@ -1579,7 +1553,7 @@ async function loadOccupancyChart() {
         pointRadius: 0,
         pointHoverRadius: 5,
         pointBackgroundColor: gold,
-        pointBorderColor: isDark() ? "#080b0a" : "#ffffff",
+        pointBorderColor: isDark() ? "#202124" : "#ffffff",
         pointBorderWidth: 1.5,
       }],
     },
@@ -1599,7 +1573,7 @@ async function loadOccupancyChart() {
           font: "700 10.5px Inter, sans-serif",
         },
         tooltip: {
-          backgroundColor: isDark() ? "#101513" : "#ffffff",
+          backgroundColor: isDark() ? "#292a2d" : "#ffffff",
           titleColor: cssVar("--text-primary"),
           bodyColor: cssVar("--text-secondary"),
           borderColor: cssVar("--card-border"),
@@ -1640,17 +1614,17 @@ async function loadOccupancyChart() {
 function renderMiniChart(canvasId, values, labels) {
   const canvas = document.getElementById(canvasId);
   const ctx = canvas.getContext("2d");
-  const gold = cssVar("--brand-chart") || "#1fd760";
+  const gold = cssVar("--brand-chart") || "#1e8e3e";
   const h = canvas.height || 60;
 
   // Mesma linguagem visual do gráfico principal (barras com gradiente
   // verde), só que em miniatura — sem eixos, pra caber no KPI card.
   const gradient = ctx.createLinearGradient(0, 0, 0, h);
-  gradient.addColorStop(0, isDark() ? "#4de885" : "#12a24c");
+  gradient.addColorStop(0, isDark() ? "#81c995" : "#1e8e3e");
   gradient.addColorStop(1, gold);
   const hoverGradient = ctx.createLinearGradient(0, 0, 0, h);
-  hoverGradient.addColorStop(0, "#7cf2a6");
-  hoverGradient.addColorStop(1, "#4de885");
+  hoverGradient.addColorStop(0, isDark() ? "#a8d9b6" : "#2fa04f");
+  hoverGradient.addColorStop(1, isDark() ? "#81c995" : "#1e8e3e");
 
   if (miniCharts[canvasId]) miniCharts[canvasId].destroy();
   miniCharts[canvasId] = new Chart(ctx, {
@@ -1674,7 +1648,7 @@ function renderMiniChart(canvasId, values, labels) {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: isDark() ? "#101513" : "#ffffff",
+          backgroundColor: isDark() ? "#292a2d" : "#ffffff",
           titleColor: cssVar("--text-primary"),
           bodyColor: cssVar("--text-secondary"),
           borderColor: cssVar("--card-border"),
@@ -1722,8 +1696,8 @@ async function loadBarberPerformance() {
   const res = await fetch(`/api/dashboard/barbers`);
   const barbers = await res.json();
 
-  const serviceColor = cssVar("--brand-chart") || (isDark() ? "#1fd760" : "#0b7a34");
-  const productColor = cssVar("--blue-chart") || (isDark() ? "#4f8cff" : "#2a5fc9");
+  const serviceColor = cssVar("--brand-chart") || (isDark() ? "#81c995" : "#1e8e3e");
+  const productColor = cssVar("--blue-chart") || (isDark() ? "#8ab4f8" : "#1a73e8");
 
   const ctx = document.getElementById("barber-chart").getContext("2d");
   if (barberChart) barberChart.destroy();
@@ -1748,7 +1722,7 @@ async function loadBarberPerformance() {
           labels: { color: cssVar("--text-secondary"), boxWidth: 12, boxHeight: 12, font: { size: 11.5 }, usePointStyle: true, pointStyle: "circle" },
         },
         tooltip: {
-          backgroundColor: isDark() ? "#101513" : "#ffffff",
+          backgroundColor: isDark() ? "#292a2d" : "#ffffff",
           titleColor: cssVar("--text-primary"),
           bodyColor: cssVar("--text-secondary"),
           borderColor: cssVar("--card-border"),
@@ -1791,7 +1765,7 @@ async function loadBarberPerformance() {
         <div class="occ-bar-track"><div class="occ-bar-fill" style="width:${b.occupancyPercent}%"></div></div>
         ${b.monthlyGoal > 0 ? `
         <div class="rank-meta" style="margin-top:6px;">Meta: ${currency(b.revenue)} de ${currency(b.monthlyGoal)} (${b.monthlyGoalPercent}%)</div>
-        <div class="occ-bar-track"><div class="occ-bar-fill" style="width:${b.monthlyGoalPercent}%; background:linear-gradient(90deg, var(--good), var(--blue));"></div></div>
+        <div class="occ-bar-track"><div class="occ-bar-fill" style="width:${b.monthlyGoalPercent}%; background:var(--good);"></div></div>
         ` : ""}
       </div>
       <div class="rank-revenue">${currency(b.revenue)}</div>
@@ -2622,9 +2596,9 @@ async function loadBusinessHours() {
     <div class="item-row" style="flex-wrap:wrap;">
       <div style="min-width:90px; font-weight:700; font-size:13px;">${WEEKDAY_FULL_LABELS[h.weekday]}</div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        <input type="time" id="weekday-open-${h.weekday}" value="${h.opens_at}" ${h.closed ? "disabled" : ""} style="width:110px; padding:8px 10px; border-radius:8px; border:1px solid var(--card-border); background:rgba(255,255,255,0.02); color:var(--text-primary);" />
+        <input type="time" id="weekday-open-${h.weekday}" value="${h.opens_at}" ${h.closed ? "disabled" : ""} style="width:110px; padding:8px 10px; border-radius:8px; border:1px solid var(--card-border); background:var(--surface-raise); color:var(--text-primary);" />
         <span class="hint" style="margin:0;">até</span>
-        <input type="time" id="weekday-close-${h.weekday}" value="${h.closes_at}" ${h.closed ? "disabled" : ""} style="width:110px; padding:8px 10px; border-radius:8px; border:1px solid var(--card-border); background:rgba(255,255,255,0.02); color:var(--text-primary);" />
+        <input type="time" id="weekday-close-${h.weekday}" value="${h.closes_at}" ${h.closed ? "disabled" : ""} style="width:110px; padding:8px 10px; border-radius:8px; border:1px solid var(--card-border); background:var(--surface-raise); color:var(--text-primary);" />
         <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text-secondary); font-weight:600; cursor:pointer;">
           <input type="checkbox" id="weekday-closed-${h.weekday}" data-weekday-closed="${h.weekday}" ${h.closed ? "checked" : ""} style="accent-color:var(--brand); cursor:pointer;" />
           Fechado
@@ -3142,8 +3116,8 @@ let histBarberFilterPopulated = false;
 let histBarberPie = null;
 let histServicePie = null;
 
-const PIE_COLORS_DARK = ["#1fd760", "#4f8cff", "#e2593f", "#9085e9", "#f2c14e", "#22d3ee", "#ec6ead"];
-const PIE_COLORS_LIGHT = ["#0b7a34", "#2a5fc9", "#c2401f", "#6a5acd", "#a9760a", "#0e7490", "#b03a73"];
+const PIE_COLORS_DARK = ["#81c995", "#8ab4f8", "#f28b82", "#c58af9", "#fdd663", "#78d9ec", "#ff8bcb"];
+const PIE_COLORS_LIGHT = ["#1e8e3e", "#1a73e8", "#d93025", "#a142f4", "#f9ab00", "#12b5cb", "#d01884"];
 
 async function populateHistBarberFilter() {
   if (histBarberFilterPopulated) return;

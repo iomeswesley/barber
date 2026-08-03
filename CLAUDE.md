@@ -12,7 +12,14 @@ SaaS multi-tenant de agendamento para barbearias: painel web (dono/barbeiro) + b
 
 ## Convenções de frontend
 
-- **Todo `<select>` novo em `webroot/*.html` precisa de `color-scheme: light dark` + fundo sólido (`var(--card-bg-solid)`) no próprio `select` e no `select option`** — sem isso o dropdown nativo abre com fundo branco no dark mode (o navegador ignora CSS de fundo transparente no popup nativo). O padrão certo já existe em `webroot/assets/theme.css` (`.form-field select`), mas só se aplica a elementos com essa classe — não herda automaticamente pra selects fora desse padrão.
+O design system é **"Google style"** desde 2026-08-02 (antes era "dark glassmorphism verde neon"): superfícies chapadas, borda de 1px, sombra discreta de elevação, **tema claro como padrão** e escuro ainda disponível pelo toggle. Nada de vidro (`backdrop-filter`), glow, gradiente de marca ou fundo decorativo animado.
+
+- **`webroot/assets/theme.css` tem 3 camadas** — leia o cabeçalho do arquivo antes de mexer. Pra reskin (trocar verde por azul, etc.) mexe-se **só na camada 1 (paleta)**; a camada 2 (semântica) deriva dela via `var()` e a 3 (componentes) consome só a 2.
+- **Toda cor da paleta é trinca RGB sem vírgula** (`32 33 36`), nunca hex — permite `rgb(var(--p-gray-900))` e `rgb(var(--p-gray-900) / 0.4)` da mesma entrada. **Não escrever hex/rgb literal fora da camada 1**, nem nos `<style>` inline das páginas (usar os tokens semânticos).
+- **Toda página nova precisa de `<script src="/assets/theme-init.js"></script>` no `<head>`, sem `defer`, antes do `theme.css`** — é o que aplica o tema salvo antes da primeira pintura. Sem isso, quem usa tema escuro vê um flash branco a cada navegação. (`theme-toggle.js` continua `defer` e cuida só do clique no switch.)
+- **Tons de texto e de gráfico são separados de propósito**: texto precisa de 4.5:1 (WCAG AA) e objeto gráfico se resolve com 3:1 — por isso `--brand` (botão/texto) é mais escuro que `--brand-chart` (barra/linha). Ao trocar a paleta, revalidar os pares texto/fundo.
+- **Todo `<select>` novo em `webroot/*.html` precisa de `color-scheme: light dark` + fundo sólido (`var(--card-bg-solid)`) no próprio `select` e no `select option`** — sem isso o dropdown nativo abre com fundo branco no dark mode (o navegador ignora CSS de fundo transparente no popup nativo). O padrão certo já existe em `theme.css` (`.form-field select`), mas só se aplica a elementos com essa classe — não herda automaticamente pra selects fora desse padrão.
+- **`chat.html` está fora do design system de propósito** — é um simulador da tela do WhatsApp (paleta verde/branco própria, mimetiza o app real pra testar o bot). Não aplicar os tokens lá.
 
 ## Convenções operacionais (importante seguir)
 

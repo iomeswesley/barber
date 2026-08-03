@@ -1,14 +1,12 @@
 <!doctype html>
-<html lang="pt-BR" data-theme="dark">
+<html lang="pt-BR" data-theme="light">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Excluir meus dados</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%237cf2a6'/><stop offset='55%25' stop-color='%231fd760'/><stop offset='100%25' stop-color='%230b7a34'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%92%88</text></svg>" />
-<meta name="theme-color" content="#080b0a" />
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300..800;1,300..800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%232fa04f'/><stop offset='55%25' stop-color='%231e8e3e'/><stop offset='100%25' stop-color='%230d652d'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%92%88</text></svg>" />
+<meta name="theme-color" content="#f8f9fa" />
+<script src="/assets/theme-init.js"></script>
 <link rel="stylesheet" href="/assets/theme.css">
 <script src="/assets/modal.js" defer></script>
 <style>
@@ -22,14 +20,14 @@
   label { font-size: 12px; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 5px; }
   input, select {
     width: 100%; padding: 10px 12px; border-radius: 10px;
-    border: 1px solid var(--card-border); background: rgba(255,255,255,0.03);
+    border: 1px solid var(--card-border); background: var(--surface-raise);
     color: var(--text-primary); font-size: 13px; margin-bottom: 14px;
   }
   select { background-color: var(--card-bg-solid); color-scheme: dark; }
   input:focus, select:focus { outline: none; border-color: var(--brand); }
   button {
     width: 100%; padding: 11px; border: none; border-radius: 10px;
-    background: linear-gradient(135deg, var(--danger), #c23030);
+    background: var(--danger);
     color: #fff; font-weight: 700; font-size: 13px; cursor: pointer;
   }
   button:hover { filter: brightness(1.08); }
@@ -46,11 +44,7 @@
 </style>
 </head>
 <body>
-  <div class="bg-blobs" aria-hidden="true">
-    <div class="blob blob-a"></div>
-    <div class="blob blob-b"></div>
-    <div class="blob blob-c"></div>
-  </div>
+
   <div class="wrap">
     <div class="card">
       <div class="logo-row"><div class="logo">🗑️</div></div>

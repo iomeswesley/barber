@@ -1,15 +1,13 @@
 <!doctype html>
-<html lang="pt-BR" data-theme="dark">
+<html lang="pt-BR" data-theme="light">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Administração</title>
 <meta name="robots" content="noindex, nofollow" />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%237cf2a6'/><stop offset='55%25' stop-color='%231fd760'/><stop offset='100%25' stop-color='%230b7a34'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%9B%A1</text></svg>" />
-<meta name="theme-color" content="#080b0a" />
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300..800;1,300..800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%232fa04f'/><stop offset='55%25' stop-color='%231e8e3e'/><stop offset='100%25' stop-color='%230d652d'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%9B%A1</text></svg>" />
+<meta name="theme-color" content="#f8f9fa" />
+<script src="/assets/theme-init.js"></script>
 <link rel="stylesheet" href="/assets/theme.css">
 <style>
   body { padding: 28px 20px 60px; position: relative; z-index: 0; }
@@ -18,7 +16,7 @@
   h1 { font-size: 20px; margin: 0; display: flex; align-items: center; gap: 10px; }
   h2 { font-size: 14px; margin: 26px 0 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
   h2:first-of-type { margin-top: 0; }
-  .logout-btn { background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); color: var(--text-muted); padding: 8px 14px; border-radius: 10px; font-size: 12.5px; cursor: pointer; }
+  .logout-btn { background: var(--surface-raise); border: 1px solid var(--card-border); color: var(--text-muted); padding: 8px 14px; border-radius: 10px; font-size: 12.5px; cursor: pointer; }
   .logout-btn:hover { color: var(--text-primary); border-color: var(--brand); }
   .tabs { display: flex; gap: 6px; margin-bottom: 20px; border-bottom: 1px solid var(--card-border); }
   .tab-btn { background: none; border: none; color: var(--text-muted); padding: 10px 16px; font-size: 13px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
@@ -32,17 +30,17 @@
   tr:last-child td { border-bottom: none; }
   .role-tag { font-size: 11px; padding: 3px 8px; border-radius: 999px; font-weight: 600; }
   .role-owner { background: var(--good-soft); color: var(--good); }
-  .role-barber { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+  .role-barber { background: var(--surface-raise-2); color: var(--text-muted); }
   .inactive-tag { font-size: 11px; padding: 3px 8px; border-radius: 999px; font-weight: 600; background: var(--danger-soft); color: var(--danger); }
   .no-email { color: var(--text-muted); font-style: italic; font-size: 12px; }
-  .reset-btn, .save-btn { background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); color: var(--text-primary); padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+  .reset-btn, .save-btn { background: var(--surface-raise); border: 1px solid var(--card-border); color: var(--text-primary); padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; white-space: nowrap; }
   .reset-btn:hover:not(:disabled), .save-btn:hover:not(:disabled) { border-color: var(--brand); color: var(--brand); }
   .reset-btn:disabled, .save-btn:disabled { opacity: .5; cursor: default; }
   .status { margin-top: 22px; padding: 10px 14px; border-radius: 10px; font-size: 12.5px; display: none; }
   .status.ok { background: var(--good-soft); color: var(--good); display: block; }
   .status.error { background: var(--danger-soft); color: var(--danger); display: block; }
   .loading, .empty { padding: 30px; text-align: center; color: var(--text-muted); font-size: 13px; }
-  select, .row-input { padding: 7px 9px; border-radius: 8px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.03); color: var(--text-primary); font-size: 13px; font-family: inherit; }
+  select, .row-input { padding: 7px 9px; border-radius: 8px; border: 1px solid var(--card-border); background: var(--surface-raise); color: var(--text-primary); font-size: 13px; font-family: inherit; }
   .row-input { width: 100%; }
   /* Native <select> popups ignoram fundo transparente e caem no padrão
      branco do browser — mesmo fix usado em .form-field select (theme.css). */
@@ -67,21 +65,17 @@
   .shops-table-wrap table tr.row-clickable:hover { filter: brightness(1.08); }
   .status-tag { font-size: 11px; padding: 3px 8px; border-radius: 999px; font-weight: 600; white-space: nowrap; }
   .status-tag-active { background: var(--good-soft); color: var(--good); }
-  .status-tag-trialing { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+  .status-tag-trialing { background: var(--surface-raise-2); color: var(--text-muted); }
   .status-tag-past_due, .status-tag-canceled { background: var(--danger-soft); color: var(--danger); }
   .whatsapp-tag { font-size: 11px; padding: 3px 8px; border-radius: 999px; font-weight: 600; white-space: nowrap; }
   .whatsapp-tag-connected { background: var(--good-soft); color: var(--good); }
-  .whatsapp-tag-not_connected { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+  .whatsapp-tag-not_connected { background: var(--surface-raise-2); color: var(--text-muted); }
   .stripe-link { font-size: 12.5px; color: var(--brand); text-decoration: none; }
   .stripe-link:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
-  <div class="bg-blobs" aria-hidden="true">
-    <div class="blob blob-a"></div>
-    <div class="blob blob-b"></div>
-    <div class="blob blob-c"></div>
-  </div>
+
   <div class="wrap">
     <header>
       <h1>🛡️ Administração</h1>

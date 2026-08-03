@@ -1,15 +1,13 @@
 <!doctype html>
-<html lang="pt-BR" data-theme="dark">
+<html lang="pt-BR" data-theme="light">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Painel da Barbearia: Agendamento e atendimento via WhatsApp com IA</title>
 <meta name="description" content="Plataforma SaaS multi-tenant para barbearias: atendimento e agendamento automático via WhatsApp com IA, dashboard de faturamento e clientes, e cobrança recorrente via Stripe." />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%237cf2a6'/><stop offset='55%25' stop-color='%231fd760'/><stop offset='100%25' stop-color='%230b7a34'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%92%88</text></svg>" />
-<meta name="theme-color" content="#080b0a" />
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300..800;1,300..800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%232fa04f'/><stop offset='55%25' stop-color='%231e8e3e'/><stop offset='100%25' stop-color='%230d652d'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%92%88</text></svg>" />
+<meta name="theme-color" content="#f8f9fa" />
+<script src="/assets/theme-init.js"></script>
 <link rel="stylesheet" href="/assets/theme.css">
 <style>
   body { position: relative; z-index: 0; }
@@ -20,8 +18,7 @@
     display: flex; align-items: center; justify-content: space-between;
     gap: 16px;
     padding: 14px 28px;
-    background: rgb(var(--color-bg) / 0.55);
-    backdrop-filter: blur(16px) saturate(160%);
+    background: var(--card-bg-solid);
     border-bottom: 1px solid var(--divider);
   }
   .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
@@ -29,7 +26,6 @@
     width: 36px; height: 36px; border-radius: 10px;
     display: flex; align-items: center; justify-content: center; font-size: 18px;
     background: var(--brand-grad-logo);
-    box-shadow: 0 0 0 1px rgba(255,255,255,0.2) inset, 0 0 20px -4px rgb(var(--color-primary) / 0.55);
     flex-shrink: 0;
   }
   .brand span { font-family: "Segoe UI", sans-serif; font-weight: 800; font-size: 16px; color: var(--text-primary); }
@@ -44,7 +40,7 @@
     font-size: 13px; font-weight: 600; color: var(--text-secondary); text-decoration: none;
     padding: 9px 14px; border-radius: 10px; transition: color .2s ease, background-color .2s ease;
   }
-  .btn-ghost:hover { color: var(--text-primary); background: rgba(255,255,255,0.04); }
+  .btn-ghost:hover { color: var(--text-primary); background: var(--surface-raise-2); }
   .btn-primary.link, .btn-secondary.link { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
 
   @media (max-width: 860px) {
@@ -75,7 +71,7 @@
   .hero-features { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 30px; }
   .hero-feature {
     display: flex; align-items: center; gap: 10px; padding: 11px 14px;
-    background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 12px;
+    background: var(--surface-raise); border: 1px solid var(--card-border); border-radius: 12px;
     font-size: 12.5px; font-weight: 600; color: var(--text-secondary);
   }
   .hero-feature .ico { font-size: 15px; flex-shrink: 0; }
@@ -87,13 +83,13 @@
   /* ---------- Hero mockup (janela de chat) ---------- */
   .hero-visual { position: relative; }
   .mock-window {
-    border-radius: 20px; overflow: hidden;
+    border-radius: var(--radius); overflow: hidden;
     background: var(--card-bg-solid); border: 1px solid var(--card-border);
     box-shadow: var(--shadow-hover);
   }
   .mock-titlebar {
     display: flex; align-items: center; gap: 7px; padding: 10px 14px;
-    border-bottom: 1px solid var(--card-border); background: rgba(255,255,255,0.02);
+    border-bottom: 1px solid var(--card-border); background: var(--surface-raise);
   }
   .mock-dot { width: 9px; height: 9px; border-radius: 50%; }
   .mock-dot.r { background: #f04747; } .mock-dot.y { background: #fab219; } .mock-dot.g { background: #10b981; }
@@ -115,7 +111,7 @@
   }
   .chat-body { padding: 18px 16px; display: flex; flex-direction: column; gap: 12px; min-height: 280px; }
   .bubble { max-width: 78%; padding: 10px 13px; border-radius: 14px; font-size: 13px; line-height: 1.5; position: relative; }
-  .bubble.in { align-self: flex-start; background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); border-bottom-left-radius: 4px; }
+  .bubble.in { align-self: flex-start; background: var(--surface-raise-2); border: 1px solid var(--card-border); border-bottom-left-radius: 4px; }
   .bubble.out {
     align-self: flex-end; background: var(--brand-grad);
     color: var(--brand-ink); border-bottom-right-radius: 4px; font-weight: 500;
@@ -163,7 +159,7 @@
   .tab-btn {
     display: flex; align-items: center; gap: 7px; flex-shrink: 0;
     padding: 10px 14px; border-radius: 999px; border: 1px solid var(--card-border);
-    background: rgba(255,255,255,0.02); color: var(--text-secondary);
+    background: var(--surface-raise); color: var(--text-secondary);
     font-size: 12.5px; font-weight: 600; cursor: pointer; transition: all .2s ease;
     white-space: nowrap;
   }
@@ -178,7 +174,7 @@
     background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 10px;
     display: flex; align-items: center; justify-content: center;
   }
-  .progress-track { flex: 1; max-width: 160px; height: 3px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; }
+  .progress-track { flex: 1; max-width: 160px; height: 3px; border-radius: 3px; background: var(--surface-raise-2); overflow: hidden; }
   .progress-fill { height: 100%; width: 0%; background: var(--brand-grad-text); transition: width .1s linear; }
   .tab-counter { font-variant-numeric: tabular-nums; white-space: nowrap; flex-shrink: 0; }
   @media (max-width: 480px) {
@@ -200,7 +196,7 @@
   .feature-list li { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--text-secondary); }
   .feature-list li::before { content: "✓"; color: var(--good); font-weight: 700; flex-shrink: 0; }
   .tip-box {
-    background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); border-radius: 12px;
+    background: var(--surface-raise); border: 1px solid var(--card-border); border-radius: 12px;
     padding: 12px 14px; font-size: 12.5px; color: var(--text-muted);
   }
   .tip-box b { color: var(--text-primary); }
@@ -213,7 +209,7 @@
   /* generic mock content blocks */
   .mock-row {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.03);
+    padding: 10px 12px; border-radius: 10px; background: var(--surface-raise);
     border: 1px solid var(--card-border); margin-bottom: 8px; font-size: 12.5px;
   }
   .mock-row .name { font-weight: 700; font-size: 12.5px; }
@@ -241,7 +237,7 @@
   .step-card p { font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; margin: 0; }
   .step-num {
     position: absolute; bottom: 10px; right: 16px; font-size: 40px; font-weight: 800;
-    color: rgba(255,255,255,0.05); font-family: "Segoe UI", sans-serif;
+    color: var(--surface-raise-2); font-family: "Segoe UI", sans-serif;
   }
   @media (max-width: 860px) { .steps-grid { grid-template-columns: 1fr 1fr; } .steps-grid::before { display: none; } }
   @media (max-width: 540px) { .steps-grid { grid-template-columns: 1fr; } }
@@ -270,7 +266,7 @@
   }
   .plan-tag {
     display: inline-block; font-size: 11.5px; font-weight: 700; color: var(--text-secondary);
-    background: rgba(255,255,255,0.04); padding: 4px 12px; border-radius: 999px; margin-bottom: 16px;
+    background: var(--surface-raise-2); padding: 4px 12px; border-radius: 999px; margin-bottom: 16px;
     align-self: center;
   }
   .price-card h3 { text-align: center; font-size: 14px; color: var(--text-secondary); font-weight: 600; margin: 0 0 6px; }
@@ -309,7 +305,7 @@
 
   /* ---------- CTA final ---------- */
   .cta-final {
-    text-align: center; padding: 64px 40px; border-radius: 28px;
+    text-align: center; padding: 64px 40px; border-radius: var(--radius);
     background: var(--brand-wash);
     border: 1px solid rgb(var(--color-primary) / 0.25);
   }
@@ -341,11 +337,7 @@
 <noscript><style>.reveal { opacity: 1 !important; transform: none !important; }</style></noscript>
 </head>
 <body>
-  <div class="bg-blobs" aria-hidden="true">
-    <div class="blob blob-a"></div>
-    <div class="blob blob-b"></div>
-    <div class="blob blob-c"></div>
-  </div>
+
 
   <header class="topbar">
     <a class="brand" href="/">

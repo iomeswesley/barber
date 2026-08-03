@@ -1,5 +1,20 @@
 # Plano: unificar o design system "dark glassmorphism verde neon" em todo o projeto
 
+> **⚠️ Documento histórico — a ESTÉTICA descrita aqui não vale mais.**
+>
+> Em 2026-08-02 o produto trocou de "dark glassmorphism verde neon" para **"Google style"**:
+> tema claro como padrão, superfícies chapadas, sem vidro/glow/blobs/gradiente de marca.
+> A fonte da verdade atual é o cabeçalho de `webroot/assets/theme.css` (3 camadas: paleta →
+> semântica → componentes) e a seção "Convenções de frontend" do `CLAUDE.md`.
+>
+> O que **continua válido** deste documento é a arquitetura: tokens compartilhados em vez de
+> cópia inline por página, `modal.js` substituindo `confirm()`/`alert()`, e `chat.html` fora
+> de escopo. O que **não vale mais**: as cores, os efeitos de vidro e a premissa de tema
+> escuro como padrão. Duas afirmações daqui foram desmentidas na prática: os tokens lidos
+> por JS **não** precisam ser literais (`getComputedStyle` resolve `var()` aninhado, testado
+> em 2026-08-02), e o tema deixou de ser aplicado só por `theme-toggle.js` — hoje há um
+> `theme-init.js` síncrono no `<head>` pra evitar flash.
+
 Status: histórico — a extração para `theme.css`/`modal.js` descrita abaixo já foi executada.
 Em 2026-07-26 o produto passou por um rebrand de "dark glassmorphism dourado" para "verde
 neon sobre grafite" (identidade de automação de WhatsApp), na branch `feat/rebrand-verde-neon`
