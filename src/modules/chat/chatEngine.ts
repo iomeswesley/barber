@@ -465,9 +465,19 @@ export async function sendManualMessage(barbershopId: number, phone: string, tex
 
   await sendWhatsappText(barbershop.whatsappPhoneNumberId, phone, text);
 
-  const session = await loadSession(phone, barbershopId);
-  session.messages.push({ role: "assistant", content: [{ type: "text", text }] });
-  await saveSession(phone, session);
+  const key = storageKey(barbershopId, phone);
+  await prisma.$transaction(async (tx) => {
+    await tx.chatSession.upsert({
+      where: { sessionId: key },
+      create: { sessionId: key, barbershopId, messages: [] as unknown as Prisma.InputJsonValue },
+      update: {},
+    });
+    await tx.$queryRaw`SELECT 1 FROM "chat_sessions" WHERE "session_id" = ${key} FOR UPDATE`;
+
+    const session = await loadSession(tx, phone, barbershopId);
+    session.messages.push({ role: "assistant", content: [{ type: "text", text }] });
+    await saveSession(tx, phone, session);
+  });
 }
 
 // Mesma ressalva de getChatTranscript/listChatSessionsForBarbershop: sessões
@@ -479,23 +489,32 @@ export async function sendManualMessage(barbershopId: number, phone: string, tex
 // sessão legada é apagada assim que lida, pra saveSession já gravar tudo
 // (histórico antigo + mensagem nova) na chave atual — migração feita na
 // primeira vez que a sessão for tocada de novo.
-async function loadSession(sessionId: string, barbershopId: number): Promise<ChatSession> {
+// Roda fora da transação com lock (ver sendMessage): é um caso raro e
+// histórico (sessões gravadas antes da correção de isolamento entre
+// tenants), não vale segurar a linha nova por causa dele.
+async function migrateLegacySessionIfNeeded(sessionId: string, barbershopId: number) {
   const key = storageKey(barbershopId, sessionId);
-  const row = await prisma.chatSession.findUnique({ where: { sessionId: key } });
-  if (row) return { barbershopId, messages: row.messages as unknown as Anthropic.MessageParam[] };
+  const primaryExists = await prisma.chatSession.findUnique({ where: { sessionId: key }, select: { sessionId: true } });
+  if (primaryExists) return;
 
   const legacyRow = await prisma.chatSession.findFirst({ where: { sessionId, barbershopId } });
   if (legacyRow) {
     await prisma.chatSession.delete({ where: { sessionId: legacyRow.sessionId } }).catch(() => {});
-    return { barbershopId, messages: legacyRow.messages as unknown as Anthropic.MessageParam[] };
+    await prisma.chatSession
+      .create({ data: { sessionId: key, barbershopId, messages: legacyRow.messages as unknown as Prisma.InputJsonValue } })
+      .catch(() => {});
   }
-
-  return { barbershopId, messages: [] };
 }
 
-async function saveSession(sessionId: string, session: ChatSession) {
+async function loadSession(db: Prisma.TransactionClient, sessionId: string, barbershopId: number): Promise<ChatSession> {
+  const key = storageKey(barbershopId, sessionId);
+  const row = await db.chatSession.findUnique({ where: { sessionId: key } });
+  return { barbershopId, messages: (row?.messages as unknown as Anthropic.MessageParam[]) ?? [] };
+}
+
+async function saveSession(db: Prisma.TransactionClient, sessionId: string, session: ChatSession) {
   const key = storageKey(session.barbershopId, sessionId);
-  await prisma.chatSession.upsert({
+  await db.chatSession.upsert({
     where: { sessionId: key },
     create: { sessionId: key, barbershopId: session.barbershopId, messages: session.messages as unknown as Prisma.InputJsonValue },
     update: { messages: session.messages as unknown as Prisma.InputJsonValue },
@@ -513,12 +532,7 @@ export async function sendMessage(
   if (!barbershop) throw new Error("Barbearia não encontrada");
   if (!customerPhone) throw new Error("Telefone do remetente (WhatsApp) é obrigatório");
 
-  // Persistido no banco (não num Map em memória): em ambiente serverless,
-  // mensagens consecutivas do mesmo cliente podem cair em instâncias
-  // diferentes, e um Map local perderia o histórico no meio da conversa.
-  const session = await loadSession(sessionId, barbershopId);
-
-  session.messages.push({ role: "user", content: userText });
+  await migrateLegacySessionIfNeeded(sessionId, barbershopId);
 
   const existingClient = await getClientByPhone(customerPhone);
   const pendingReview = await getUnreviewedCompletedAppointment(customerPhone, barbershopId);
@@ -531,50 +545,75 @@ export async function sendMessage(
     { type: "text", text: buildDynamicContext({ existingClient, pushName }, pendingReview) },
   ];
 
-  try {
-    for (let i = 0; i < MAX_ITERATIONS; i++) {
-      const response = await client.messages.create({
-        model: MODEL,
-        max_tokens: 1024,
-        system,
-        tools,
-        messages: session.messages,
+  const key = storageKey(barbershopId, sessionId);
+
+  // Toda a sessão é lida, processada pela IA e salva dentro de UMA transação
+  // com lock de linha (FOR UPDATE): se o cliente mandar duas mensagens em
+  // sequência rápida, elas chegam como dois webhooks concorrentes — sem esse
+  // lock, os dois liam a sessão "vazia" ao mesmo tempo e o modelo respondia
+  // com saudação duas vezes. Com o lock, a segunda chamada espera a primeira
+  // commitar e já enxerga o histórico atualizado. Persistido no banco (não
+  // num Map em memória) porque em ambiente serverless mensagens consecutivas
+  // do mesmo cliente podem cair em instâncias diferentes.
+  return prisma.$transaction(
+    async (tx) => {
+      await tx.chatSession.upsert({
+        where: { sessionId: key },
+        create: { sessionId: key, barbershopId, messages: [] as unknown as Prisma.InputJsonValue },
+        update: {},
       });
+      await tx.$queryRaw`SELECT 1 FROM "chat_sessions" WHERE "session_id" = ${key} FOR UPDATE`;
 
-      session.messages.push({ role: "assistant", content: response.content });
+      const session = await loadSession(tx, sessionId, barbershopId);
+      session.messages.push({ role: "user", content: userText });
 
-      if (response.stop_reason !== "tool_use") {
-        const text = response.content
-          .filter((b): b is Anthropic.TextBlock => b.type === "text")
-          .map((b) => b.text)
-          .join("\n")
-          .trim();
-        return normalizeWhatsappFormatting(text) || "Desculpe, pode repetir?";
-      }
-
-      const toolResults: Anthropic.ToolResultBlockParam[] = [];
-      for (const block of response.content) {
-        if (block.type !== "tool_use") continue;
-        try {
-          const result = await executeTool(barbershop, block.name, block.input, customerPhone);
-          toolResults.push({ type: "tool_result", tool_use_id: block.id, content: JSON.stringify(result) });
-        } catch (err) {
-          toolResults.push({
-            type: "tool_result",
-            tool_use_id: block.id,
-            content: `Erro: ${(err as Error).message}`,
-            is_error: true,
+      try {
+        for (let i = 0; i < MAX_ITERATIONS; i++) {
+          const response = await client.messages.create({
+            model: MODEL,
+            max_tokens: 1024,
+            system,
+            tools,
+            messages: session.messages,
           });
-        }
-      }
-      session.messages.push({ role: "user", content: toolResults });
-    }
 
-    return "Desculpe, tive um problema para processar seu pedido. Pode tentar novamente?";
-  } finally {
-    // Salva o que foi acumulado até aqui mesmo se um erro interromper o
-    // loop no meio — melhor manter o progresso parcial da conversa do que
-    // perder tudo silenciosamente.
-    await saveSession(sessionId, session);
-  }
+          session.messages.push({ role: "assistant", content: response.content });
+
+          if (response.stop_reason !== "tool_use") {
+            const text = response.content
+              .filter((b): b is Anthropic.TextBlock => b.type === "text")
+              .map((b) => b.text)
+              .join("\n")
+              .trim();
+            return normalizeWhatsappFormatting(text) || "Desculpe, pode repetir?";
+          }
+
+          const toolResults: Anthropic.ToolResultBlockParam[] = [];
+          for (const block of response.content) {
+            if (block.type !== "tool_use") continue;
+            try {
+              const result = await executeTool(barbershop, block.name, block.input, customerPhone);
+              toolResults.push({ type: "tool_result", tool_use_id: block.id, content: JSON.stringify(result) });
+            } catch (err) {
+              toolResults.push({
+                type: "tool_result",
+                tool_use_id: block.id,
+                content: `Erro: ${(err as Error).message}`,
+                is_error: true,
+              });
+            }
+          }
+          session.messages.push({ role: "user", content: toolResults });
+        }
+
+        return "Desculpe, tive um problema para processar seu pedido. Pode tentar novamente?";
+      } finally {
+        // Salva o que foi acumulado até aqui mesmo se um erro interromper o
+        // loop no meio — melhor manter o progresso parcial da conversa do que
+        // perder tudo silenciosamente.
+        await saveSession(tx, sessionId, session);
+      }
+    },
+    { timeout: 30_000 }
+  );
 }

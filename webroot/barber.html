@@ -13,26 +13,100 @@
 <script src="/assets/theme-toggle.js" defer></script>
 <script src="/assets/tour.js" defer></script>
 <style>
-  header.topbar {
-    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
-    gap: 12px 16px; padding: 14px 24px;
+  /* ==========================================================================
+     Layout — menu lateral (sidebar), mesmo padrão do admin.html: ver o
+     comentário no topo do <style> daquele arquivo pra estrutura geral
+     (app-shell/sidebar/app-main, breakpoint de 960px, off-canvas no mobile).
+     Aqui o painel do barbeiro é bem menor, então em vez do padrão de N
+     seções trocáveis do admin, só 3: Visão geral, Agenda e Bloqueios.
+     ========================================================================== */
+  .app-shell { display: flex; align-items: flex-start; min-height: 100vh; }
+
+  .sidebar {
+    width: 232px; flex-shrink: 0;
+    position: sticky; top: 0; height: 100vh;
+    display: flex; flex-direction: column;
     background: var(--card-bg-solid);
+    border-right: 1px solid var(--divider);
+    transition: background-color .2s ease, border-color .2s ease, transform .25s ease;
+  }
+  .sidebar-brand {
+    display: flex; align-items: center; gap: 12px;
+    padding: 20px 18px;
     border-bottom: 1px solid var(--divider);
+    flex-shrink: 0;
   }
-  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
   .brand .logo {
-    width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
-    font-size: 20px; background: var(--brand-grad-logo);
+    width: 42px; height: 42px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+    background: var(--brand-grad-logo);
   }
-  .brand h1 { font-size: 16px; margin: 0; font-weight: 700; letter-spacing: -0.01em; }
-  .brand p { margin: 0; font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.6px; }
-  .topbar-right { display: flex; align-items: center; gap: 10px; }
+  .brand div:not(.logo) { min-width: 0; }
+  .brand h1 {
+    font-size: 15px; margin: 0; font-weight: 700; letter-spacing: -0.01em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .brand p {
+    margin: 0; font-size: 10.5px; color: var(--text-muted); letter-spacing: 1.6px; text-transform: uppercase;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .sidebar-nav {
+    flex: 1; min-height: 0; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 14px 12px;
+  }
+  .sidebar-nav button {
+    display: flex; align-items: center; gap: 12px;
+    width: 100%; border: none; background: transparent;
+    padding: 10px 14px; border-radius: 10px;
+    color: var(--text-secondary); font-size: 13.5px; font-weight: 600; text-align: left;
+    cursor: pointer; transition: background-color .15s ease, color .15s ease;
+  }
+  .sidebar-nav button .nav-ico { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
+  .sidebar-nav button:not(.active):hover { background: var(--surface-raise); color: var(--text-primary); }
+  .sidebar-nav button.active { background: var(--brand-soft); color: var(--brand); font-weight: 700; }
+
+  .sidebar-footer { flex-shrink: 0; padding: 12px; border-top: 1px solid var(--divider); }
+  .sidebar-footer #logout-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; padding: 10px 14px;
+  }
   button.logout {
     border: 1px solid rgb(var(--color-bg) / 0); background: var(--danger-soft); color: var(--danger);
     padding: 8px 14px; border-radius: 10px; font-size: 12.5px; cursor: pointer;
     transition: color .2s ease, border-color .2s ease, background-color .2s ease;
   }
   button.logout:hover { color: #fff; background: var(--danger); border-color: var(--danger); }
+
+  /* ---------- Topbar ---------- */
+  .app-main { flex: 1; min-width: 0; }
+  header.topbar {
+    position: sticky; top: 0; z-index: 30;
+    display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap;
+    gap: 10px; padding: 12px 24px;
+    background: var(--card-bg-solid);
+    border-bottom: 1px solid var(--divider);
+    transition: background-color .2s ease, border-color .2s ease;
+  }
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
+
+  .sidebar-toggle {
+    display: none;
+    border: 1px solid var(--card-border); background: var(--card-bg); color: var(--text-secondary);
+    width: 36px; height: 36px; border-radius: 10px; font-size: 16px; cursor: pointer;
+    align-items: center; justify-content: center; flex-shrink: 0; margin-right: auto;
+  }
+  .sidebar-toggle:hover { border-color: var(--card-border-hover); color: var(--brand); }
+
+  .sidebar-scrim {
+    display: none;
+    position: fixed; inset: 0; z-index: 45;
+    background: var(--scrim);
+    opacity: 0; transition: opacity .2s ease;
+  }
 
   main { padding: 22px; max-width: 900px; margin: 0 auto; position: relative; z-index: 0; }
   .section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-muted); margin: 26px 2px 12px; font-weight: 700; }
@@ -104,29 +178,71 @@
   .cal-month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 10px; }
   .cal-month-cell { border: 1px solid var(--divider); border-radius: 10px; padding: 6px; min-height: 56px; background: var(--surface-raise); font-size: 10.5px; }
   .cal-count { display: inline-block; padding: 1px 6px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); font-weight: 700; font-size: 10px; }
+
+  /* ---------- Sidebar off-canvas (tablet/mobile) ----------
+     Por último de propósito, mesma razão do admin.html: regras acima
+     (.sidebar, .topbar-right, .sidebar-toggle) precisam da cascata a favor. */
+  @media (max-width: 960px) {
+    .sidebar {
+      position: fixed; left: 0; top: 0; z-index: 50;
+      width: 264px; max-width: 82vw;
+      transform: translateX(-100%);
+      box-shadow: var(--shadow-hover);
+    }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-toggle { display: flex; }
+    .sidebar-scrim.open { display: block; opacity: 1; }
+  }
+
+  @media (max-width: 560px) {
+    header.topbar { padding: 10px 12px; gap: 8px; }
+    .topbar-right { gap: 5px; }
+    #push-btn.icon-btn, #tour-btn.icon-btn { width: 26px; height: 26px; font-size: 12px; }
+    .theme-switch { width: 40px; height: 22px; }
+    .theme-switch .knob { width: 16px; height: 16px; font-size: 9px; transform: translateX(18px); }
+    html[data-theme="dark"] .theme-switch .knob { transform: translateX(0); }
+    main { padding: 16px 14px; }
+  }
 </style>
 </head>
 <body>
 
 
 
-<header class="topbar">
-  <div class="brand">
+<div class="app-shell">
+
+<div class="sidebar-scrim" id="sidebar-scrim"></div>
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
     <div class="logo">✂️</div>
     <div>
       <h1 id="barber-name">Minha Agenda</h1>
       <p id="shop-label">Barbearia</p>
     </div>
   </div>
+  <nav class="sidebar-nav" id="page-tabs">
+    <button data-page="overview" class="active"><span class="nav-ico">🏠</span>Visão geral</button>
+    <button data-page="agenda"><span class="nav-ico">📅</span>Agenda</button>
+    <button data-page="bloqueios"><span class="nav-ico">🚫</span>Bloqueios</button>
+  </nav>
+  <div class="sidebar-footer">
+    <button id="logout-btn" class="logout" style="cursor:pointer;">Sair</button>
+  </div>
+</aside>
+
+<div class="app-main">
+<header class="topbar">
+  <button id="sidebar-toggle" class="sidebar-toggle" title="Abrir menu" aria-label="Abrir menu" aria-expanded="false" aria-controls="sidebar">☰</button>
   <div class="topbar-right">
     <button id="tour-btn" class="icon-btn" title="Ver tour guiado" style="font-size:16px;">🧭</button>
     <button id="push-btn" class="icon-btn" title="Ativar notificações push" style="display:none; font-size:16px;">🔔</button>
     <div class="theme-switch" id="theme-switch"><div class="knob" id="theme-knob">🌙</div></div>
-    <button class="logout" id="logout-btn">Sair</button>
   </div>
 </header>
 
 <main>
+
+  <div id="page-overview" class="page-section">
   <div class="section-title">Meu desempenho do mês</div>
   <div class="kpi-grid">
     <div class="card kpi-card">
@@ -192,7 +308,9 @@
 
   <div class="section-title">Minha agenda de hoje</div>
   <div class="appt-list" id="appt-list"></div>
+  </div>
 
+  <div id="page-agenda" class="page-section" style="display:none;">
   <div class="section-title">Minha agenda</div>
   <div class="card" id="my-agenda-card" style="padding:18px 20px;">
     <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:6px;">
@@ -209,7 +327,9 @@
     </div>
     <div id="my-agenda-body"></div>
   </div>
+  </div>
 
+  <div id="page-bloqueios" class="page-section" style="display:none;">
   <div class="section-title">Meus bloqueios de horário</div>
   <div class="card" id="my-blocks-card" style="padding:18px 20px;">
     <div class="hint" style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">Folga, consulta, imprevisto — cadastre aqui seus próprios bloqueios de agenda.</div>
@@ -249,7 +369,11 @@
     </div>
     <div style="margin-top:16px;" id="my-block-list"></div>
   </div>
+  </div>
+
 </main>
+</div>
+</div>
 
 <script>
 function currency(v) { return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v || 0); }
@@ -451,15 +575,66 @@ function wireApptEditHandlers(container, onSaved) {
 }
 
 const BARBER_TOUR_STEPS = [
-  { selector: ".kpi-grid", title: "Seu desempenho do mês", text: "Faturamento gerado, cortes realizados, ticket médio e sua comissão — já separada entre serviço e produto." },
+  { activateSelector: '#page-tabs button[data-page="overview"]', selector: ".kpi-grid", title: "Seu desempenho do mês", text: "Faturamento gerado, cortes realizados, ticket médio e sua comissão — já separada entre serviço e produto." },
   { selector: "#new-appt-card", title: "Novo agendamento", text: "Marque um horário manualmente pra um cliente que ligou ou chegou no balcão." },
   { selector: "#appt-list", title: "Minha agenda de hoje", text: "Os cortes marcados pra hoje, em ordem de horário." },
-  { selector: "#my-agenda-card", title: "Minha agenda", text: "Veja sua agenda completa por semana ou mês, e navegue entre os períodos." },
-  { selector: "#my-blocks-card", title: "Meus bloqueios de horário", text: "Cadastre folgas ou imprevistos pra esses horários saírem da agenda de agendamento automaticamente." },
-  { selector: "#tour-btn", title: "Pronto!", text: "Quando quiser rever esse tour, é só clicar aqui de novo." },
+  { activateSelector: '#page-tabs button[data-page="agenda"]', selector: "#my-agenda-card", title: "Minha agenda", text: "Veja sua agenda completa por semana ou mês, e navegue entre os períodos." },
+  { activateSelector: '#page-tabs button[data-page="bloqueios"]', selector: "#my-blocks-card", title: "Meus bloqueios de horário", text: "Cadastre folgas ou imprevistos pra esses horários saírem da agenda de agendamento automaticamente." },
+  { activateSelector: '#page-tabs button[data-page="overview"]', selector: "#tour-btn", title: "Pronto!", text: "Quando quiser rever esse tour, é só clicar aqui de novo." },
 ];
 
 document.getElementById("tour-btn").addEventListener("click", () => startTour(BARBER_TOUR_STEPS));
+
+/* ---------------- Sidebar (menu lateral) ----------------
+   Acima de 960px a sidebar já fica sempre visível (ver CSS) e nada aqui se
+   aplica — esses handlers só importam abaixo do breakpoint, quando ela vira
+   um painel deslizante. */
+const sidebarEl = document.getElementById("sidebar");
+const sidebarToggleBtn = document.getElementById("sidebar-toggle");
+const sidebarScrimEl = document.getElementById("sidebar-scrim");
+
+function openSidebar() {
+  sidebarEl.classList.add("open");
+  sidebarScrimEl.classList.add("open");
+  sidebarToggleBtn.setAttribute("aria-expanded", "true");
+}
+function closeSidebar() {
+  sidebarEl.classList.remove("open");
+  sidebarScrimEl.classList.remove("open");
+  sidebarToggleBtn.setAttribute("aria-expanded", "false");
+}
+sidebarToggleBtn.addEventListener("click", () => {
+  if (sidebarEl.classList.contains("open")) closeSidebar(); else openSidebar();
+});
+sidebarScrimEl.addEventListener("click", closeSidebar);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && sidebarEl.classList.contains("open")) closeSidebar();
+});
+document.querySelectorAll("#page-tabs button").forEach((btn) => {
+  btn.addEventListener("click", closeSidebar);
+});
+
+/* ---------------- Troca de página ---------------- */
+let agendaRendered = false;
+let blocksLoaded = false;
+document.querySelectorAll("#page-tabs button").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    document.querySelectorAll("#page-tabs button").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    const page = btn.dataset.page;
+    ["overview", "agenda", "bloqueios"].forEach((p) => {
+      document.getElementById(`page-${p}`).style.display = p === page ? "block" : "none";
+    });
+    if (page === "agenda" && !agendaRendered) {
+      agendaRendered = true;
+      await renderMyAgenda();
+    }
+    if (page === "bloqueios" && !blocksLoaded) {
+      blocksLoaded = true;
+      await loadMyBlocks();
+    }
+  });
+});
 
 let meCache = null;
 
@@ -716,7 +891,7 @@ document.getElementById("new-appt-save-btn").addEventListener("click", async (e)
     document.getElementById("new-appt-service").value = "";
     document.getElementById("new-appt-time").value = "";
     await loadAll();
-    await renderMyAgenda();
+    if (agendaRendered) await renderMyAgenda();
   } finally {
     btn.disabled = false;
   }
@@ -782,8 +957,6 @@ async function setupPush() {
 (async () => {
   watchKpiValues();
   await loadAll();
-  await renderMyAgenda();
-  await loadMyBlocks();
   setupPush();
   setInterval(loadAll, 60000);
 })();
