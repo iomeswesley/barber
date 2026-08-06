@@ -11,6 +11,7 @@
 <script src="/assets/theme-init.js"></script>
 <link rel="stylesheet" href="/assets/theme.css">
 <script src="/assets/modal.js" defer></script>
+<script src="/assets/profileModal.js" defer></script>
 <script src="/assets/dropdown.js"></script>
 <script src="/assets/theme-toggle.js" defer></script>
 <script src="/assets/tour.js" defer></script>
@@ -825,7 +826,7 @@
           </div>
         </div>
         <div class="dropdown-divider"></div>
-        <a href="/minha-conta.html" class="dropdown-item"><span class="dd-ico">⚙️</span><span class="dd-meta"><span class="dd-title">Minha conta</span></span></a>
+        <button type="button" class="dropdown-item" id="my-profile-btn"><span class="dd-ico">⚙️</span><span class="dd-meta"><span class="dd-title">Minha conta</span></span></button>
         <div class="dropdown-divider"></div>
         <button type="button" class="dropdown-item danger" id="logout-btn"><span class="dd-ico">🚪</span><span class="dd-meta"><span class="dd-title">Sair</span></span></button>
       </div>
@@ -1439,12 +1440,27 @@ function applyMeToHeader(me) {
   const ini = initials(me.name || me.barbershopName || "?");
   ["avatar-btn", "avatar-menu-avatar"].forEach((id) => {
     const el = document.getElementById(id);
-    el.textContent = ini;
-    el.style.background = bg;
+    if (me.avatarUrl) {
+      el.style.backgroundImage = `url("${me.avatarUrl}")`;
+      el.style.backgroundSize = "cover";
+      el.style.backgroundPosition = "center";
+      el.textContent = "";
+    } else {
+      el.style.backgroundImage = "";
+      el.style.background = bg;
+      el.textContent = ini;
+    }
   });
   document.getElementById("avatar-menu-name").textContent = me.name || "—";
   document.getElementById("avatar-menu-email").textContent = me.email || me.barbershopName || "";
 }
+
+document.getElementById("my-profile-btn").addEventListener("click", () => {
+  document.getElementById("avatar-panel").classList.remove("is-open");
+  openProfileModal(lastMe, (updated) => {
+    applyMeToHeader({ ...lastMe, name: updated.name, avatarUrl: updated.avatarUrl });
+  });
+});
 
 initDropdown("notif-btn", "notif-panel");
 initDropdown("help-btn", "help-panel");

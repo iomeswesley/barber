@@ -207,6 +207,11 @@ model User {
   name         String
   createdAt    DateTime @default(now()) @map("created_at")
 
+  // Data URL (base64) da foto de perfil, redimensionada no navegador antes
+  // do upload (ver assets/profileModal.js) — sem infra de storage externo
+  // pra uma imagem pequena e opcional. Null = mostra as iniciais coloridas.
+  avatarUrl String? @map("avatar_url")
+
   // Opcional a nível de schema (usuários do seed/demo não têm) mas exigido
   // pela rota de cadastro pra contas novas. Token de confirmação enviado por
   // e-mail no signup — nulo depois de verificado ou se nunca chegou a pedir.

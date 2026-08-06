@@ -131,7 +131,33 @@ authRouter.get("/api/auth/me", requireAuth, async (req, res) => {
     email: user?.email || null,
     emailVerified: !!user?.emailVerifiedAt,
     tourSeen: !!user?.tourSeenAt,
+    avatarUrl: user?.avatarUrl || null,
   });
+});
+
+// Edição do próprio perfil (nome + foto) — usado pelo popup "Minha conta" do
+// topbar (ver webroot/assets/profileModal.js). Foto é uma data URL já
+// redimensionada no navegador antes de chegar aqui; o teto de tamanho é só
+// uma rede de segurança contra um upload gigante/malformado escapar do
+// redimensionamento do cliente.
+authRouter.put("/api/auth/me", requireAuth, async (req, res, next) => {
+  try {
+    const { name, avatarUrl } = req.body || {};
+    if (!name || !String(name).trim()) throw new AppError("Nome é obrigatório");
+    if (avatarUrl && String(avatarUrl).length > 2_000_000) throw new AppError("Imagem muito grande");
+
+    const updated = await prisma.user.update({
+      where: { id: req.session.user!.id },
+      data: { name: String(name).trim(), avatarUrl: avatarUrl || null },
+    });
+    req.session.user!.name = updated.name;
+    req.session.save((err) => {
+      if (err) return next(err);
+      res.json({ name: updated.name, avatarUrl: updated.avatarUrl });
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // Marca o tour guiado como visto (dispensado ou concluído) — sem isso ele
