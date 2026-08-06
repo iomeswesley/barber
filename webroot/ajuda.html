@@ -258,13 +258,18 @@
     </main>
   </div>
   <script>
-    // Essa página abre numa aba nova (sem window.opener, de propósito, por
-    // segurança) — history.back() não tem pra onde voltar aqui. "Voltar pro
-    // painel" na prática é só fechar essa aba e deixar quem abriu em segundo
-    // plano à mostra de novo.
+    // O link do menu de ajuda abre essa página na MESMA aba (sem
+    // target="_blank"), então window.close() não faz nada — o navegador só
+    // fecha abas abertas por script. "Fechar e voltar" na prática é navegar
+    // de volta: usa o histórico se tiver de onde voltar (o caso normal, veio
+    // do painel), senão cai no painel do dono como destino padrão.
     document.getElementById("back-to-panel-link").addEventListener("click", (e) => {
       e.preventDefault();
-      window.close();
+      if (document.referrer && new URL(document.referrer).origin === window.location.origin) {
+        history.back();
+      } else {
+        window.location.href = "/admin.html";
+      }
     });
   </script>
 </body>
