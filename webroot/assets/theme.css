@@ -464,7 +464,16 @@ html[data-theme="dark"] .theme-switch .knob { transform: translateX(0); }
 }
 .tour-title { font-size: 14.5px; font-weight: 600; margin-bottom: 6px; color: var(--text-primary); }
 .tour-text { font-size: 12.5px; line-height: 1.55; color: var(--text-secondary); margin-bottom: 16px; }
-.tour-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+/* sticky + fundo sólido: se o conteúdo do passo (título+texto) for mais
+   alto que o espaço disponível, .tour-tooltip rola por dentro (ver media
+   query mobile abaixo) e esses botões continuam grudados na base visível,
+   sem precisar rolar mais pra achar "Pular"/"Próximo". */
+.tour-actions {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  position: sticky; bottom: 0;
+  background: var(--card-bg-solid);
+  padding-top: 4px; margin-top: 12px;
+}
 .tour-skip {
   background: none; border: none; color: var(--text-muted); font-size: 12px;
   cursor: pointer; text-decoration: underline;
@@ -478,7 +487,10 @@ html[data-theme="dark"] .theme-switch .knob { transform: translateX(0); }
 .tour-prev { background: var(--card-bg-solid); border: 1px solid var(--card-border); color: var(--text-secondary); }
 .tour-next { background: var(--brand); border: 1px solid var(--brand); color: var(--brand-ink); }
 @media (max-width: 640px) {
-  .tour-tooltip { max-width: calc(100vw - 24px) !important; }
+  /* Teto de altura + scroll interno: garante que o tooltip nunca ultrapasse
+     a viewport (célular com passo de texto mais longo, teclado aberto etc.)
+     — sem isso, os botões de ação podiam ficar empurrados pra fora da tela. */
+  .tour-tooltip { max-width: calc(100vw - 24px) !important; max-height: calc(100vh - 24px); overflow-y: auto; }
 }
 
 /* ---------------- Botão flutuante de Ajuda ---------------- */
