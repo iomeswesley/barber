@@ -1555,12 +1555,21 @@ const ADMIN_TOUR_STEPS = [
   { selector: "#help-btn", title: "Pronto!", text: "Quando quiser rever esse tour, abra o menu de ajuda (❓) aqui e clique em \"Tour guiado\"." },
 ];
 
+// Com 1 barbeiro só, o card "Análise por barbeiro" some da tela (ver
+// applyBarberModeGating) — sem filtrar esse passo, o tour tentaria destacar
+// um elemento display:none (vira uma caixa de tamanho zero, tooltip solto no
+// canto). Centralizado aqui pra valer tanto no tour automático do primeiro
+// login (loadMe) quanto no botão manual "Tour guiado" do menu de ajuda.
+function visibleTourSteps() {
+  return isSoloMode() ? ADMIN_TOUR_STEPS.filter((s) => s.selector !== "#barber-analysis-card") : ADMIN_TOUR_STEPS;
+}
+
 document.getElementById("help-tour-btn").addEventListener("click", () => {
   // 1º passo do tour aponta pro menu lateral — no mobile ele começa fechado
   // (off-canvas), então sem abrir aqui o destaque cairia em cima de um
   // elemento fora da tela.
   openSidebar();
-  startTour(ADMIN_TOUR_STEPS);
+  startTour(visibleTourSteps());
 });
 
 async function loadMe() {
@@ -1578,7 +1587,7 @@ async function loadMe() {
   }
   applyMeToHeader(me);
   await refreshBarberCount();
-  if (!me.tourSeen) startTour(isSoloMode() ? ADMIN_TOUR_STEPS.filter((s) => s.selector !== "#barber-analysis-card") : ADMIN_TOUR_STEPS);
+  if (!me.tourSeen) startTour(visibleTourSteps());
 }
 
 /* ---------------- Modo barbeiro único vs múltiplos ----------------

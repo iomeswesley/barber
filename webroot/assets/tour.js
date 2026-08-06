@@ -61,7 +61,12 @@ function renderTourStep() {
       tooltip.style.transform = "translate(-50%, -50%)";
       return;
     }
-    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    // "auto" (= instantâneo, sem animação) em vez de "smooth": o scroll suave
+    // podia não terminar a tempo do setTimeout abaixo medir a posição final
+    // (ou nem rodar, dependendo do navegador/aba em segundo plano), deixando
+    // o destaque/tooltip desenhados na posição de ANTES de rolar — a página
+    // parecia não ter rolado pra mostrar o passo, exigindo rolagem manual.
+    target.scrollIntoView({ behavior: "auto", block: "center" });
     setTimeout(() => {
       const rect = target.getBoundingClientRect();
       const pad = 8;
