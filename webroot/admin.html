@@ -551,6 +551,38 @@
   .gcal-event.nao_compareceu { border-left-color: var(--danger); background: var(--danger-soft); opacity: .8; }
   .gcal-empty-hint { padding: 14px; text-align: center; color: var(--text-muted); font-size: 12px; }
 
+  /* ---------- Agenda mobile (visão "Semana" em telas pequenas) — lista vertical
+     por dia, estilo Calendário do iPhone, em vez da grade de 7 colunas ---------- */
+  .gcal-mobile { display: flex; flex-direction: column; }
+  .gcal-mobile-day + .gcal-mobile-day { border-top: 1px solid var(--divider); }
+  .gcal-mobile-day-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 4px 8px;
+    position: sticky; top: 0; z-index: 1;
+    background: var(--card-bg-solid);
+  }
+  .gcal-mobile-day.today .gcal-mobile-day-head { background: rgb(var(--color-primary) / 0.05); }
+  .gcal-mobile-day-head .gcal-dow { font-size: 11px; }
+  .gcal-mobile-day-list { padding: 2px 2px 14px; display: flex; flex-direction: column; gap: 6px; }
+  .gcal-mobile-empty { padding: 2px 4px 4px; font-size: 12px; color: var(--text-muted); }
+  .gcal-mobile-card {
+    display: flex; gap: 10px; align-items: flex-start;
+    border-radius: 10px; border-left: 3px solid var(--blue);
+    background: var(--blue-soft); color: var(--text-primary);
+    padding: 8px 10px; cursor: pointer;
+  }
+  .gcal-mobile-card.em_andamento { border-left-color: var(--warn); background: var(--warn-soft); }
+  .gcal-mobile-card.concluido { border-left-color: var(--good); background: var(--good-soft); }
+  .gcal-mobile-card.nao_compareceu { border-left-color: var(--danger); background: var(--danger-soft); opacity: .8; }
+  .gcal-mobile-card-time {
+    flex-shrink: 0; width: 44px; line-height: 1.35;
+    font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+  }
+  .gcal-mobile-card-time-end { display: block; font-weight: 400; color: var(--text-muted); font-size: 10px; }
+  .gcal-mobile-card-body { min-width: 0; }
+  .gcal-mobile-card-client { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gcal-mobile-card-service { font-size: 11.5px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
   /* ---------- Popup de detalhe do cliente (clique num evento da agenda) ---------- */
   .modal-box.wide {
     max-width: 560px;
@@ -614,6 +646,12 @@
   }
   .cal-month-cell .cal-revenue { font-weight: 700; font-size: 10.5px; color: var(--brand); white-space: nowrap; }
   .cal-month-cell .cal-commission { font-size: 9.5px; color: var(--text-muted); white-space: nowrap; }
+  @media (max-width: 640px) {
+    .cal-month-grid { gap: 4px; }
+    .cal-month-cell { padding: 5px 3px; min-height: 56px; }
+    .cal-month-cell .cal-revenue { font-size: 9px; }
+    .cal-month-cell .cal-commission { display: none; }
+  }
   .edit-appt-form {
     display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; padding-top: 8px;
     border-top: 1px dashed var(--divider);
@@ -3265,6 +3303,39 @@ function gcalEventHtml(ev) {
     </div>`;
 }
 
+function isMobileAgenda() {
+  return window.matchMedia("(max-width: 640px)").matches;
+}
+
+// Visão "Semana" em telas pequenas: lista vertical por dia (estilo Calendário
+// do iPhone) em vez da grade de 7 colunas, que fica ilegível/espremida no celular.
+function gcalMobileDayHtml(d, appts) {
+  const isToday = sameDay(d, new Date());
+  const dayAppts = appts.filter((a) => a.date === toDateStr(d)).sort((a, b) => a.start_time.localeCompare(b.start_time));
+  return `
+    <div class="gcal-mobile-day ${isToday ? "today" : ""}">
+      <div class="gcal-mobile-day-head">
+        <span class="gcal-dow">${WEEKDAY_LABELS[d.getDay()]}</span>
+        <span class="gcal-daynum ${isToday ? "today-badge" : ""}">${d.getDate()}</span>
+      </div>
+      <div class="gcal-mobile-day-list">
+        ${dayAppts.length ? dayAppts.map(gcalMobileCardHtml).join("") : `<div class="gcal-mobile-empty">Sem agendamentos</div>`}
+      </div>
+    </div>`;
+}
+
+function gcalMobileCardHtml(a) {
+  return `
+    <div class="gcal-mobile-card ${a.computed_status}" data-cal-appt="${a.id}"
+      title="${a.start_time}–${a.end_time} · ${a.client_name} · ${a.service_name}">
+      <div class="gcal-mobile-card-time">${a.start_time}<span class="gcal-mobile-card-time-end">${a.end_time}</span></div>
+      <div class="gcal-mobile-card-body">
+        <div class="gcal-mobile-card-client">${a.client_name}</div>
+        <div class="gcal-mobile-card-service">${a.service_name}</div>
+      </div>
+    </div>`;
+}
+
 function gcalHourLabelsHtml() {
   let html = "";
   for (let h = GCAL_HOUR_START; h <= GCAL_HOUR_END; h++) {
@@ -3308,7 +3379,9 @@ async function renderAgenda() {
     }
     const gridHeightPx = (GCAL_HOUR_END - GCAL_HOUR_START) * GCAL_HOUR_PX;
 
-    body.innerHTML = `
+    body.innerHTML = isMobileAgenda()
+      ? `<div class="gcal-mobile">${days.map((d) => gcalMobileDayHtml(d, appts)).join("")}</div>`
+      : `
       <div class="gcal" style="--gcal-hour-px:${GCAL_HOUR_PX}px;">
         <div class="gcal-scroll">
           <div class="gcal-header">
@@ -3425,6 +3498,9 @@ document.getElementById("agenda-today").addEventListener("click", () => {
 document.getElementById("agenda-barber-filter").addEventListener("change", (e) => {
   agendaBarberId = e.target.value;
   renderAgenda();
+});
+window.matchMedia("(max-width: 640px)").addEventListener("change", () => {
+  if (document.getElementById("page-agenda").style.display !== "none") renderAgenda();
 });
 
 /* ---------------- Histórico tab ---------------- */
