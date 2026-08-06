@@ -3653,7 +3653,7 @@ async function populateHistBarberFilter() {
   histBarberFilterPopulated = true;
 }
 
-function renderPie(canvasId, existingChart, entries) {
+function renderPie(canvasId, existingChart, entries, { legendPosition = "bottom" } = {}) {
   const ctx = document.getElementById(canvasId).getContext("2d");
   const colors = isDark() ? PIE_COLORS_DARK : PIE_COLORS_LIGHT;
   if (existingChart) existingChart.destroy();
@@ -3667,7 +3667,10 @@ function renderPie(canvasId, existingChart, entries) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: "bottom", labels: { color: cssVar("--text-secondary"), font: { size: 11 }, boxWidth: 12 } },
+        legend: {
+          position: legendPosition,
+          labels: { color: cssVar("--text-secondary"), font: { size: 11 }, boxWidth: 12 },
+        },
         tooltip: { callbacks: { label: (item) => `${item.label}: ${currency(item.parsed)}` } },
       },
     },
@@ -3689,7 +3692,7 @@ async function loadHistory() {
   document.getElementById("hist-count").textContent = data.totalCount;
 
   histBarberPie = renderPie("hist-barber-pie", histBarberPie, data.byBarber);
-  histServicePie = renderPie("hist-service-pie", histServicePie, data.byService);
+  histServicePie = renderPie("hist-service-pie", histServicePie, data.byService, { legendPosition: "right" });
 }
 
 document.getElementById("hist-month-filter").addEventListener("change", (e) => {
@@ -4367,7 +4370,7 @@ async function loadClientPlans() {
   }
 
   manageEl.style.display = "block";
-  await populateClientPlanServiceSelect();
+  await Promise.all([populateClientPlanServiceSelect(), ensureServicesCache()]);
   renderClientPlans(plans);
   loadClientPlanSubscriptions().catch(() => {
     document.getElementById("client-plan-subscriptions-list").innerHTML = '<div class="empty-state">Erro ao carregar assinaturas.</div>';
@@ -4399,6 +4402,51 @@ async function loadClientPlanSubscriptions() {
     .join("");
 }
 
+// Mesmo texto de rótulo/toggle do formulário de ADICIONAR (ver listener de
+// #new-plan-benefit-type acima) — reaproveitado aqui pra cada formulário de
+// edição, um por plano.
+function applyPlanBenefitTypeToggle(planId, benefitType) {
+  const isUnlimited = benefitType === "unlimited_service";
+  document.getElementById(`edit-plan-service-field-${planId}`).style.display = benefitType !== "percent_discount" ? "block" : "none";
+  document.getElementById(`edit-plan-value-label-${planId}`).textContent = isUnlimited ? "" : benefitType === "percent_discount" ? "Desconto (%)" : "Quantidade incluída";
+  document.getElementById(`edit-plan-benefit-value-${planId}`).parentElement.style.display = isUnlimited ? "none" : "block";
+}
+
+function clientPlanServiceOptionsHtml(selectedServiceId) {
+  return allServicesCache
+    .filter((s) => s.active)
+    .map((s) => `<option value="${s.id}" ${s.id === selectedServiceId ? "selected" : ""}>${s.name}</option>`)
+    .join("");
+}
+
+function editClientPlanFormHtml(p) {
+  return `
+    <div class="inline-form" id="edit-client-plan-form-${p.id}">
+      <div class="form-grid">
+        <div class="form-field" style="grid-column: 1 / -1;"><label>Nome</label><input type="text" id="edit-plan-name-${p.id}" value="${p.name}" /></div>
+        <div class="form-field"><label>Preço (R$/mês)</label><input type="number" step="0.01" id="edit-plan-price-${p.id}" value="${p.price_cents / 100}" /></div>
+        <div class="form-field">
+          <label>Tipo de benefício</label>
+          <select id="edit-plan-benefit-type-${p.id}">
+            <option value="services_included" ${p.benefit_type === "services_included" ? "selected" : ""}>N serviços incluídos por mês</option>
+            <option value="percent_discount" ${p.benefit_type === "percent_discount" ? "selected" : ""}>Desconto % em qualquer serviço</option>
+            <option value="unlimited_service" ${p.benefit_type === "unlimited_service" ? "selected" : ""}>Acesso ilimitado a 1 serviço</option>
+          </select>
+        </div>
+        <div class="form-field"><label id="edit-plan-value-label-${p.id}">Quantidade incluída</label><input type="number" id="edit-plan-benefit-value-${p.id}" value="${p.benefit_value}" /></div>
+        <div class="form-field" id="edit-plan-service-field-${p.id}" style="display:none;">
+          <label>Serviço</label>
+          <select id="edit-plan-service-id-${p.id}">${clientPlanServiceOptionsHtml(p.service_id)}</select>
+        </div>
+      </div>
+      <div class="hint" style="margin-top:6px;">Mudar nome ou preço cria um novo produto/preço no Stripe automaticamente — quem já assinou continua no valor antigo até renovar.</div>
+      <div class="form-actions">
+        <button class="btn-primary" data-save-client-plan="${p.id}">Salvar</button>
+        <button class="btn-secondary" data-cancel-edit-client-plan="${p.id}">Cancelar</button>
+      </div>
+    </div>`;
+}
+
 function renderClientPlans(plans) {
   const list = document.getElementById("client-plans-list");
   if (plans.length === 0) {
@@ -4414,9 +4462,11 @@ function renderClientPlans(plans) {
         <div class="item-meta">${currency(p.price_cents / 100)}/mês · ${BENEFIT_LABELS[p.benefit_type](p.benefit_value)}</div>
       </div>
       <div class="item-actions">
+        <button class="icon-btn" data-rename-client-plan="${p.id}" title="Editar">✏️</button>
         <button class="icon-btn ${p.active ? "danger" : ""}" data-toggle-client-plan="${p.id}" data-active="${p.active}" title="${p.active ? "Desativar" : "Ativar"}">${p.active ? "🚫" : "✅"}</button>
       </div>
     </div>
+    ${editClientPlanFormHtml(p)}
   `
     )
     .join("");
@@ -4430,6 +4480,56 @@ function renderClientPlans(plans) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ active: !active }),
       });
+      loadClientPlans();
+    });
+  });
+
+  list.querySelectorAll("[data-rename-client-plan]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.renameClientPlan;
+      const form = document.getElementById(`edit-client-plan-form-${id}`);
+      const wasOpen = form.classList.contains("open");
+      form.classList.toggle("open");
+      if (!wasOpen) applyPlanBenefitTypeToggle(id, document.getElementById(`edit-plan-benefit-type-${id}`).value);
+    });
+  });
+  list.querySelectorAll("[data-cancel-edit-client-plan]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.getElementById(`edit-client-plan-form-${btn.dataset.cancelEditClientPlan}`).classList.remove("open");
+    });
+  });
+  list.querySelectorAll(`[id^="edit-plan-benefit-type-"]`).forEach((select) => {
+    const id = select.id.replace("edit-plan-benefit-type-", "");
+    select.addEventListener("change", (e) => applyPlanBenefitTypeToggle(id, e.target.value));
+  });
+  list.querySelectorAll("[data-save-client-plan]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.saveClientPlan;
+      const name = document.getElementById(`edit-plan-name-${id}`).value.trim();
+      const price = document.getElementById(`edit-plan-price-${id}`).value;
+      const benefitType = document.getElementById(`edit-plan-benefit-type-${id}`).value;
+      const benefitValueEl = document.getElementById(`edit-plan-benefit-value-${id}`);
+      const serviceId = document.getElementById(`edit-plan-service-id-${id}`).value;
+      if (!name || !price) return;
+      const benefitValue = benefitType === "unlimited_service" ? 1 : Number(benefitValueEl.value);
+      if (benefitType !== "unlimited_service" && !benefitValueEl.value) return;
+
+      const res = await fetch(`/api/manage/client-plans/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          price_cents: Math.round(Number(price) * 100),
+          benefit_type: benefitType,
+          benefit_value: benefitValue,
+          service_id: benefitType !== "percent_discount" ? Number(serviceId) : null,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        await showAlertModal(err.error || "Erro ao salvar plano");
+        return;
+      }
       loadClientPlans();
     });
   });
