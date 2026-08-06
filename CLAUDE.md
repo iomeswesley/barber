@@ -42,7 +42,7 @@ Tudo abaixo já está implementado e em produção — o README pode estar desat
 ### Pendências reais
 
 1. Reescrita do frontend (`webroot/*.html` continua HTML/JS puro, não framework).
-2. Cobertura de testes concentrada em `lib/`, `clients` e `appointments` — faltam testes pra `billing` (webhook Stripe), `whatsapp`/`chat`, `onboarding`/`auth` e o painel de super-admin.
+2. Cobertura de testes: `lib/` (incluindo `stripe.ts`/`whatsapp.ts`), `clients`, `appointments`, `billing.service` (sem tocar no Stripe de verdade) e `onboarding.signupBarbershop` cobertos — ainda falta cobertura de `whatsapp`/`chat` como rotas HTTP (webhook fim a fim) e do painel de super-admin.
 3. Exclusão LGPD é global entre barbearias (por `Client` ser entidade compartilhada por telefone) — decisão de arquitetura documentada, não bug; revisitar se virar problema real.
 4. Rotas públicas de autoatendimento (`/api/public/*`, `/api/chat`) confiam só no telefone como identidade, sem OTP — mitigado por rate limit, não eliminado.
 
