@@ -2192,6 +2192,10 @@ async function openClientApptModal(appt) {
   if (myToken !== clientModalToken) return; // outra abertura substituiu essa antes da resposta chegar
   const stats = clients.find((c) => c.id === appt.client_id);
   const avgTicketCents = stats && stats.visit_count ? stats.total_revenue_cents / stats.visit_count : 0;
+  // Vindo da busca do topbar (sem agendamento específico), "appt" só tem
+  // client_id/client_name/client_phone — sem id/horário/serviço. Renderizar
+  // apptRowHtml nesse caso mostrava "undefined" em vários campos.
+  const hasSpecificAppt = !!appt.id;
 
   body.innerHTML = `
     <div class="client-modal-header">
@@ -2222,8 +2226,9 @@ async function openClientApptModal(appt) {
       </div>
     </div>` : ""}
 
+    ${hasSpecificAppt ? `
     <div class="modal-section-title">Este agendamento</div>
-    <div id="client-modal-appt"></div>
+    <div id="client-modal-appt"></div>` : ""}
 
     <div class="modal-section-title">Últimas visitas</div>
     ${visits.length === 0 ? `<div class="empty-state" style="padding:10px 0;">Nenhuma visita anterior.</div>` : visits
@@ -2241,12 +2246,14 @@ async function openClientApptModal(appt) {
       .join("")}
   `;
 
-  const apptContainer = document.getElementById("client-modal-appt");
-  apptContainer.innerHTML = apptRowHtml(appt);
-  wireApptEditHandlers(apptContainer, async () => {
-    closeClientModal();
-    await renderAgenda();
-  });
+  if (hasSpecificAppt) {
+    const apptContainer = document.getElementById("client-modal-appt");
+    apptContainer.innerHTML = apptRowHtml(appt);
+    wireApptEditHandlers(apptContainer, async () => {
+      closeClientModal();
+      await renderAgenda();
+    });
+  }
 }
 
 async function openApptEditForm(container, id) {
@@ -4565,6 +4572,5 @@ async function setupPush() {
     .catch(() => {});
 })();
 </script>
-<a href="/ajuda.html" target="_blank" rel="noopener" class="help-fab" title="Central de Ajuda">❓</a>
 </body>
 </html>
