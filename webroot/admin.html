@@ -202,27 +202,30 @@
     .kpi-grid { grid-template-columns: repeat(4, 1fr); }
   }
 
-  /* ---------- KPI grid: 3 colunas x 2 linhas (bruto/líquido/agendamentos,
-     previsão bruto/previsão líquido/ticket médio), igual ao mockup de
-     referência do produto. Cada card é independente (não tem mais um card
-     grande de faturamento com 4 itens internos + uma coluna estreita ao
-     lado) — todos usam a mesma altura de linha via grid stretch (padrão),
-     então os 2 cards sem mini-gráfico (agendamentos, ticket médio — sem
-     série diária disponível na API hoje) ficam com espaço em branco embaixo
-     em vez de description desalinhada. */
-  /* align-items:start (não o stretch padrão do grid) — os 2 cards sem
-     mini-gráfico (agendamentos, ticket médio) ficam na altura natural deles
-     em vez de esticados até a altura do vizinho com gráfico, o que deixava
-     um vazio grande embaixo do valor. */
-  .kpi-grid-6 { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
-  @media (min-width: 640px) { .kpi-grid-6 { grid-template-columns: repeat(2, 1fr); } }
-  @media (min-width: 1100px) { .kpi-grid-6 { grid-template-columns: repeat(3, 1fr); } }
-  .mini-chart-wrap { position: relative; min-height: 56px; margin-top: 10px; }
-
-  /* Barbeiro do mês / Taxa de no-show — linha própria abaixo do grid de 6,
-     como no mockup (não ficam mais empilhados numa coluna estreita). */
-  .kpi-secondary-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 16px; }
-  @media (min-width: 640px) { .kpi-secondary-grid { grid-template-columns: repeat(2, 1fr); } }
+  /* ---------- KPI split layout: card grande de faturamento (2x2) à
+     esquerda + coluna estreita empilhada à direita (agendamentos, ticket
+     médio, barbeiro do mês, taxa de no-show) — os 4 itens da coluna ficam
+     juntos, esticados pra preencher a mesma altura do card grande ao lado.
+     Trazido do odonto-saas (produto irmão), junto com o modo solo abaixo
+     (isSoloMode/applyBarberModeGating) que esconde líquido/comissão/ranking
+     quando só tem 1 barbeiro cadastrado. */
+  .kpi-split-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  @media (min-width: 900px) {
+    .kpi-split-grid { grid-template-columns: 1.8fr 1fr; align-items: stretch; }
+  }
+  .kpi-revenue-card { padding: 20px 22px; }
+  .kpi-revenue-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; height: 100%; }
+  @media (max-width: 640px) {
+    .kpi-revenue-card { padding: 16px; }
+    .kpi-revenue-grid { grid-template-columns: 1fr; gap: 14px; }
+  }
+  .kpi-revenue-item { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+  .mini-chart-wrap { position: relative; flex: 1; min-height: 56px; margin-top: 10px; }
+  .kpi-stack { display: flex; flex-direction: column; gap: 12px; }
+  .kpi-stack .kpi-card { flex: 1; }
+  .kpi-card-compact { padding: 12px 20px; }
+  .kpi-card-compact .kpi-top { margin-bottom: 6px; }
+  .kpi-card-compact .kpi-value { font-size: 21px; }
 
   /* ---------- Scrollbar customizada ---------- */
   .ranking-list, .appt-list, #review-list, .modal-scroll {
@@ -771,53 +774,56 @@
   <div id="page-overview" class="page-section">
   <div class="alert-banner" id="alert-banner" style="display:none;"></div>
   <div class="section-title">Visão geral do mês</div>
-  <div class="kpi-grid-6" id="kpi-grid">
-    <div class="card kpi-card">
-      <div class="kpi-top"><span class="kpi-label">Faturamento bruto</span><span class="kpi-icon">💰</span></div>
-      <div class="kpi-value" id="kpi-revenue-bruto">—</div>
-      <div class="kpi-sub" id="kpi-revenue-bruto-sub"></div>
-      <div class="mini-chart-wrap"><canvas id="mini-chart-bruto"></canvas></div>
+  <div class="kpi-split-grid" id="kpi-grid">
+    <div class="card kpi-revenue-card">
+      <div class="kpi-revenue-grid">
+        <div class="kpi-revenue-item">
+          <div class="kpi-top"><span class="kpi-label" id="kpi-revenue-bruto-label">Faturamento bruto</span><span class="kpi-icon">💰</span></div>
+          <div class="kpi-value" id="kpi-revenue-bruto">—</div>
+          <div class="kpi-sub" id="kpi-revenue-bruto-sub"></div>
+          <div class="mini-chart-wrap"><canvas id="mini-chart-bruto"></canvas></div>
+        </div>
+        <div class="kpi-revenue-item" id="kpi-revenue-liquido-card">
+          <div class="kpi-top"><span class="kpi-label">Faturamento líquido</span><span class="kpi-icon">💵</span></div>
+          <div class="kpi-value" id="kpi-revenue-liquido">—</div>
+          <div class="kpi-sub" id="kpi-revenue-liquido-sub"></div>
+          <div class="mini-chart-wrap"><canvas id="mini-chart-liquido"></canvas></div>
+        </div>
+        <div class="kpi-revenue-item">
+          <div class="kpi-top"><span class="kpi-label" id="kpi-revenue-previsao-bruto-label">Previsão bruto</span><span class="kpi-icon">🔮</span></div>
+          <div class="kpi-value" id="kpi-revenue-previsao-bruto">—</div>
+          <div class="kpi-sub" id="kpi-revenue-previsao-bruto-sub"></div>
+          <div class="mini-chart-wrap"><canvas id="mini-chart-previsao-bruto"></canvas></div>
+        </div>
+        <div class="kpi-revenue-item" id="kpi-revenue-previsao-liquido-card">
+          <div class="kpi-top"><span class="kpi-label">Previsão líquido</span><span class="kpi-icon">📊</span></div>
+          <div class="kpi-value" id="kpi-revenue-previsao-liquido">—</div>
+          <div class="kpi-sub" id="kpi-revenue-previsao-liquido-sub"></div>
+          <div class="mini-chart-wrap"><canvas id="mini-chart-previsao-liquido"></canvas></div>
+        </div>
+      </div>
     </div>
-    <div class="card kpi-card">
-      <div class="kpi-top"><span class="kpi-label">Faturamento líquido</span><span class="kpi-icon">💵</span></div>
-      <div class="kpi-value" id="kpi-revenue-liquido">—</div>
-      <div class="kpi-sub" id="kpi-revenue-liquido-sub"></div>
-      <div class="mini-chart-wrap"><canvas id="mini-chart-liquido"></canvas></div>
-    </div>
-    <div class="card kpi-card">
-      <div class="kpi-top"><span class="kpi-label">Agendamentos realizados</span><span class="kpi-icon">✅</span></div>
-      <div class="kpi-value" id="kpi-count">—</div>
-      <div class="kpi-sub" id="kpi-count-sub"></div>
-    </div>
-    <div class="card kpi-card">
-      <div class="kpi-top"><span class="kpi-label">Previsão bruto</span><span class="kpi-icon">🔮</span></div>
-      <div class="kpi-value" id="kpi-revenue-previsao-bruto">—</div>
-      <div class="kpi-sub" id="kpi-revenue-previsao-bruto-sub"></div>
-      <div class="mini-chart-wrap"><canvas id="mini-chart-previsao-bruto"></canvas></div>
-    </div>
-    <div class="card kpi-card">
-      <div class="kpi-top"><span class="kpi-label">Previsão líquido</span><span class="kpi-icon">📊</span></div>
-      <div class="kpi-value" id="kpi-revenue-previsao-liquido">—</div>
-      <div class="kpi-sub" id="kpi-revenue-previsao-liquido-sub"></div>
-      <div class="mini-chart-wrap"><canvas id="mini-chart-previsao-liquido"></canvas></div>
-    </div>
-    <div class="card kpi-card">
-      <div class="kpi-top"><span class="kpi-label">Ticket médio</span><span class="kpi-icon">🎟️</span></div>
-      <div class="kpi-value" id="kpi-ticket">—</div>
-      <div class="kpi-sub" id="kpi-ticket-sub"></div>
-    </div>
-  </div>
-
-  <div class="kpi-secondary-grid">
-    <div class="card kpi-card">
-      <div class="kpi-top"><span class="kpi-label">Barbeiro do mês</span><span class="kpi-icon">🏆</span></div>
-      <div class="kpi-value barber-of-month-name" id="kpi-barber">—</div>
-      <div class="kpi-sub" id="kpi-barber-sub"></div>
-    </div>
-    <div class="card kpi-card">
-      <div class="kpi-top"><span class="kpi-label">Taxa de no-show</span><span class="kpi-icon">🚫</span></div>
-      <div class="kpi-value" id="kpi-noshow">—</div>
-      <div class="kpi-sub" id="kpi-noshow-sub"></div>
+    <div class="kpi-stack">
+      <div class="card kpi-card kpi-card-compact">
+        <div class="kpi-top"><span class="kpi-label">Agendamentos realizados</span><span class="kpi-icon">✅</span></div>
+        <div class="kpi-value" id="kpi-count">—</div>
+        <div class="kpi-sub" id="kpi-count-sub"></div>
+      </div>
+      <div class="card kpi-card kpi-card-compact">
+        <div class="kpi-top"><span class="kpi-label">Ticket médio</span><span class="kpi-icon">🎟️</span></div>
+        <div class="kpi-value" id="kpi-ticket">—</div>
+        <div class="kpi-sub" id="kpi-ticket-sub"></div>
+      </div>
+      <div class="card kpi-card kpi-card-compact" id="kpi-barber-card">
+        <div class="kpi-top"><span class="kpi-label">Barbeiro do mês</span><span class="kpi-icon">🏆</span></div>
+        <div class="kpi-value barber-of-month-name" id="kpi-barber">—</div>
+        <div class="kpi-sub" id="kpi-barber-sub"></div>
+      </div>
+      <div class="card kpi-card kpi-card-compact">
+        <div class="kpi-top"><span class="kpi-label">Taxa de no-show</span><span class="kpi-icon">🚫</span></div>
+        <div class="kpi-value" id="kpi-noshow">—</div>
+        <div class="kpi-sub" id="kpi-noshow-sub"></div>
+      </div>
     </div>
   </div>
 
@@ -867,6 +873,7 @@
 
   <div class="section-title" id="reviews-section-title">Avaliações dos clientes</div>
   <div class="card panel" id="reviews-card">
+    <h2 id="reviews-card-title" style="display:none;">Avaliações dos clientes</h2>
     <div class="chart-head" style="margin-bottom:12px;">
       <div class="tabs" id="review-period-tabs">
         <button data-period="all" class="active">Tudo</button>
@@ -985,7 +992,7 @@
           <label>Mês específico</label>
           <input type="month" id="hist-month-filter" />
         </div>
-        <div class="form-field" style="min-width:180px;">
+        <div class="form-field" style="min-width:180px;" id="hist-barber-filter-field">
           <select id="hist-barber-filter"><option value="">Todos os barbeiros</option></select>
         </div>
       </div>
@@ -1002,12 +1009,12 @@
     </div>
 
     <div class="grid-two">
-      <div class="card panel">
+      <div class="card panel" id="hist-barber-pie-card">
         <h2>Participação por barbeiro</h2>
         <div class="hint">Faturamento de cada barbeiro no período selecionado</div>
         <div class="chart-wrap" style="height:240px;"><canvas id="hist-barber-pie"></canvas></div>
       </div>
-      <div class="card panel">
+      <div class="card panel" id="hist-service-pie-card">
         <h2>Participação por serviço</h2>
         <div class="hint">Faturamento de cada serviço no período selecionado</div>
         <div class="chart-wrap" style="height:240px;"><canvas id="hist-service-pie"></canvas></div>
@@ -1381,7 +1388,63 @@ async function loadMe() {
   if (me.email && !me.emailVerified) {
     document.getElementById("email-verify-banner").style.display = "flex";
   }
-  if (!me.tourSeen) startTour(ADMIN_TOUR_STEPS);
+  await refreshBarberCount();
+  if (!me.tourSeen) startTour(isSoloMode() ? ADMIN_TOUR_STEPS.filter((s) => s.selector !== "#barber-analysis-card") : ADMIN_TOUR_STEPS);
+}
+
+/* ---------------- Modo barbeiro único vs múltiplos ----------------
+   Comissão, faturamento bruto x líquido, "barbeiro do mês" e "análise por
+   barbeiro" só fazem sentido quando existe mais de um barbeiro pra comparar
+   — com 0 ou 1 (o próprio dono atendendo sozinho, via "Esse barbeiro sou
+   eu"), essas seções somem sozinhas, sem nenhum toggle manual: o modo é
+   sempre derivado de quantos barbeiros a barbearia tem cadastrados agora.
+   Trazido do odonto-saas (produto irmão), onde nasceu como "modo dentista
+   único vs múltiplos". */
+let barberCount = null;
+function isSoloMode() { return barberCount !== null && barberCount <= 1; }
+
+async function refreshBarberCount() {
+  const barbers = await (await fetch("/api/manage/barbers")).json();
+  barberCount = barbers.length;
+  applyBarberModeGating();
+  return barbers;
+}
+
+function applyBarberModeGating() {
+  if (barberCount === null) return;
+  const solo = isSoloMode();
+
+  document.getElementById("kpi-revenue-liquido-card")?.style.setProperty("display", solo ? "none" : "");
+  document.getElementById("kpi-revenue-previsao-liquido-card")?.style.setProperty("display", solo ? "none" : "");
+  document.getElementById("kpi-barber-card")?.style.setProperty("display", solo ? "none" : "");
+  document.getElementById("kpi-revenue-bruto-label").textContent = solo ? "Faturamento" : "Faturamento bruto";
+  document.getElementById("kpi-revenue-previsao-bruto-label").textContent = solo ? "Previsão" : "Previsão bruto";
+
+  const analysisCard = document.getElementById("barber-analysis-card");
+  if (analysisCard) analysisCard.style.display = solo ? "none" : "";
+
+  // Com um único barbeiro, "Análise por barbeiro" some e "Agendamentos de
+  // hoje" fica sozinho na grade de 2 colunas, com um vazio do lado — move
+  // "Avaliações dos clientes" pra esse espaço em vez de deixá-lo em branco
+  // (e volta pro lugar de sempre, abaixo, se voltar a ter mais de um barbeiro).
+  const reviewsCard = document.getElementById("reviews-card");
+  const reviewsSectionTitle = document.getElementById("reviews-section-title");
+  const reviewsCardTitle = document.getElementById("reviews-card-title");
+  const overviewGridTwo = document.querySelector(".overview-grid-two");
+  if (reviewsCard && reviewsSectionTitle && overviewGridTwo) {
+    const isInGrid = reviewsCard.parentElement === overviewGridTwo;
+    if (solo && !isInGrid) overviewGridTwo.appendChild(reviewsCard);
+    if (!solo && isInGrid) reviewsSectionTitle.insertAdjacentElement("afterend", reviewsCard);
+    reviewsSectionTitle.style.display = solo ? "none" : "";
+    reviewsCardTitle.style.display = solo ? "" : "none";
+  }
+
+  const histFilterField = document.getElementById("hist-barber-filter-field");
+  if (histFilterField) histFilterField.style.display = solo ? "none" : "";
+  const histBarberPieCard = document.getElementById("hist-barber-pie-card");
+  const histServicePieCard = document.getElementById("hist-service-pie-card");
+  if (histBarberPieCard) histBarberPieCard.style.display = solo ? "none" : "";
+  if (histServicePieCard) histServicePieCard.style.gridColumn = solo ? "1 / -1" : "";
 }
 
 document.getElementById("resend-verify-btn").addEventListener("click", async (e) => {
@@ -1802,6 +1865,7 @@ document.querySelectorAll("#range-tabs button").forEach((btn) => {
 
 /* ---------------- Barber performance ---------------- */
 async function loadBarberPerformance() {
+  if (isSoloMode()) return; // card já fica escondido via applyBarberModeGating(); evita a requisição à toa
   const res = await fetch(`/api/dashboard/barbers`);
   const barbers = await res.json();
 
@@ -2255,6 +2319,12 @@ async function loadManageData() {
 
 async function loadManageBarbers() {
   const barbers = await (await fetch("/api/manage/barbers")).json();
+  // Configurações já busca a lista completa de barbeiros — aproveita pra
+  // manter barberCount em dia (ex: acabou de excluir o 2º barbeiro e voltou
+  // a ser modo solo, sem precisar recarregar a página inteira).
+  barberCount = barbers.length;
+  applyBarberModeGating();
+  const solo = isSoloMode();
   const list = document.getElementById("barbers-manage-list");
   list.innerHTML = barbers
     .map(
@@ -2262,7 +2332,7 @@ async function loadManageBarbers() {
     <div class="item-row ${b.active ? "" : "inactive"}">
       <div>
         <div class="item-info">${b.name}${b.is_owner ? " (você)" : ""}${b.active ? "" : " (inativo)"}</div>
-        <div class="item-meta">Comissão serviço ${b.service_commission_percent}% · produto ${b.product_commission_percent}%${b.monthly_goal_cents ? " · Meta " + currency(b.monthly_goal_cents / 100) : ""}</div>
+        <div class="item-meta">${solo ? "" : `Comissão serviço ${b.service_commission_percent}% · produto ${b.product_commission_percent}%`}${b.monthly_goal_cents ? (solo ? "Meta " : " · Meta ") + currency(b.monthly_goal_cents / 100) : ""}</div>
       </div>
       <div class="item-actions">
         <button class="icon-btn" data-rename-barber="${b.id}" title="Editar">✏️</button>
@@ -2272,8 +2342,12 @@ async function loadManageBarbers() {
     <div class="inline-form" id="edit-barber-form-${b.id}">
       <div class="form-grid">
         <div class="form-field" style="grid-column: 1 / -1;"><label>Nome</label><input type="text" id="edit-barber-name-${b.id}" value="${b.name}" /></div>
-        <div class="form-field"><label>Comissão de serviço (%)</label><input type="number" step="0.1" min="0" max="100" id="edit-barber-service-commission-${b.id}" value="${b.service_commission_percent}" /></div>
-        <div class="form-field"><label>Comissão de produto (%)</label><input type="number" step="0.1" min="0" max="100" id="edit-barber-product-commission-${b.id}" value="${b.product_commission_percent}" /></div>
+        ${
+          solo
+            ? ""
+            : `<div class="form-field"><label>Comissão de serviço (%)</label><input type="number" step="0.1" min="0" max="100" id="edit-barber-service-commission-${b.id}" value="${b.service_commission_percent}" /></div>
+        <div class="form-field"><label>Comissão de produto (%)</label><input type="number" step="0.1" min="0" max="100" id="edit-barber-product-commission-${b.id}" value="${b.product_commission_percent}" /></div>`
+        }
         <div class="form-field"><label>Meta mensal (R$)</label><input type="number" step="0.01" min="0" id="edit-barber-goal-${b.id}" value="${b.monthly_goal_cents / 100}" /></div>
         ${
           b.is_owner
@@ -2290,7 +2364,7 @@ async function loadManageBarbers() {
           : "Sem login ainda — preencha usuário e senha pra criar o acesso desse barbeiro."
       }</div>
       <div class="form-actions">
-        <button class="btn-primary" data-save-barber="${b.id}">Salvar</button>
+        <button class="btn-primary" data-save-barber="${b.id}" data-service-commission="${b.service_commission_percent}" data-product-commission="${b.product_commission_percent}">Salvar</button>
         <button class="btn-secondary" data-cancel-edit-barber="${b.id}">Cancelar</button>
       </div>
     </div>
@@ -2333,8 +2407,11 @@ async function loadManageBarbers() {
     btn.addEventListener("click", async () => {
       const id = btn.dataset.saveBarber;
       const name = document.getElementById(`edit-barber-name-${id}`).value;
-      const serviceCommissionPercent = document.getElementById(`edit-barber-service-commission-${id}`).value;
-      const productCommissionPercent = document.getElementById(`edit-barber-product-commission-${id}`).value;
+      // Em modo solo esses campos não existem no DOM (escondidos — comissão
+      // não faz sentido com 1 barbeiro só) — mantém o valor atual gravado
+      // no banco em vez de zerar, lido do data-* do próprio botão.
+      const serviceCommissionPercent = document.getElementById(`edit-barber-service-commission-${id}`)?.value ?? btn.dataset.serviceCommission;
+      const productCommissionPercent = document.getElementById(`edit-barber-product-commission-${id}`)?.value ?? btn.dataset.productCommission;
       const monthlyGoal = document.getElementById(`edit-barber-goal-${id}`).value;
       // Barbeiro vinculado à conta de dono não tem esses campos no DOM.
       const username = document.getElementById(`edit-barber-username-${id}`)?.value || "";
@@ -3229,7 +3306,7 @@ const PIE_COLORS_DARK = ["#81c995", "#8ab4f8", "#f28b82", "#c58af9", "#fdd663", 
 const PIE_COLORS_LIGHT = ["#1e8e3e", "#1a73e8", "#d93025", "#a142f4", "#f9ab00", "#12b5cb", "#d01884"];
 
 async function populateHistBarberFilter() {
-  if (histBarberFilterPopulated) return;
+  if (histBarberFilterPopulated || isSoloMode()) return;
   const barbers = await (await fetch("/api/manage/barbers")).json();
   const select = document.getElementById("hist-barber-filter");
   select.innerHTML =
