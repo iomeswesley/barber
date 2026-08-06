@@ -189,12 +189,14 @@
     .progress-track { order: 3; flex-basis: 100%; max-width: none; }
   }
 
-  /* min-height calculado em JS (measureFeaturePanelsHeight) = altura do
-     painel mais alto entre os 6. Sem isso, trocar de aba no auto-play muda a
-     altura da seção (cada recurso tem texto de tamanho diferente) e o resto
-     da página "pula" pra cima/baixo a cada troca — sensação de página se
-     mexendo sozinha, mesmo sem o usuário ter rolado nada. */
-  .feature-panels { position: relative; }
+  /* min-height calculado em JS (setFeaturePanelsHeight) = altura do painel
+     ATIVO no momento (não do maior entre os 6 — isso deixava um vão vazio
+     enorme embaixo dos painéis mais curtos, principalmente no mobile, onde o
+     texto empilha em 1 coluna e a variação de altura entre os 6 recursos é
+     bem maior). A transição suave no min-height evita o "pulo" abrupto do
+     resto da página ao trocar de aba (manual ou auto-play) sem precisar
+     reservar espaço vazio o tempo todo. */
+  .feature-panels { position: relative; transition: min-height .35s ease; }
   .feature-panel { display: none; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
   .feature-panel.active { display: grid; animation: fadeIn .4s ease; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -816,6 +818,7 @@
       tabButtons.forEach((btn, i) => btn.classList.toggle('active', i === index));
       panels.forEach((p, i) => p.classList.toggle('active', i === index));
       tabCounter.textContent = `${index + 1} / ${panels.length}`;
+      setFeaturePanelsHeight();
       // No mobile a barra de pílulas rola horizontalmente e a ativa pode ficar
       // fora da tela — sem isso o usuário não teria como saber qual recurso
       // está selecionado sem arrastar a barra manualmente. Rola só o container
@@ -869,30 +872,24 @@
       stopAutoplay();
     });
 
-    // Fixa a altura do wrapper na do painel mais alto entre os 6 — cada
-    // recurso tem texto de tamanho diferente, então sem isso a seção mudava
-    // de altura a cada troca de aba (manual ou automática) e empurrava todo
-    // o resto da página, dando a sensação de a página se mexer sozinha.
+    // Ajusta a altura do wrapper na do painel ATIVO (não a do maior entre os
+    // 6 — cada recurso tem texto de tamanho diferente, e reservar sempre o
+    // espaço do mais alto deixava um vão vazio grande embaixo dos painéis
+    // mais curtos, principalmente no mobile). A transição no CSS
+    // (.feature-panels) suaviza a troca, então o resto da página não "pula"
+    // de forma abrupta ao trocar de aba (manual ou automática).
     // Recalcula no resize (debounced) porque o breakpoint de 860px muda o
-    // layout de 2 colunas pra 1 — a altura máxima é bem diferente entre eles.
-    function measureFeaturePanelsHeight() {
-      let max = 0;
-      panels.forEach((p) => {
-        const wasActive = p.classList.contains('active');
-        if (!wasActive) p.style.display = 'grid';
-        max = Math.max(max, p.scrollHeight);
-        if (!wasActive) p.style.display = '';
-      });
-      featurePanelsWrap.style.minHeight = max + 'px';
+    // layout de 2 colunas pra 1 — a altura do painel ativo muda bastante.
+    function setFeaturePanelsHeight() {
+      featurePanelsWrap.style.minHeight = panels[current].scrollHeight + 'px';
     }
     let resizeTimer = null;
     window.addEventListener('resize', () => {
       clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(measureFeaturePanelsHeight, 150);
+      resizeTimer = setTimeout(setFeaturePanelsHeight, 150);
     });
 
     showTab(0);
-    measureFeaturePanelsHeight();
     startAutoplay();
 
     // ---- FAQ accordion ----
