@@ -550,6 +550,14 @@
   .gcal-event.concluido { border-left-color: var(--good); background: var(--good-soft); }
   .gcal-event.nao_compareceu { border-left-color: var(--danger); background: var(--danger-soft); opacity: .8; }
   .gcal-empty-hint { padding: 14px; text-align: center; color: var(--text-muted); font-size: 12px; }
+  .gcal-free-slot {
+    position: absolute; left: 2px; right: 2px; overflow: hidden;
+    border: 1px dashed var(--card-border); border-radius: 6px;
+    background: transparent; color: var(--text-muted);
+    font-size: 9.5px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    pointer-events: none;
+  }
 
   /* ---------- Agenda mobile (visão "Semana" em telas pequenas) — lista vertical
      por dia, estilo Calendário do iPhone, em vez da grade de 7 colunas ---------- */
@@ -574,6 +582,7 @@
   .gcal-mobile-card.em_andamento { border-left-color: var(--warn); background: var(--warn-soft); }
   .gcal-mobile-card.concluido { border-left-color: var(--good); background: var(--good-soft); }
   .gcal-mobile-card.nao_compareceu { border-left-color: var(--danger); background: var(--danger-soft); opacity: .8; }
+  .gcal-mobile-card.livre { border-left-style: dashed; border-left-color: var(--card-border); background: transparent; color: var(--text-muted); cursor: default; }
   .gcal-mobile-card-time {
     flex-shrink: 0; width: 44px; line-height: 1.35;
     font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums;
@@ -3248,6 +3257,75 @@ function timeStrToMin(t) {
   return h * 60 + m;
 }
 
+function minToTimeStr(min) {
+  return `${pad2(Math.floor(min / 60))}:${pad2(min % 60)}`;
+}
+
+// Horário de funcionamento e bloqueios mudam raramente — mesmo padrão de
+// cache de ensureServicesCache/ensureProductsCache, evita refetch a cada
+// troca de semana/filtro na agenda. Fica desatualizado só se o dono editar
+// horário/bloqueios em Configurações sem recarregar a página (aceitável,
+// mesmo trade-off já existente pros outros caches).
+let businessHoursCache = [];
+async function ensureBusinessHoursCache() {
+  if (businessHoursCache.length === 0) businessHoursCache = await (await fetch("/api/manage/business-hours")).json();
+}
+let timeBlocksCache = null;
+async function ensureTimeBlocksCache() {
+  if (timeBlocksCache === null) timeBlocksCache = await (await fetch("/api/manage/time-blocks")).json();
+}
+
+function mergeIntervals(intervals) {
+  if (intervals.length === 0) return [];
+  const sorted = intervals.map((iv) => iv.slice()).sort((a, b) => a[0] - b[0]);
+  const merged = [sorted[0]];
+  for (let i = 1; i < sorted.length; i++) {
+    const last = merged[merged.length - 1];
+    const [s, e] = sorted[i];
+    if (s <= last[1]) last[1] = Math.max(last[1], e);
+    else merged.push([s, e]);
+  }
+  return merged;
+}
+
+const MIN_FREE_MINUTES = 15;
+
+// Espaços livres entre agendamentos, dentro do horário de funcionamento real
+// do dia (nunca fora do expediente). Com um barbeiro específico filtrado, só
+// conta bloqueios que afetam esse barbeiro (ou a barbearia toda); com "Todos
+// os barbeiros", um horário só é livre se NINGUÉM estiver ocupado ali (regra
+// conservadora — nunca superestima disponibilidade numa barbearia com vários
+// barbeiros, já que a grade não separa disponibilidade por profissional).
+function computeFreeSlots(d, dayAppts) {
+  const hoursRow = businessHoursCache.find((h) => h.weekday === d.getDay());
+  if (!hoursRow || hoursRow.closed) return [];
+  const openMin = Math.max(GCAL_HOUR_START * 60, timeStrToMin(hoursRow.opens_at));
+  const closeMin = Math.min(GCAL_HOUR_END * 60, timeStrToMin(hoursRow.closes_at));
+  if (openMin >= closeMin) return [];
+
+  const dateStr = toDateStr(d);
+  const busy = dayAppts.map((a) => [timeStrToMin(a.start_time), timeStrToMin(a.end_time)]);
+  (timeBlocksCache || []).forEach((tb) => {
+    const appliesToday = tb.recurring || String(tb.date).slice(0, 10) === dateStr;
+    if (!appliesToday) return;
+    if (agendaBarberId && tb.barber_id && String(tb.barber_id) !== String(agendaBarberId)) return;
+    busy.push([timeStrToMin(tb.start_time), timeStrToMin(tb.end_time)]);
+  });
+
+  const clipped = busy.map(([s, e]) => [Math.max(openMin, s), Math.min(closeMin, e)]).filter(([s, e]) => s < e);
+  const merged = mergeIntervals(clipped);
+
+  const free = [];
+  let cursor = openMin;
+  merged.forEach(([s, e]) => {
+    if (s > cursor) free.push({ start: cursor, end: s });
+    cursor = Math.max(cursor, e);
+  });
+  if (cursor < closeMin) free.push({ start: cursor, end: closeMin });
+
+  return free.filter((f) => f.end - f.start >= MIN_FREE_MINUTES);
+}
+
 // Atribui cada agendamento a uma "coluna" dentro do dia, lado a lado com
 // os que se sobrepõem no horário (ex: dois barbeiros atendendo ao mesmo
 // tempo) — mesma lógica de layout que o Google Calendar usa pra semana.
@@ -3303,6 +3381,15 @@ function gcalEventHtml(ev) {
     </div>`;
 }
 
+function gcalFreeSlotHtml(slot) {
+  const totalMin = (GCAL_HOUR_END - GCAL_HOUR_START) * 60;
+  const top = ((slot.start - GCAL_HOUR_START * 60) / totalMin) * 100;
+  const height = Math.max(((slot.end - slot.start) / totalMin) * 100, 1.5);
+  const label = height >= 3 ? `${minToTimeStr(slot.start)}–${minToTimeStr(slot.end)}` : "";
+  return `
+    <div class="gcal-free-slot" style="top:${top}%; height:${height}%;" title="Livre ${minToTimeStr(slot.start)}–${minToTimeStr(slot.end)}">${label}</div>`;
+}
+
 function isMobileAgenda() {
   return window.matchMedia("(max-width: 640px)").matches;
 }
@@ -3312,15 +3399,27 @@ function isMobileAgenda() {
 function gcalMobileDayHtml(d, appts) {
   const isToday = sameDay(d, new Date());
   const dayAppts = appts.filter((a) => a.date === toDateStr(d)).sort((a, b) => a.start_time.localeCompare(b.start_time));
+  const hoursRow = businessHoursCache.find((h) => h.weekday === d.getDay());
+  const closed = !hoursRow || hoursRow.closed;
+  const freeSlots = closed ? [] : computeFreeSlots(d, dayAppts);
+
+  const items = [
+    ...dayAppts.map((a) => ({ start: timeStrToMin(a.start_time), html: gcalMobileCardHtml(a) })),
+    ...freeSlots.map((f) => ({ start: f.start, html: gcalMobileFreeCardHtml(f) })),
+  ].sort((a, b) => a.start - b.start);
+
+  let listHtml;
+  if (closed) listHtml = `<div class="gcal-mobile-empty">Fechado</div>`;
+  else if (items.length === 0) listHtml = `<div class="gcal-mobile-empty">Sem horários disponíveis</div>`;
+  else listHtml = items.map((it) => it.html).join("");
+
   return `
     <div class="gcal-mobile-day ${isToday ? "today" : ""}">
       <div class="gcal-mobile-day-head">
         <span class="gcal-dow">${WEEKDAY_LABELS[d.getDay()]}</span>
         <span class="gcal-daynum ${isToday ? "today-badge" : ""}">${d.getDate()}</span>
       </div>
-      <div class="gcal-mobile-day-list">
-        ${dayAppts.length ? dayAppts.map(gcalMobileCardHtml).join("") : `<div class="gcal-mobile-empty">Sem agendamentos</div>`}
-      </div>
+      <div class="gcal-mobile-day-list">${listHtml}</div>
     </div>`;
 }
 
@@ -3332,6 +3431,18 @@ function gcalMobileCardHtml(a) {
       <div class="gcal-mobile-card-body">
         <div class="gcal-mobile-card-client">${a.client_name}</div>
         <div class="gcal-mobile-card-service">${a.service_name}</div>
+      </div>
+    </div>`;
+}
+
+function gcalMobileFreeCardHtml(slot) {
+  const start = minToTimeStr(slot.start);
+  const end = minToTimeStr(slot.end);
+  return `
+    <div class="gcal-mobile-card livre" title="Livre ${start}–${end}">
+      <div class="gcal-mobile-card-time">${start}<span class="gcal-mobile-card-time-end">${end}</span></div>
+      <div class="gcal-mobile-card-body">
+        <div class="gcal-mobile-card-client">Livre</div>
       </div>
     </div>`;
 }
@@ -3364,6 +3475,7 @@ async function renderAgenda() {
   const rangeLabel = document.getElementById("agenda-range-label");
 
   if (agendaView === "week") {
+    await Promise.all([ensureBusinessHoursCache(), ensureTimeBlocksCache()]);
     const { start, end } = weekRangeFor(agendaAnchor);
     title.textContent = "Agenda da semana";
     rangeLabel.textContent = `${toDateStr(start)} a ${toDateStr(end)}`;
@@ -3404,7 +3516,8 @@ async function renderAgenda() {
                 const dayAppts = appts.filter((a) => a.date === toDateStr(d));
                 const isToday = sameDay(d, new Date());
                 const laidOut = layoutDayEvents(dayAppts);
-                return `<div class="gcal-daycol ${isToday ? "today" : ""}">${laidOut.map(gcalEventHtml).join("")}</div>`;
+                const freeSlots = computeFreeSlots(d, dayAppts);
+                return `<div class="gcal-daycol ${isToday ? "today" : ""}">${freeSlots.map(gcalFreeSlotHtml).join("")}${laidOut.map(gcalEventHtml).join("")}</div>`;
               })
               .join("")}
             ${gcalNowLineHtml(days)}
