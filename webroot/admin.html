@@ -11,6 +11,7 @@
 <script src="/assets/theme-init.js"></script>
 <link rel="stylesheet" href="/assets/theme.css">
 <script src="/assets/modal.js" defer></script>
+<script src="/assets/dropdown.js"></script>
 <script src="/assets/theme-toggle.js" defer></script>
 <script src="/assets/tour.js" defer></script>
 <style>
@@ -82,14 +83,6 @@
   .sidebar-nav button:not(.active):hover { background: var(--surface-raise); color: var(--text-primary); }
   .sidebar-nav button.active { background: var(--brand-soft); color: var(--brand); font-weight: 700; }
 
-  .sidebar-footer {
-    flex-shrink: 0; padding: 12px; border-top: 1px solid var(--divider);
-  }
-  .sidebar-footer #logout-btn {
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    width: 100%; padding: 10px 14px;
-  }
-
   /* ---------- Topbar (dentro da coluna de conteúdo) ---------- */
   .app-main { flex: 1; min-width: 0; }
   header.topbar {
@@ -139,17 +132,6 @@
   .plan-badge-pro { background: linear-gradient(135deg, #f5d576, #d4af37 55%, #9c7a1e); color: #2b2003; }
   .plan-badge-past_due { background: var(--danger-soft); color: var(--danger); }
   .plan-badge-none { background: var(--surface-raise-2); color: var(--text-muted); }
-
-  #logout-btn.link-back {
-    color: var(--danger);
-    border-color: rgb(var(--color-bg) / 0);
-    background: var(--danger-soft);
-  }
-  #logout-btn.link-back:hover {
-    color: #fff;
-    background: var(--danger);
-    border-color: var(--danger);
-  }
 
   select.shop-select {
     appearance: none;
@@ -660,8 +642,10 @@
 
   @media (max-width: 560px) {
     header.topbar { padding: 10px 12px; gap: 8px; }
+    .topbar-search { min-width: 0; }
     .topbar-right { gap: 5px; }
-    #push-btn.icon-btn, #tour-btn.icon-btn { width: 26px; height: 26px; font-size: 12px; }
+    #push-btn.icon-btn, #notif-btn.icon-btn, #help-btn.icon-btn { width: 26px; height: 26px; font-size: 12px; }
+    .avatar-btn { width: 28px; height: 28px; font-size: 11px; }
     .theme-switch { width: 40px; height: 22px; }
     /* Switch menor no mobile: o deslocamento do knob acompanha (claro à
        direita, escuro à esquerda — mesma lógica do theme.css). */
@@ -743,24 +727,62 @@
     <button data-page="configuracoes"><span class="nav-ico">⚙️</span>Configurações</button>
     <button data-page="auditoria"><span class="nav-ico">🛡️</span>Auditoria</button>
   </nav>
-  <div class="sidebar-footer">
-    <button id="logout-btn" class="link-back" style="cursor:pointer;">Sair</button>
-  </div>
 </aside>
 
 <div class="app-main">
 <header class="topbar">
   <button id="sidebar-toggle" class="sidebar-toggle" title="Abrir menu" aria-label="Abrir menu" aria-expanded="false" aria-controls="sidebar">☰</button>
+
+  <div class="topbar-search dropdown-wrap align-left" id="topbar-search-wrap">
+    <span class="search-ico">🔎</span>
+    <input type="text" id="topbar-search-input" placeholder="Pesquisar cliente..." autocomplete="off" aria-label="Pesquisar cliente" />
+    <kbd id="topbar-search-kbd">Ctrl K</kbd>
+    <div class="dropdown-panel" id="search-results-panel" style="top:calc(100% + 8px); width:340px; max-width:80vw;"></div>
+  </div>
+
   <div class="topbar-right">
-    <button id="tour-btn" class="icon-btn" title="Ver tour guiado" style="font-size:16px;">🧭</button>
     <button id="push-btn" class="icon-btn" title="Ativar notificações push" style="display:none; font-size:16px;">🔔</button>
+
+    <div class="dropdown-wrap">
+      <button id="notif-btn" class="icon-btn" title="Notificações" style="font-size:15px; position:relative;">
+        🔔<span class="notif-badge" id="notif-badge" style="display:none;">0</span>
+      </button>
+      <div class="dropdown-panel" id="notif-panel">
+        <div class="dropdown-panel-header">Notificações</div>
+        <div id="notif-panel-body"><div class="dropdown-empty">Nenhuma notificação por aqui 🎉</div></div>
+      </div>
+    </div>
+
+    <div class="dropdown-wrap">
+      <button id="help-btn" class="icon-btn" title="Ajuda"><span class="help-icon-badge">?</span></button>
+      <div class="dropdown-panel" id="help-panel">
+        <div class="dropdown-panel-header">Ajuda</div>
+        <a href="/ajuda.html" class="dropdown-item"><span class="dd-ico">📖</span><span class="dd-meta"><span class="dd-title">Central de ajuda</span></span></a>
+        <button type="button" class="dropdown-item" id="help-tour-btn"><span class="dd-ico">🧭</span><span class="dd-meta"><span class="dd-title">Tour guiado</span></span></button>
+        <a href="/chat.html" class="dropdown-item"><span class="dd-ico">💬</span><span class="dd-meta"><span class="dd-title">Simulador de chat</span></span></a>
+      </div>
+    </div>
+
     <div class="theme-switch" id="theme-switch" title="Alternar tema claro/escuro">
       <div class="knob" id="theme-knob">🌙</div>
     </div>
-    <a href="/chat.html" class="link-back" style="display:inline-flex; align-items:center; gap:6px;">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="#25D366" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z M12.017 2C6.508 2 2.03 6.478 2.03 11.987c0 2.152.68 4.16 1.836 5.798L2 22l4.36-1.844a9.933 9.933 0 0 0 5.657 1.762c5.508 0 9.987-4.478 9.987-9.987C22.004 6.478 17.526 2 12.017 2zm0 18.062a8.03 8.03 0 0 1-4.362-1.271l-.313-.187-3.234 1.369.965-3.253-.204-.334A8.001 8.001 0 1 1 20.03 12.03a8.048 8.048 0 0 1-8.013 8.032z" /></svg>
-      <span class="full">Simulador de chat</span>
-    </a>
+
+    <div class="dropdown-wrap">
+      <button id="avatar-btn" class="avatar-btn" title="Sua conta">--</button>
+      <div class="dropdown-panel" id="avatar-panel">
+        <div class="avatar-menu-header">
+          <div class="avatar-btn" id="avatar-menu-avatar" style="cursor:default;">--</div>
+          <div style="min-width:0;">
+            <div class="amh-name" id="avatar-menu-name">—</div>
+            <div class="amh-email" id="avatar-menu-email"></div>
+          </div>
+        </div>
+        <div class="dropdown-divider"></div>
+        <a href="/minha-conta.html" class="dropdown-item"><span class="dd-ico">⚙️</span><span class="dd-meta"><span class="dd-title">Minha conta</span></span></a>
+        <div class="dropdown-divider"></div>
+        <button type="button" class="dropdown-item danger" id="logout-btn"><span class="dd-ico">🚪</span><span class="dd-meta"><span class="dd-title">Sair</span></span></button>
+      </div>
+    </div>
   </div>
 </header>
 
@@ -772,8 +794,24 @@
   </div>
 
   <div id="page-overview" class="page-section">
+  <div class="greeting-header">
+    <div>
+      <h1 id="greeting-title">Olá! 👋</h1>
+      <p class="greeting-sub">Aqui está o resumo da sua barbearia hoje.</p>
+    </div>
+    <div class="greeting-meta">
+      <span class="greeting-date"><span>📅</span><span id="greeting-date-text"></span></span>
+      <div class="dropdown-wrap align-left">
+        <button type="button" class="period-select" id="period-select-btn">Este mês <span class="ps-arrow">▾</span></button>
+        <div class="dropdown-panel" id="period-panel" style="min-width:180px;">
+          <button type="button" class="dropdown-item" id="period-option-month"><span class="dd-meta"><span class="dd-title">Este mês</span></span></button>
+          <button type="button" class="dropdown-item is-disabled" disabled><span class="dd-meta"><span class="dd-title">Este trimestre</span></span><span class="dd-soon">Em breve</span></button>
+          <button type="button" class="dropdown-item is-disabled" disabled><span class="dd-meta"><span class="dd-title">Este ano</span></span><span class="dd-soon">Em breve</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
   <div class="alert-banner" id="alert-banner" style="display:none;"></div>
-  <div class="section-title">Visão geral do mês</div>
   <div class="kpi-split-grid" id="kpi-grid">
     <div class="card kpi-revenue-card">
       <div class="kpi-revenue-grid">
@@ -1336,6 +1374,93 @@ function deltaBadge(percent) {
   return `<span class="delta ${up ? "up" : "down"}">${up ? "▲" : "▼"} ${Math.abs(rounded)}% vs mês anterior</span>`;
 }
 
+/* ---------------- Cabeçalho: saudação + avatar (topo da Visão geral) ---------------- */
+function renderGreetingDate() {
+  const text = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  document.getElementById("greeting-date-text").textContent = text.charAt(0).toUpperCase() + text.slice(1);
+}
+document.addEventListener("themechange", () => { if (lastMe) applyMeToHeader(lastMe); });
+
+let lastMe = null;
+function applyMeToHeader(me) {
+  lastMe = me;
+  const firstName = (me.name || "").trim().split(/\s+/)[0] || "";
+  document.getElementById("greeting-title").textContent = firstName ? `Olá, ${firstName}! 👋` : "Olá! 👋";
+  renderGreetingDate();
+
+  const bg = avatarColor(me.name || me.barbershopName || "?");
+  const ini = initials(me.name || me.barbershopName || "?");
+  ["avatar-btn", "avatar-menu-avatar"].forEach((id) => {
+    const el = document.getElementById(id);
+    el.textContent = ini;
+    el.style.background = bg;
+  });
+  document.getElementById("avatar-menu-name").textContent = me.name || "—";
+  document.getElementById("avatar-menu-email").textContent = me.email || me.barbershopName || "";
+}
+
+initDropdown("notif-btn", "notif-panel");
+initDropdown("help-btn", "help-panel");
+initDropdown("avatar-btn", "avatar-panel");
+initDropdown("period-select-btn", "period-panel");
+document.getElementById("period-option-month").addEventListener("click", () => {
+  document.getElementById("period-panel").classList.remove("is-open");
+});
+
+/* ---------------- Busca global (Ctrl K) ---------------- */
+function renderSearchResults(query) {
+  const panel = document.getElementById("search-results-panel");
+  const q = query.trim().toLowerCase();
+  if (!q) {
+    panel.classList.remove("is-open");
+    return;
+  }
+  const matches = allClientsCache
+    .filter((c) => c.name.toLowerCase().includes(q) || (c.phone || "").includes(q))
+    .slice(0, 8);
+  panel.innerHTML =
+    matches.length === 0
+      ? `<div class="dropdown-empty">Nenhum cliente encontrado.</div>`
+      : matches
+          .map(
+            (c) => `
+        <button type="button" class="dropdown-item" data-search-client="${c.id}">
+          <span class="avatar-btn" style="width:26px; height:26px; font-size:10px; background:${avatarColor(c.name)};">${initials(c.name)}</span>
+          <span class="dd-meta"><span class="dd-title">${c.name}</span><span class="dd-sub">${c.phone}${c.last_visit_date ? " · última visita " + c.last_visit_date : ""}</span></span>
+        </button>`
+          )
+          .join("");
+  panel.querySelectorAll("[data-search-client]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const client = allClientsCache.find((c) => String(c.id) === btn.dataset.searchClient);
+      panel.classList.remove("is-open");
+      document.getElementById("topbar-search-input").value = "";
+      if (client) openClientApptModal({ client_id: client.id, client_name: client.name, client_phone: client.phone });
+    });
+  });
+  panel.classList.add("is-open");
+}
+
+document.getElementById("topbar-search-input").addEventListener("input", async (e) => {
+  if (allClientsCache.length === 0) await loadClients();
+  renderSearchResults(e.target.value);
+});
+document.getElementById("topbar-search-input").addEventListener("focus", async (e) => {
+  if (allClientsCache.length === 0) await loadClients();
+  if (e.target.value.trim()) renderSearchResults(e.target.value);
+});
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+    e.preventDefault();
+    document.getElementById("topbar-search-input").focus();
+  }
+  if (e.key === "Escape") document.getElementById("search-results-panel").classList.remove("is-open");
+});
+document.addEventListener("click", (e) => {
+  const wrap = document.getElementById("topbar-search-wrap");
+  if (wrap && !wrap.contains(e.target)) wrap.querySelector(".dropdown-panel").classList.remove("is-open");
+});
+
 /* ---------------- Theme ---------------- */
 // Toggle (persistência + click handler) mora em assets/theme-toggle.js,
 // compartilhado com as outras páginas. Aqui só reagimos à troca pra
@@ -1364,10 +1489,10 @@ const ADMIN_TOUR_STEPS = [
   { activateSelector: '#page-tabs button[data-page="estoque"]', selector: "#page-estoque", title: "Estoque", text: "Controle os produtos vendidos no balcão e receba alerta quando o estoque estiver baixo." },
   { activateSelector: '#page-tabs button[data-page="configuracoes"]', selector: "#page-configuracoes", title: "Configurações", text: "Aqui fica praticamente tudo: WhatsApp, cobrança, planos pros seus clientes, horário de funcionamento, bloqueios, barbeiros, serviços e backup." },
   { activateSelector: '#page-tabs button[data-page="auditoria"]', selector: "#page-auditoria", title: "Auditoria", text: "Um histórico de todas as ações feitas no painel — quem fez o quê e quando." },
-  { selector: "#tour-btn", title: "Pronto!", text: "Quando quiser rever esse tour, é só clicar aqui de novo." },
+  { selector: "#help-btn", title: "Pronto!", text: "Quando quiser rever esse tour, abra o menu de ajuda (❓) aqui e clique em \"Tour guiado\"." },
 ];
 
-document.getElementById("tour-btn").addEventListener("click", () => {
+document.getElementById("help-tour-btn").addEventListener("click", () => {
   // 1º passo do tour aponta pro menu lateral — no mobile ele começa fechado
   // (off-canvas), então sem abrir aqui o destaque cairia em cima de um
   // elemento fora da tela.
@@ -1388,6 +1513,7 @@ async function loadMe() {
   if (me.email && !me.emailVerified) {
     document.getElementById("email-verify-banner").style.display = "flex";
   }
+  applyMeToHeader(me);
   await refreshBarberCount();
   if (!me.tourSeen) startTour(isSoloMode() ? ADMIN_TOUR_STEPS.filter((s) => s.selector !== "#barber-analysis-card") : ADMIN_TOUR_STEPS);
 }
@@ -4246,6 +4372,45 @@ function updateTimestamp() {
 
 /* ---------------- Alertas (estoque baixo + escalonamentos) ---------------- */
 
+// Alimentado pelos mesmos dados de loadAlerts() (estoque baixo +
+// escalonamentos) — o sino é só uma segunda vitrine pros mesmos alertas do
+// banner, sem endpoint próprio. Clicar num item do sino dispara o clique do
+// chip correspondente no banner, reaproveitando a navegação que já existe
+// (troca pra Estoque / abre o painel de escalonamentos) em vez de duplicá-la.
+function renderNotifBell(lowStockCount, escalationCount) {
+  const badge = document.getElementById("notif-badge");
+  const total = lowStockCount + escalationCount;
+  badge.style.display = total > 0 ? "block" : "none";
+  badge.textContent = total > 9 ? "9+" : String(total);
+
+  const body = document.getElementById("notif-panel-body");
+  const items = [];
+  if (lowStockCount > 0) {
+    items.push(`
+      <button type="button" class="dropdown-item" data-notif="stock">
+        <span class="dd-ico">📦</span>
+        <span class="dd-meta"><span class="dd-title">${lowStockCount} produto${lowStockCount > 1 ? "s" : ""} com estoque baixo</span></span>
+      </button>`);
+  }
+  if (escalationCount > 0) {
+    items.push(`
+      <button type="button" class="dropdown-item" data-notif="escalation">
+        <span class="dd-ico">🚨</span>
+        <span class="dd-meta"><span class="dd-title">${escalationCount} atendimento${escalationCount > 1 ? "s" : ""} sinalizado${escalationCount > 1 ? "s" : ""}</span></span>
+      </button>`);
+  }
+  body.innerHTML = items.length > 0 ? items.join("") : `<div class="dropdown-empty">Nenhuma notificação por aqui 🎉</div>`;
+  body.querySelector('[data-notif="stock"]')?.addEventListener("click", () => {
+    document.getElementById("notif-panel").classList.remove("is-open");
+    document.getElementById("alert-chip-stock")?.click();
+  });
+  body.querySelector('[data-notif="escalation"]')?.addEventListener("click", () => {
+    document.getElementById("notif-panel").classList.remove("is-open");
+    document.querySelector('#page-tabs button[data-page="overview"]')?.click();
+    document.getElementById("alert-chip-escalation")?.click();
+  });
+}
+
 async function loadAlerts() {
   const banner = document.getElementById("alert-banner");
   const [stock, escalations] = await Promise.all([
@@ -4278,6 +4443,7 @@ async function loadAlerts() {
 
   banner.innerHTML = chips.join("");
   banner.style.display = chips.length > 0 ? "flex" : "none";
+  renderNotifBell(lowStockCount, escalations.length);
 
   document.getElementById("alert-chip-stock")?.addEventListener("click", () => {
     document.querySelector('#page-tabs button[data-page="estoque"]').click();

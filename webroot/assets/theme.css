@@ -495,3 +495,143 @@ html[data-theme="dark"] .theme-switch .knob { transform: translateX(0); }
 @media (max-width: 640px) {
   .help-fab { right: 14px; bottom: 14px; width: 46px; height: 46px; font-size: 19px; }
 }
+
+/* ---------------- Topbar: busca, sino, ajuda, avatar ----------------
+   Compartilhado entre admin.html e barber.html (evita cada página duplicar
+   seu próprio CSS de topbar) — só a marcação muda por página, este bloco não.
+   Dropdowns usam o helper genérico de webroot/assets/dropdown.js. */
+.topbar-search {
+  position: relative;
+  display: flex; align-items: center; gap: 8px;
+  min-width: 220px; max-width: 320px; flex: 1;
+  padding: 7px 12px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-raise);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  transition: border-color .15s ease, background-color .15s ease;
+}
+.topbar-search:focus-within { border-color: var(--card-border-hover); background: var(--card-bg-solid); }
+.topbar-search .search-ico { font-size: 13px; flex-shrink: 0; }
+.topbar-search input {
+  flex: 1; min-width: 0; border: none; background: transparent; outline: none;
+  font-size: 13px; color: var(--text-primary);
+}
+.topbar-search input::placeholder { color: var(--text-muted); }
+.topbar-search kbd {
+  flex-shrink: 0; font-size: 10.5px; font-weight: 700; font-family: inherit;
+  color: var(--text-muted); border: 1px solid var(--card-border);
+  border-radius: 5px; padding: 2px 6px; background: var(--card-bg-solid);
+}
+@media (max-width: 640px) {
+  .topbar-search kbd { display: none; }
+}
+
+/* Painel genérico de dropdown (resultado de busca, notificações, ajuda,
+   avatar, período) — só muda o conteúdo interno por caso de uso. */
+.dropdown-wrap { position: relative; }
+.dropdown-panel {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 60;
+  min-width: 260px; max-width: 340px;
+  background: var(--card-bg-solid);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-overlay);
+  padding: 8px;
+  display: none;
+}
+.dropdown-wrap.align-left .dropdown-panel { right: auto; left: 0; }
+.dropdown-panel.is-open { display: block; }
+@media (max-width: 480px) {
+  /* Trava o painel dentro da viewport em telas bem estreitas — sem isso,
+     um painel ancorado perto da borda (ex: sino/ajuda no canto direito do
+     topbar) podia estourar pra fora da tela e ficar cortado. */
+  .dropdown-panel { max-width: calc(100vw - 24px); min-width: 0; }
+}
+.dropdown-panel-header {
+  padding: 8px 10px 10px; font-size: 12px; font-weight: 700;
+  color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em;
+  border-bottom: 1px solid var(--divider); margin-bottom: 6px;
+}
+.dropdown-empty { padding: 18px 10px; text-align: center; font-size: 12.5px; color: var(--text-muted); }
+.dropdown-item {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 9px 10px; border-radius: 8px; border: none; background: transparent;
+  color: var(--text-primary); font-size: 13px; text-align: left; text-decoration: none;
+  cursor: pointer; transition: background-color .15s ease;
+}
+.dropdown-item:hover { background: var(--surface-raise); }
+.dropdown-item .dd-ico { font-size: 15px; width: 18px; text-align: center; flex-shrink: 0; }
+.dropdown-item .dd-meta { min-width: 0; flex: 1; }
+.dropdown-item .dd-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dropdown-item .dd-sub { font-size: 11.5px; color: var(--text-muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dropdown-item.danger { color: var(--danger); }
+.dropdown-item.danger:hover { background: var(--danger-soft); }
+.dropdown-item[disabled], .dropdown-item.is-disabled {
+  color: var(--text-muted); cursor: default; opacity: .6;
+}
+.dropdown-item.is-disabled:hover { background: transparent; }
+.dropdown-item .dd-soon {
+  margin-left: auto; font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--text-muted); background: var(--surface-raise-2);
+  padding: 2px 6px; border-radius: 999px; flex-shrink: 0;
+}
+.dropdown-divider { height: 1px; background: var(--divider); margin: 6px 2px; }
+
+/* Ícone de ajuda — "?" neutro em vez do emoji ❓ (que no iOS renderiza
+   vermelho e destoava do resto do topbar, sobretudo ao lado do toggle
+   de tema verde). */
+.help-icon-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+  background: var(--text-secondary); color: rgb(var(--p-white));
+  font-size: 10px; font-weight: 800; line-height: 1;
+}
+#help-btn:hover .help-icon-badge { background: var(--brand); }
+
+/* Sino de notificações */
+.notif-badge {
+  position: absolute; top: -3px; right: -3px;
+  min-width: 15px; height: 15px; padding: 0 3px;
+  border-radius: 999px; background: var(--danger); color: rgb(var(--p-white));
+  font-size: 9.5px; font-weight: 800; line-height: 15px; text-align: center;
+  border: 2px solid var(--card-bg-solid);
+}
+
+/* Avatar (canto do topbar e cabeçalho do menu) */
+.avatar-btn {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12.5px; font-weight: 700; color: rgb(var(--p-white));
+  background: var(--surface-raise-2); border: none; cursor: pointer;
+}
+.avatar-menu-header { display: flex; align-items: center; gap: 12px; padding: 6px 10px 12px; }
+.avatar-menu-header .avatar-btn { cursor: default; }
+.avatar-menu-header .amh-name { font-size: 13.5px; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.avatar-menu-header .amh-email { font-size: 11.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------------- Cabeçalho de saudação (topo da Visão geral) ---------------- */
+.greeting-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  flex-wrap: wrap; gap: 14px; margin-bottom: 20px;
+}
+.greeting-header h1 { margin: 0 0 4px; font-size: 21px; }
+.greeting-header .greeting-sub { margin: 0; font-size: 13px; color: var(--text-muted); }
+.greeting-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.greeting-date {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12.5px; color: var(--text-secondary); font-weight: 500;
+  padding: 8px 12px; border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm); background: var(--card-bg-solid);
+  white-space: nowrap;
+}
+/* Estático de propósito (não é mais um dropdown) — os KPIs do mês são
+   sempre "mês atual" no backend hoje, então oferecer "trimestre"/"ano"
+   como opção desabilitada só confundia sem entregar nada. */
+.period-select {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; font-weight: 700; color: var(--text-primary);
+  padding: 8px 12px; border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm); background: var(--card-bg-solid);
+  white-space: nowrap;
+}
