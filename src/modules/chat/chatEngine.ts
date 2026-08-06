@@ -39,11 +39,11 @@ interface ChatSession {
 
 const WEEKDAYS = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
 
-function formatPrice(cents: number): string {
+export function formatPrice(cents: number): string {
   return `R$ ${Math.round(cents / 100)}`;
 }
 
-function describeClientPlanBenefit(
+export function describeClientPlanBenefit(
   plan: { benefitType: string; benefitValue: number; serviceId: number | null },
   serviceName?: string
 ): string {
@@ -66,7 +66,7 @@ function icsUrl(appointmentId: number, phone: string): string {
 // Rede de segurança: mesmo instruído a usar negrito de UM asterisco (sintaxe
 // do WhatsApp), o modelo às vezes escorrega pro **negrito** padrão de
 // Markdown — que o WhatsApp não entende e mostra os asteriscos soltos.
-function normalizeWhatsappFormatting(text: string): string {
+export function normalizeWhatsappFormatting(text: string): string {
   return text.replace(/\*\*(.+?)\*\*/g, "*$1*");
 }
 

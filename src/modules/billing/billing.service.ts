@@ -258,7 +258,7 @@ export async function assertProPlan(barbershopId: number): Promise<void> {
   }
 }
 
-function mapStripeStatus(status: Stripe.Subscription.Status): "trialing" | "active" | "past_due" | "canceled" {
+export function mapStripeStatus(status: Stripe.Subscription.Status): "trialing" | "active" | "past_due" | "canceled" {
   if (status === "trialing") return "trialing";
   if (status === "active") return "active";
   if (status === "past_due" || status === "unpaid") return "past_due";
