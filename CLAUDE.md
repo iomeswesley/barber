@@ -48,6 +48,8 @@ Tudo abaixo já está implementado e em produção — o README pode estar desat
 
 ## Login de demonstração
 
-Senha `barbearia123` para todos. Dono: `barbearia-vintage.dono` ou `barber-king.dono`. Barbeiro: `carlos`, `rafael`, `diego`, `lucas` ou `bruno`.
+Senha `barbearia123` para todos. Dono: `barbearia-vintage.dono` (3 barbeiros — `carlos`, `rafael`, `diego`) ou `barbearia-solo.dono` (barbeiro único — `marcos`, pra testar o modo barbeiro-único vs múltiplos; criada por `scripts/seed-solo-barbershop.ts`, seguro rodar de novo).
+
+A barbearia `barber-king.dono` (barbeiros `lucas`/`bruno`, criada pelo `prisma/seed.ts` original) ainda existe no banco e continua logável, só não aparece mais na tela de login nem é mais a credencial de demonstração oficial.
 
 Super-admin: usuário `admin`, senha configurada via `ADMIN_PASSWORD_HASH` no `.env`/Vercel (gerar com `npx tsx scripts/hash-password.ts <senha>`).
