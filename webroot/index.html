@@ -182,7 +182,10 @@
     display: flex; align-items: center; justify-content: center;
   }
   .progress-track { flex: 1; max-width: 160px; height: 3px; border-radius: 3px; background: var(--surface-raise-2); overflow: hidden; }
-  .progress-fill { height: 100%; width: 0%; background: var(--brand-grad-text); transition: width .1s linear; }
+  /* transform (scaleX) em vez de width: anima só na GPU/thread de composição,
+     sem forçar recálculo de layout a cada frame — ver runProgressBar() no
+     script, que troca o antigo loop de requestAnimationFrame por isso. */
+  .progress-fill { height: 100%; width: 100%; transform-origin: left; transform: scaleX(0); background: var(--brand-grad-text); }
   .tab-counter { font-variant-numeric: tabular-nums; white-space: nowrap; flex-shrink: 0; }
   @media (max-width: 480px) {
     .autoplay-row { flex-wrap: wrap; }
@@ -810,8 +813,7 @@
     const TAB_DURATION = 15000;
     let current = 0;
     let playing = true;
-    let rafId = null;
-    let segmentStart = null;
+    let autoplayTimer = null;
 
     function showTab(index) {
       current = index;
@@ -830,32 +832,47 @@
       bar.scrollTo({ left: target, behavior: 'smooth' });
     }
 
-    function tick(ts) {
-      if (!playing) return;
-      if (segmentStart === null) segmentStart = ts;
-      const elapsed = ts - segmentStart;
-      const pct = Math.min(100, (elapsed / TAB_DURATION) * 100);
-      progressFill.style.width = pct + '%';
-      if (elapsed >= TAB_DURATION) {
-        segmentStart = ts;
-        showTab((current + 1) % panels.length);
-      }
-      rafId = requestAnimationFrame(tick);
+    // Barra de progresso animada só em CSS (transform, acelerada por GPU) em
+    // vez do antigo loop de requestAnimationFrame atualizando `width` a cada
+    // frame. O rAF antigo forçava recálculo de layout ~60x/s o tempo todo —
+    // autoplay fica ligado por padrão, então isso rodava sem parar — e
+    // competia com o thread de scroll no mobile, dando a sensação de página
+    // "vibrando"/travando ao rolar. Trocado por uma única transition CSS de
+    // TAB_DURATION e um setTimeout pra avançar de aba quando ela termina.
+    function runProgressBar() {
+      progressFill.style.transition = 'none';
+      progressFill.style.transform = 'scaleX(0)';
+      // Ler uma propriedade de layout (offsetWidth) força o navegador a
+      // aplicar o transition:none e o scaleX(0) ANTES de seguir — sem esse
+      // reflow síncrono, religar a transição e trocar o valor final logo
+      // em seguida vira um "salto" direto pro alvo em vez de animar (o
+      // navegador nunca chega a registrar o estado zerado como ponto de
+      // partida). Técnica padrão pra reiniciar uma transição CSS.
+      void progressFill.offsetWidth;
+      progressFill.style.transition = `transform ${TAB_DURATION}ms linear`;
+      progressFill.style.transform = 'scaleX(1)';
+    }
+
+    function advance() {
+      showTab((current + 1) % panels.length);
+      runProgressBar();
+      autoplayTimer = setTimeout(advance, TAB_DURATION);
     }
 
     function startAutoplay() {
       playing = true;
-      segmentStart = null;
       autoplayToggle.textContent = '❚❚';
       autoplayLabel.textContent = 'Auto-play em execução';
-      rafId = requestAnimationFrame(tick);
+      runProgressBar();
+      autoplayTimer = setTimeout(advance, TAB_DURATION);
     }
     function stopAutoplay() {
       playing = false;
       autoplayToggle.textContent = '▶';
       autoplayLabel.textContent = 'Auto-play pausado';
-      progressFill.style.width = '0%';
-      if (rafId) cancelAnimationFrame(rafId);
+      progressFill.style.transition = 'none';
+      progressFill.style.transform = 'scaleX(0)';
+      if (autoplayTimer) clearTimeout(autoplayTimer);
     }
 
     tabButtons.forEach((btn) => {
