@@ -9,13 +9,13 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' fill='%231e8e3e' rx='24'/><text y='130' x='96' text-anchor='middle' font-size='110' font-family='serif'>✂️</text></svg>",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' fill='%231e8e3e' rx='24'/><g transform='translate(31.49 31.49) scale(5.38)'><path fill='white' d='M6 6m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0'/><path fill='white' d='M6 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0'/><path fill='white' stroke='white' stroke-width='1.5' d='M20 4L8.12 15.88'/><path fill='white' stroke='white' stroke-width='1.5' d='M14.47 14.48L20 20'/><path fill='white' stroke='white' stroke-width='1.5' d='M8.12 8.12L12 12'/></g></svg>",
       "sizes": "192x192",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='%231e8e3e' rx='64'/><text y='360' x='256' text-anchor='middle' font-size='300' font-family='serif'>✂️</text></svg>",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='%231e8e3e' rx='64'/><g transform='translate(83.97 83.97) scale(14.34)'><path fill='white' d='M6 6m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0'/><path fill='white' d='M6 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0'/><path fill='white' stroke='white' stroke-width='1.5' d='M20 4L8.12 15.88'/><path fill='white' stroke='white' stroke-width='1.5' d='M14.47 14.48L20 20'/><path fill='white' stroke='white' stroke-width='1.5' d='M8.12 8.12L12 12'/></g></svg>",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"

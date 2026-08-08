@@ -5,11 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Painel Premium</title>
 <link rel="manifest" href="/manifest.json" />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%232fa04f'/><stop offset='55%25' stop-color='%231e8e3e'/><stop offset='100%25' stop-color='%230d652d'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%92%88</text></svg>" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%232fa04f'/><stop offset='55%25' stop-color='%231e8e3e'/><stop offset='100%25' stop-color='%230d652d'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><g transform='translate(16.4 16.4) scale(2.8)'><path fill='white' d='M6 6m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0'/><path fill='white' d='M6 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0'/><path fill='white' stroke='white' stroke-width='1.5' d='M20 4L8.12 15.88'/><path fill='white' stroke='white' stroke-width='1.5' d='M14.47 14.48L20 20'/><path fill='white' stroke='white' stroke-width='1.5' d='M8.12 8.12L12 12'/></g></svg>" />
 <meta name="theme-color" content="#f8f9fa" />
 <script src="/assets/vendor/chart.umd.min.js"></script>
 <script src="/assets/theme-init.js"></script>
 <link rel="stylesheet" href="/assets/theme.css">
+<script src="/assets/icons.js" defer></script>
 <script src="/assets/modal.js" defer></script>
 <script src="/assets/profileModal.js" defer></script>
 <script src="/assets/dropdown.js"></script>
@@ -760,44 +761,44 @@
 <div class="sidebar-scrim" id="sidebar-scrim"></div>
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-brand brand">
-    <div class="logo">💈</div>
+    <div class="logo"><svg class="icon"><use href="#icon-brand-razor"></use></svg></div>
     <div class="titles">
       <h1>Painel Premium <span id="plan-badge" class="plan-badge" style="display:none; margin-left:6px; vertical-align:middle;"></span></h1>
       <p id="shop-label">Barbearia</p>
     </div>
   </div>
   <nav class="sidebar-nav" id="page-tabs">
-    <button data-page="overview" class="active"><span class="nav-ico">🏠</span>Visão geral</button>
-    <button data-page="agenda"><span class="nav-ico">📅</span>Agenda</button>
-    <button data-page="conversas"><span class="nav-ico">💬</span>Conversas</button>
-    <button data-page="historico"><span class="nav-ico">🕐</span>Histórico</button>
-    <button data-page="estoque"><span class="nav-ico">📦</span>Estoque</button>
-    <button data-page="configuracoes"><span class="nav-ico">⚙️</span>Configurações</button>
-    <button data-page="auditoria"><span class="nav-ico">🛡️</span>Auditoria</button>
+    <button data-page="overview" class="active"><span class="nav-ico"><svg class="icon"><use href="#icon-home"></use></svg></span>Visão geral</button>
+    <button data-page="agenda"><span class="nav-ico"><svg class="icon"><use href="#icon-calendar"></use></svg></span>Agenda</button>
+    <button data-page="conversas"><span class="nav-ico"><svg class="icon"><use href="#icon-chat"></use></svg></span>Conversas</button>
+    <button data-page="historico"><span class="nav-ico"><svg class="icon"><use href="#icon-history"></use></svg></span>Histórico</button>
+    <button data-page="estoque"><span class="nav-ico"><svg class="icon"><use href="#icon-inventory"></use></svg></span>Estoque</button>
+    <button data-page="configuracoes"><span class="nav-ico"><svg class="icon"><use href="#icon-settings"></use></svg></span>Configurações</button>
+    <button data-page="auditoria"><span class="nav-ico"><svg class="icon"><use href="#icon-shield"></use></svg></span>Auditoria</button>
   </nav>
 </aside>
 
 <div class="app-main">
 <header class="topbar">
-  <button id="sidebar-toggle" class="sidebar-toggle" title="Abrir menu" aria-label="Abrir menu" aria-expanded="false" aria-controls="sidebar">☰</button>
+  <button id="sidebar-toggle" class="sidebar-toggle" title="Abrir menu" aria-label="Abrir menu" aria-expanded="false" aria-controls="sidebar"><svg class="icon"><use href="#icon-menu"></use></svg></button>
 
   <div class="topbar-search dropdown-wrap align-left" id="topbar-search-wrap">
-    <span class="search-ico">🔎</span>
+    <span class="search-ico"><svg class="icon"><use href="#icon-search"></use></svg></span>
     <input type="text" id="topbar-search-input" placeholder="Pesquisar cliente..." autocomplete="off" aria-label="Pesquisar cliente" />
     <kbd id="topbar-search-kbd">Ctrl K</kbd>
     <div class="dropdown-panel" id="search-results-panel" style="top:calc(100% + 8px); width:340px; max-width:80vw;"></div>
   </div>
 
   <div class="topbar-right">
-    <button id="push-btn" class="icon-btn" title="Ativar notificações push" style="display:none; font-size:16px;">🔔</button>
+    <button id="push-btn" class="icon-btn" title="Ativar notificações push" style="display:none; font-size:16px;"><svg class="icon"><use href="#icon-bell"></use></svg></button>
 
     <div class="dropdown-wrap">
       <button id="notif-btn" class="icon-btn" title="Notificações" style="font-size:15px; position:relative;">
-        🔔<span class="notif-badge" id="notif-badge" style="display:none;">0</span>
+        <svg class="icon"><use href="#icon-bell"></use></svg><span class="notif-badge" id="notif-badge" style="display:none;">0</span>
       </button>
       <div class="dropdown-panel" id="notif-panel">
         <div class="dropdown-panel-header">Notificações</div>
-        <div id="notif-panel-body"><div class="dropdown-empty">Nenhuma notificação por aqui 🎉</div></div>
+        <div id="notif-panel-body"><div class="dropdown-empty">Nenhuma notificação por aqui <svg class="icon"><use href="#icon-inbox"></use></svg></div></div>
       </div>
     </div>
 
@@ -805,14 +806,14 @@
       <button id="help-btn" class="icon-btn" title="Ajuda"><span class="help-icon-badge">?</span></button>
       <div class="dropdown-panel" id="help-panel">
         <div class="dropdown-panel-header">Ajuda</div>
-        <a href="/ajuda.html" class="dropdown-item"><span class="dd-ico">📖</span><span class="dd-meta"><span class="dd-title">Central de ajuda</span></span></a>
-        <button type="button" class="dropdown-item" id="help-tour-btn"><span class="dd-ico">🧭</span><span class="dd-meta"><span class="dd-title">Tour guiado</span></span></button>
-        <a href="/chat.html" class="dropdown-item"><span class="dd-ico">💬</span><span class="dd-meta"><span class="dd-title">Simulador de chat</span></span></a>
+        <a href="/ajuda.html" class="dropdown-item"><span class="dd-ico"><svg class="icon"><use href="#icon-book"></use></svg></span><span class="dd-meta"><span class="dd-title">Central de ajuda</span></span></a>
+        <button type="button" class="dropdown-item" id="help-tour-btn"><span class="dd-ico"><svg class="icon"><use href="#icon-compass"></use></svg></span><span class="dd-meta"><span class="dd-title">Tour guiado</span></span></button>
+        <a href="/chat.html" class="dropdown-item"><span class="dd-ico"><svg class="icon"><use href="#icon-chat"></use></svg></span><span class="dd-meta"><span class="dd-title">Simulador de chat</span></span></a>
       </div>
     </div>
 
     <div class="theme-switch" id="theme-switch" title="Alternar tema claro/escuro">
-      <div class="knob" id="theme-knob">🌙</div>
+      <div class="knob" id="theme-knob"><svg class="icon"><use href="#icon-moon"></use></svg></div>
     </div>
 
     <div class="dropdown-wrap">
@@ -826,9 +827,9 @@
           </div>
         </div>
         <div class="dropdown-divider"></div>
-        <button type="button" class="dropdown-item" id="my-profile-btn"><span class="dd-ico">⚙️</span><span class="dd-meta"><span class="dd-title">Minha conta</span></span></button>
+        <button type="button" class="dropdown-item" id="my-profile-btn"><span class="dd-ico"><svg class="icon"><use href="#icon-settings"></use></svg></span><span class="dd-meta"><span class="dd-title">Minha conta</span></span></button>
         <div class="dropdown-divider"></div>
-        <button type="button" class="dropdown-item danger" id="logout-btn"><span class="dd-ico">🚪</span><span class="dd-meta"><span class="dd-title">Sair</span></span></button>
+        <button type="button" class="dropdown-item danger" id="logout-btn"><span class="dd-ico"><svg class="icon"><use href="#icon-logout"></use></svg></span><span class="dd-meta"><span class="dd-title">Sair</span></span></button>
       </div>
     </div>
   </div>
@@ -837,18 +838,18 @@
 <main>
 
   <div id="email-verify-banner" style="display:none; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; background:var(--warn-soft); border:1px solid var(--card-border); border-radius:14px; padding:10px 16px; margin-bottom:16px; font-size:12.5px; color:var(--text-primary);">
-    <span>📧 Confirme seu e-mail pra garantir o acesso à sua conta.</span>
+    <span><svg class="icon"><use href="#icon-mail"></use></svg> Confirme seu e-mail pra garantir o acesso à sua conta.</span>
     <button class="btn-secondary" id="resend-verify-btn" style="padding:6px 12px; font-size:12px;">Reenviar e-mail</button>
   </div>
 
   <div id="page-overview" class="page-section">
   <div class="greeting-header">
     <div>
-      <h1 id="greeting-title">Olá! 👋</h1>
+      <h1 id="greeting-title">Olá!</h1>
       <p class="greeting-sub">Aqui está o resumo da sua barbearia hoje.</p>
     </div>
     <div class="greeting-meta">
-      <span class="greeting-date"><span>📅</span><span id="greeting-date-text"></span></span>
+      <span class="greeting-date"><span><svg class="icon"><use href="#icon-calendar"></use></svg></span><span id="greeting-date-text"></span></span>
       <div class="dropdown-wrap align-left">
         <button type="button" class="period-select" id="period-select-btn">Este mês <span class="ps-arrow">▾</span></button>
         <div class="dropdown-panel" id="period-panel" style="min-width:180px;">
@@ -864,25 +865,25 @@
     <div class="card kpi-revenue-card">
       <div class="kpi-revenue-grid">
         <div class="kpi-revenue-item">
-          <div class="kpi-top"><span class="kpi-label" id="kpi-revenue-bruto-label">Faturamento bruto</span><span class="kpi-icon">💰</span></div>
+          <div class="kpi-top"><span class="kpi-label" id="kpi-revenue-bruto-label">Faturamento bruto</span><span class="kpi-icon"><svg class="icon"><use href="#icon-coin"></use></svg></span></div>
           <div class="kpi-value" id="kpi-revenue-bruto">—</div>
           <div class="kpi-sub" id="kpi-revenue-bruto-sub"></div>
           <div class="mini-chart-wrap"><canvas id="mini-chart-bruto"></canvas></div>
         </div>
         <div class="kpi-revenue-item" id="kpi-revenue-liquido-card">
-          <div class="kpi-top"><span class="kpi-label">Faturamento líquido</span><span class="kpi-icon">💵</span></div>
+          <div class="kpi-top"><span class="kpi-label">Faturamento líquido</span><span class="kpi-icon"><svg class="icon"><use href="#icon-coin"></use></svg></span></div>
           <div class="kpi-value" id="kpi-revenue-liquido">—</div>
           <div class="kpi-sub" id="kpi-revenue-liquido-sub"></div>
           <div class="mini-chart-wrap"><canvas id="mini-chart-liquido"></canvas></div>
         </div>
         <div class="kpi-revenue-item">
-          <div class="kpi-top"><span class="kpi-label" id="kpi-revenue-previsao-bruto-label">Previsão bruto</span><span class="kpi-icon">🔮</span></div>
+          <div class="kpi-top"><span class="kpi-label" id="kpi-revenue-previsao-bruto-label">Previsão bruto</span><span class="kpi-icon"><svg class="icon"><use href="#icon-forecast"></use></svg></span></div>
           <div class="kpi-value" id="kpi-revenue-previsao-bruto">—</div>
           <div class="kpi-sub" id="kpi-revenue-previsao-bruto-sub"></div>
           <div class="mini-chart-wrap"><canvas id="mini-chart-previsao-bruto"></canvas></div>
         </div>
         <div class="kpi-revenue-item" id="kpi-revenue-previsao-liquido-card">
-          <div class="kpi-top"><span class="kpi-label">Previsão líquido</span><span class="kpi-icon">📊</span></div>
+          <div class="kpi-top"><span class="kpi-label">Previsão líquido</span><span class="kpi-icon"><svg class="icon"><use href="#icon-chart"></use></svg></span></div>
           <div class="kpi-value" id="kpi-revenue-previsao-liquido">—</div>
           <div class="kpi-sub" id="kpi-revenue-previsao-liquido-sub"></div>
           <div class="mini-chart-wrap"><canvas id="mini-chart-previsao-liquido"></canvas></div>
@@ -891,22 +892,22 @@
     </div>
     <div class="kpi-stack">
       <div class="card kpi-card kpi-card-compact">
-        <div class="kpi-top"><span class="kpi-label">Agendamentos realizados</span><span class="kpi-icon">✅</span></div>
+        <div class="kpi-top"><span class="kpi-label">Agendamentos realizados</span><span class="kpi-icon"><svg class="icon"><use href="#icon-check-circle"></use></svg></span></div>
         <div class="kpi-value" id="kpi-count">—</div>
         <div class="kpi-sub" id="kpi-count-sub"></div>
       </div>
       <div class="card kpi-card kpi-card-compact">
-        <div class="kpi-top"><span class="kpi-label">Ticket médio</span><span class="kpi-icon">🎟️</span></div>
+        <div class="kpi-top"><span class="kpi-label">Ticket médio</span><span class="kpi-icon"><svg class="icon"><use href="#icon-ticket"></use></svg></span></div>
         <div class="kpi-value" id="kpi-ticket">—</div>
         <div class="kpi-sub" id="kpi-ticket-sub"></div>
       </div>
       <div class="card kpi-card kpi-card-compact" id="kpi-barber-card">
-        <div class="kpi-top"><span class="kpi-label">Barbeiro do mês</span><span class="kpi-icon">🏆</span></div>
+        <div class="kpi-top"><span class="kpi-label">Barbeiro do mês</span><span class="kpi-icon"><svg class="icon"><use href="#icon-trophy"></use></svg></span></div>
         <div class="kpi-value barber-of-month-name" id="kpi-barber">—</div>
         <div class="kpi-sub" id="kpi-barber-sub"></div>
       </div>
       <div class="card kpi-card kpi-card-compact">
-        <div class="kpi-top"><span class="kpi-label">Taxa de no-show</span><span class="kpi-icon">🚫</span></div>
+        <div class="kpi-top"><span class="kpi-label">Taxa de no-show</span><span class="kpi-icon"><svg class="icon"><use href="#icon-block"></use></svg></span></div>
         <div class="kpi-value" id="kpi-noshow">—</div>
         <div class="kpi-sub" id="kpi-noshow-sub"></div>
       </div>
@@ -1051,7 +1052,7 @@
         <div class="empty-state" style="padding:20px;">Carregando...</div>
       </div>
       <div class="chat-detail-col">
-        <button type="button" class="chat-back-btn" id="chat-back-btn">← Conversas</button>
+        <button type="button" class="chat-back-btn" id="chat-back-btn"><svg class="icon"><use href="#icon-arrow-left"></use></svg> Conversas</button>
         <div id="chat-transcript-header">Selecione uma conversa</div>
         <div id="chat-transcript-body"></div>
         <div id="chat-reply-bar">
@@ -1447,7 +1448,7 @@ let lastMe = null;
 function applyMeToHeader(me) {
   lastMe = me;
   const firstName = (me.name || "").trim().split(/\s+/)[0] || "";
-  document.getElementById("greeting-title").textContent = firstName ? `Olá, ${firstName}! 👋` : "Olá! 👋";
+  document.getElementById("greeting-title").textContent = firstName ? `Olá, ${firstName}!` : "Olá!";
   renderGreetingDate();
 
   const bg = avatarColor(me.name || me.barbershopName || "?");
@@ -1566,7 +1567,7 @@ const ADMIN_TOUR_STEPS = [
   { activateSelector: '#page-tabs button[data-page="estoque"]', selector: "#page-estoque", title: "Estoque", text: "Controle os produtos vendidos no balcão e receba alerta quando o estoque estiver baixo." },
   { activateSelector: '#page-tabs button[data-page="configuracoes"]', selector: "#page-configuracoes", title: "Configurações", text: "Aqui fica praticamente tudo: WhatsApp, cobrança, planos pros seus clientes, horário de funcionamento, bloqueios, barbeiros, serviços e backup." },
   { activateSelector: '#page-tabs button[data-page="auditoria"]', selector: "#page-auditoria", title: "Auditoria", text: "Um histórico de todas as ações feitas no painel — quem fez o quê e quando." },
-  { selector: "#help-btn", title: "Pronto!", text: "Quando quiser rever esse tour, abra o menu de ajuda (❓) aqui e clique em \"Tour guiado\"." },
+  { selector: "#help-btn", title: "Pronto!", text: "Quando quiser rever esse tour, abra o menu de ajuda aqui e clique em \"Tour guiado\"." },
 ];
 
 // Com 1 barbeiro só, o card "Análise por barbeiro" some da tela (ver
@@ -1667,7 +1668,7 @@ document.getElementById("resend-verify-btn").addEventListener("click", async (e)
     const res = await fetch("/api/auth/resend-verification", { method: "POST" });
     const data = await res.json();
     if (res.ok) {
-      btn.textContent = "E-mail enviado ✓";
+      btn.innerHTML = 'E-mail enviado <svg class="icon"><use href="#icon-check"></use></svg>';
     } else {
       btn.disabled = false;
       btn.textContent = "Reenviar e-mail";
@@ -2135,7 +2136,11 @@ async function loadBarberPerformance() {
     },
   });
 
-  const medals = ["🥇", "🥈", "🥉"];
+  const medals = [
+    '<svg class="icon"><use href="#icon-trophy"></use></svg>',
+    '<span style="display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; background:var(--surface-raise-2); color:var(--text-secondary); font-size:10px; font-weight:800;">2º</span>',
+    '<span style="display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; background:var(--surface-raise-2); color:var(--text-secondary); font-size:10px; font-weight:800;">3º</span>',
+  ];
   const list = document.getElementById("ranking-list");
   if (barbers.length === 0) {
     list.innerHTML = `<div class="empty-state">Nenhum barbeiro cadastrado.</div>`;
@@ -2195,7 +2200,7 @@ function apptRowHtml(a, { editable = true } = {}) {
       <div class="appt-side">
         <div class="appt-time">${a.start_time} – ${a.end_time}</div>
         <span class="badge ${a.computed_status}"><span class="dot"></span>${STATUS_LABEL[a.computed_status]}</span>
-        ${editable ? `<button class="icon-btn" data-edit-appt="${a.id}" title="Editar">✏️</button>` : ""}
+        ${editable ? `<button class="icon-btn" data-edit-appt="${a.id}" title="Editar"><svg class="icon"><use href="#icon-edit"></use></svg></button>` : ""}
       </div>
     </div>
     ${editable ? `<div class="edit-appt-form" id="edit-appt-form-${a.id}" style="display:none;">
@@ -2228,7 +2233,7 @@ function apptRowHtml(a, { editable = true } = {}) {
       <div class="form-actions" style="grid-column:1/-1;">
         <button class="btn-primary" data-save-appt="${a.id}">Salvar</button>
         <button class="btn-secondary" data-cancel-appt="${a.id}">Cancelar</button>
-        <button class="icon-btn danger" data-delete-appt="${a.id}" title="Excluir agendamento" style="margin-left:auto;">🗑️</button>
+        <button class="icon-btn danger" data-delete-appt="${a.id}" title="Excluir agendamento" style="margin-left:auto;"><svg class="icon"><use href="#icon-trash"></use></svg></button>
       </div>
     </div>` : ""}
   `;
@@ -2243,7 +2248,7 @@ function ensureClientModalRoot() {
   overlay.className = "modal-overlay";
   overlay.innerHTML = `
     <div class="modal-box wide" style="position:relative;">
-      <button class="client-modal-close" data-close-client-modal title="Fechar">✕</button>
+      <button class="client-modal-close" data-close-client-modal title="Fechar"><svg class="icon"><use href="#icon-close"></use></svg></button>
       <div id="client-modal-body"></div>
     </div>`;
   document.body.appendChild(overlay);
@@ -2438,7 +2443,7 @@ async function loadTodayAppointments() {
 
   if (appts.length === 0) {
     hint.textContent = "Nenhum agendamento para hoje.";
-    list.innerHTML = `<div class="empty-state">A agenda de hoje está livre. ☕</div>`;
+    list.innerHTML = `<div class="empty-state">A agenda de hoje está livre. <svg class="icon"><use href="#icon-coffee"></use></svg></div>`;
     return;
   }
   hint.textContent = `${appts.length} agendamento${appts.length > 1 ? "s" : ""} hoje`;
@@ -2450,7 +2455,9 @@ async function loadTodayAppointments() {
 /* ---------------- Reviews ---------------- */
 function starString(rating) {
   const full = Math.round(rating);
-  return "★".repeat(full) + "☆".repeat(5 - full);
+  const filled = '<svg class="icon icon-filled"><use href="#icon-star"></use></svg>'.repeat(full);
+  const empty = '<svg class="icon"><use href="#icon-star"></use></svg>'.repeat(5 - full);
+  return filled + empty;
 }
 
 // Datas "ingênuas" vindas do banco como texto (ex: "2026-07-17 14:30:00")
@@ -2511,7 +2518,7 @@ async function loadReviews() {
   const data = await res.json();
 
   document.getElementById("review-avg").textContent = data.stats.avgRating ?? "—";
-  document.getElementById("review-avg-stars").textContent = data.stats.avgRating
+  document.getElementById("review-avg-stars").innerHTML = data.stats.avgRating
     ? starString(data.stats.avgRating)
     : "";
   document.getElementById("review-count").textContent = `${data.stats.count} ${data.stats.count === 1 ? "avaliação" : "avaliações"}`;
@@ -2560,8 +2567,8 @@ async function loadManageBarbers() {
         <div class="item-meta">${solo ? "" : `Comissão serviço ${b.service_commission_percent}% · produto ${b.product_commission_percent}%`}${b.monthly_goal_cents ? (solo ? "Meta " : " · Meta ") + currency(b.monthly_goal_cents / 100) : ""}</div>
       </div>
       <div class="item-actions">
-        <button class="icon-btn" data-rename-barber="${b.id}" title="Editar">✏️</button>
-        <button class="icon-btn ${b.active ? "danger" : ""}" data-toggle-barber="${b.id}" data-active="${b.active}" title="${b.active ? "Desativar" : "Ativar"}">${b.active ? "🚫" : "✅"}</button>
+        <button class="icon-btn" data-rename-barber="${b.id}" title="Editar"><svg class="icon"><use href="#icon-edit"></use></svg></button>
+        <button class="icon-btn ${b.active ? "danger" : ""}" data-toggle-barber="${b.id}" data-active="${b.active}" title="${b.active ? "Desativar" : "Ativar"}">${b.active ? '<svg class="icon"><use href="#icon-block"></use></svg>' : '<svg class="icon"><use href="#icon-check-circle"></use></svg>'}</button>
       </div>
     </div>
     <div class="inline-form" id="edit-barber-form-${b.id}">
@@ -2739,8 +2746,8 @@ async function loadManageServices() {
         <div class="item-meta">${currency(s.price_cents / 100)} · ${s.duration_min} min</div>
       </div>
       <div class="item-actions">
-        <button class="icon-btn" data-edit-service="${s.id}" title="Editar">✏️</button>
-        <button class="icon-btn ${s.active ? "danger" : ""}" data-toggle-service="${s.id}" data-active="${s.active}" title="${s.active ? "Desativar" : "Ativar"}">${s.active ? "🚫" : "✅"}</button>
+        <button class="icon-btn" data-edit-service="${s.id}" title="Editar"><svg class="icon"><use href="#icon-edit"></use></svg></button>
+        <button class="icon-btn ${s.active ? "danger" : ""}" data-toggle-service="${s.id}" data-active="${s.active}" title="${s.active ? "Desativar" : "Ativar"}">${s.active ? '<svg class="icon"><use href="#icon-block"></use></svg>' : '<svg class="icon"><use href="#icon-check-circle"></use></svg>'}</button>
       </div>
     </div>
     <div class="inline-form" id="edit-service-form-${s.id}">
@@ -2896,8 +2903,8 @@ async function loadTimeBlocks() {
         </div>
       </div>
       <div class="item-actions">
-        <button class="icon-btn" data-edit-block="${b.id}" title="Editar">✏️</button>
-        <button class="icon-btn danger" data-delete-block="${b.id}" title="Remover">🗑️</button>
+        <button class="icon-btn" data-edit-block="${b.id}" title="Editar"><svg class="icon"><use href="#icon-edit"></use></svg></button>
+        <button class="icon-btn danger" data-delete-block="${b.id}" title="Remover"><svg class="icon"><use href="#icon-trash"></use></svg></button>
       </div>
     </div>
     <div class="inline-form" id="edit-block-form-${b.id}">
@@ -3750,10 +3757,10 @@ document.getElementById("hist-barber-filter").addEventListener("change", (e) => 
 function dueStatusBadge(c) {
   if (c.dueStatus === "atrasado") {
     return `<span title="Já passou da hora de voltar" style="font-size:16px;">🟡</span>
-      <button class="icon-btn" data-nudge-client="${c.id}" title="Mandar mensagem convidando o cliente a voltar">➤</button>`;
+      <button class="icon-btn" data-nudge-client="${c.id}" title="Mandar mensagem convidando o cliente a voltar"><svg class="icon"><use href="#icon-arrow-right"></use></svg></button>`;
   }
   if (c.dueStatus === "em_dia") {
-    return `<span title="Cliente em dia" style="font-size:16px;">✅</span>`;
+    return `<span title="Cliente em dia" style="font-size:16px;"><svg class="icon"><use href="#icon-check-circle"></use></svg></span>`;
   }
   return "";
 }
@@ -3799,7 +3806,7 @@ function renderClientsTable() {
             <td>${c.last_visit_date || "—"}</td>
             <td>
               <input type="date" id="client-birthday-${c.id}" value="${c.birthday || ""}" />
-              <button class="icon-btn" data-save-birthday="${c.id}" title="Salvar">💾</button>
+              <button class="icon-btn" data-save-birthday="${c.id}" title="Salvar"><svg class="icon"><use href="#icon-save"></use></svg></button>
             </td>
             <td id="client-status-${c.id}" style="white-space:nowrap;">${dueStatusBadge(c)}</td>
           </tr>
@@ -3827,7 +3834,7 @@ function renderClientsTable() {
       btn.disabled = true;
       const res = await fetch(`/api/manage/clients/${id}/nudge`, { method: "POST" });
       if (res.ok) {
-        btn.outerHTML = `<span style="font-size:12px; color:var(--good);">Mensagem enviada ✓</span>`;
+        btn.outerHTML = `<span style="font-size:12px; color:var(--good);">Mensagem enviada <svg class="icon"><use href="#icon-check"></use></svg></span>`;
       } else {
         btn.disabled = false;
         const data = await res.json().catch(() => null);
@@ -3889,7 +3896,7 @@ async function loadStockOverview() {
   }
   const lowCount = active.filter((p) => p.lowStock).length;
   list.innerHTML = `
-    ${lowCount > 0 ? `<div class="hint" style="color:var(--danger); font-weight:700; margin-bottom:10px;">⚠️ ${lowCount} produto${lowCount > 1 ? "s" : ""} com estoque baixo</div>` : ""}
+    ${lowCount > 0 ? `<div class="hint" style="color:var(--danger); font-weight:700; margin-bottom:10px;"><svg class="icon"><use href="#icon-alert-triangle"></use></svg> ${lowCount} produto${lowCount > 1 ? "s" : ""} com estoque baixo</div>` : ""}
     ${active
       .map(
         (p) => `
@@ -3920,8 +3927,8 @@ async function loadProducts() {
         <div class="item-meta">${currency(p.price_cents / 100)} · ${p.stock_quantity} em estoque</div>
       </div>
       <div class="item-actions">
-        <button class="icon-btn" data-edit-product="${p.id}" title="Editar">✏️</button>
-        <button class="icon-btn ${p.active ? "danger" : ""}" data-toggle-product="${p.id}" data-active="${p.active}" title="${p.active ? "Desativar" : "Ativar"}">${p.active ? "🚫" : "✅"}</button>
+        <button class="icon-btn" data-edit-product="${p.id}" title="Editar"><svg class="icon"><use href="#icon-edit"></use></svg></button>
+        <button class="icon-btn ${p.active ? "danger" : ""}" data-toggle-product="${p.id}" data-active="${p.active}" title="${p.active ? "Desativar" : "Ativar"}">${p.active ? '<svg class="icon"><use href="#icon-block"></use></svg>' : '<svg class="icon"><use href="#icon-check-circle"></use></svg>'}</button>
       </div>
     </div>
     <div class="inline-form" id="edit-product-form-${p.id}">
@@ -4142,7 +4149,7 @@ function renderToneExamplesList() {
       (ex, i) => `
     <div class="tone-example-row" style="display:flex; align-items:flex-start; gap:8px; padding:8px 0; border-bottom:1px solid var(--divider);">
       <div style="flex:1; font-size:13px;">"${escapeHtml(ex)}"</div>
-      <button class="icon-btn" data-remove-tone-example="${i}" title="Remover">🗑️</button>
+      <button class="icon-btn" data-remove-tone-example="${i}" title="Remover"><svg class="icon"><use href="#icon-trash"></use></svg></button>
     </div>`
     )
     .join("");
@@ -4343,7 +4350,7 @@ async function loadBillingStatus() {
   if (data.status === "active") {
     hint.textContent = `Assinatura ativa. Renova em ${fmtDate(data.current_period_end)}.`;
   } else if (data.status === "past_due") {
-    hint.textContent = `⚠️ Pagamento pendente no plano ${data.plan}. Atualize sua forma de pagamento pra não perder o acesso.`;
+    hint.innerHTML = `<svg class="icon"><use href="#icon-alert-triangle"></use></svg> Pagamento pendente no plano ${escapeHtml(data.plan)}. Atualize sua forma de pagamento pra não perder o acesso.`;
   } else {
     hint.textContent = `Sem assinatura ativa. Escolha um plano pra continuar usando o painel:`;
   }
@@ -4583,8 +4590,8 @@ function renderClientPlans(plans) {
         <div class="item-meta">${currency(p.price_cents / 100)}/mês · ${BENEFIT_LABELS[p.benefit_type](p.benefit_value)}</div>
       </div>
       <div class="item-actions">
-        <button class="icon-btn" data-rename-client-plan="${p.id}" title="Editar">✏️</button>
-        <button class="icon-btn ${p.active ? "danger" : ""}" data-toggle-client-plan="${p.id}" data-active="${p.active}" title="${p.active ? "Desativar" : "Ativar"}">${p.active ? "🚫" : "✅"}</button>
+        <button class="icon-btn" data-rename-client-plan="${p.id}" title="Editar"><svg class="icon"><use href="#icon-edit"></use></svg></button>
+        <button class="icon-btn ${p.active ? "danger" : ""}" data-toggle-client-plan="${p.id}" data-active="${p.active}" title="${p.active ? "Desativar" : "Ativar"}">${p.active ? '<svg class="icon"><use href="#icon-block"></use></svg>' : '<svg class="icon"><use href="#icon-check-circle"></use></svg>'}</button>
       </div>
     </div>
     ${editClientPlanFormHtml(p)}
@@ -4821,18 +4828,18 @@ function renderNotifBell(lowStockCount, escalationCount) {
   if (lowStockCount > 0) {
     items.push(`
       <button type="button" class="dropdown-item" data-notif="stock">
-        <span class="dd-ico">📦</span>
+        <span class="dd-ico"><svg class="icon"><use href="#icon-inventory"></use></svg></span>
         <span class="dd-meta"><span class="dd-title">${lowStockCount} produto${lowStockCount > 1 ? "s" : ""} com estoque baixo</span></span>
       </button>`);
   }
   if (escalationCount > 0) {
     items.push(`
       <button type="button" class="dropdown-item" data-notif="escalation">
-        <span class="dd-ico">🚨</span>
+        <span class="dd-ico"><svg class="icon"><use href="#icon-alert-octagon"></use></svg></span>
         <span class="dd-meta"><span class="dd-title">${escalationCount} atendimento${escalationCount > 1 ? "s" : ""} sinalizado${escalationCount > 1 ? "s" : ""}</span></span>
       </button>`);
   }
-  body.innerHTML = items.length > 0 ? items.join("") : `<div class="dropdown-empty">Nenhuma notificação por aqui 🎉</div>`;
+  body.innerHTML = items.length > 0 ? items.join("") : `<div class="dropdown-empty"><svg class="icon"><use href="#icon-inbox"></use></svg> Nenhuma notificação por aqui</div>`;
   body.querySelector('[data-notif="stock"]')?.addEventListener("click", () => {
     document.getElementById("notif-panel").classList.remove("is-open");
     document.getElementById("alert-chip-stock")?.click();
@@ -4856,9 +4863,9 @@ async function loadAlerts() {
   if (lowStockCount > 0) {
     chips.push(`
       <div class="alert-chip stock" id="alert-chip-stock">
-        <span class="alert-icon">📦</span>
+        <span class="alert-icon"><svg class="icon"><use href="#icon-inventory"></use></svg></span>
         <span>${lowStockCount} produto${lowStockCount > 1 ? "s" : ""} com estoque baixo</span>
-        <span class="alert-arrow">→</span>
+        <span class="alert-arrow"><svg class="icon"><use href="#icon-arrow-right"></use></svg></span>
       </div>
     `);
   }
@@ -4866,9 +4873,9 @@ async function loadAlerts() {
   if (escalations.length > 0) {
     chips.push(`
       <div class="alert-chip escalation" id="alert-chip-escalation">
-        <span class="alert-icon">🚨</span>
+        <span class="alert-icon"><svg class="icon"><use href="#icon-alert-octagon"></use></svg></span>
         <span>${escalations.length} atendimento${escalations.length > 1 ? "s" : ""} sinalizado${escalations.length > 1 ? "s" : ""} para contato humano</span>
-        <span class="alert-arrow">→</span>
+        <span class="alert-arrow"><svg class="icon"><use href="#icon-arrow-right"></use></svg></span>
       </div>
       <div class="card" id="escalations-panel" style="display:none;"></div>
     `);
@@ -4892,7 +4899,7 @@ async function loadAlerts() {
           (e) => `
         <div class="item-row" style="border-color:var(--danger);">
           <div class="item-info">
-            <div>🚨 ${e.client_name || e.client_phone}</div>
+            <div><svg class="icon"><use href="#icon-alert-octagon"></use></svg> ${e.client_name || e.client_phone}</div>
             <div class="hint">${e.reason}</div>
             <div class="hint">${new Date(e.created_at).toLocaleString("pt-BR")}</div>
           </div>

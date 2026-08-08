@@ -5,10 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Administração</title>
 <meta name="robots" content="noindex, nofollow" />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%232fa04f'/><stop offset='55%25' stop-color='%231e8e3e'/><stop offset='100%25' stop-color='%230d652d'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%9B%A1</text></svg>" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%232fa04f'/><stop offset='55%25' stop-color='%231e8e3e'/><stop offset='100%25' stop-color='%230d652d'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><g transform='translate(16.4 16.4) scale(2.8)'><path fill='white' d='M12 3l7 3v6c0 5-3.5 7.5-7 9-3.5-1.5-7-4-7-9V6l7-3z'/></g></svg>" />
 <meta name="theme-color" content="#f8f9fa" />
 <script src="/assets/theme-init.js"></script>
 <link rel="stylesheet" href="/assets/theme.css">
+<script src="/assets/icons.js" defer></script>
 <style>
   body { padding: 28px 20px 60px; position: relative; z-index: 0; }
   .wrap { max-width: 1080px; margin: 0 auto; }
@@ -78,7 +79,7 @@
 
   <div class="wrap">
     <header>
-      <h1>🛡️ Administração</h1>
+      <h1><svg class="icon"><use href="#icon-shield"></use></svg> Administração</h1>
       <button class="logout-btn" id="logout-btn">Sair</button>
     </header>
 
@@ -209,7 +210,7 @@ async function loadUsers() {
           return;
         }
         showStatus(`Nova senha enviada para ${data.sentTo}.`, true);
-        btn.textContent = "Enviado ✓";
+        btn.innerHTML = `Enviado <svg class="icon"><use href="#icon-check"></use></svg>`;
         setTimeout(() => { btn.disabled = false; btn.textContent = original; }, 3000);
       } catch (err) {
         btn.disabled = false;
@@ -284,7 +285,7 @@ async function loadBillingOverview() {
       <td>${statusTagHtml(s.subscription?.status)}</td>
       <td>${validUntilLabel(s.subscription)}</td>
       <td>${whatsappTagHtml(s.whatsappConnectionStatus)}</td>
-      <td>${s.subscription?.stripeCustomerId ? `<a class="stripe-link" href="https://dashboard.stripe.com/customers/${encodeURIComponent(s.subscription.stripeCustomerId)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Ver no Stripe →</a>` : ""}</td>
+      <td>${s.subscription?.stripeCustomerId ? `<a class="stripe-link" href="https://dashboard.stripe.com/customers/${encodeURIComponent(s.subscription.stripeCustomerId)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Ver no Stripe <svg class="icon"><use href="#icon-arrow-right"></use></svg></a>` : ""}</td>
     </tr>
   `).join("");
 
@@ -405,7 +406,7 @@ async function loadShopConfig(shopId) {
     : "Sem assinatura registrada";
   const whatsappLine = whatsappTagHtml(data.barbershop.whatsappConnectionStatus);
   const stripeLine = sub?.stripeCustomerId
-    ? `<a class="stripe-link" href="https://dashboard.stripe.com/customers/${encodeURIComponent(sub.stripeCustomerId)}" target="_blank" rel="noopener">Ver cliente no Stripe →</a>`
+    ? `<a class="stripe-link" href="https://dashboard.stripe.com/customers/${encodeURIComponent(sub.stripeCustomerId)}" target="_blank" rel="noopener">Ver cliente no Stripe <svg class="icon"><use href="#icon-arrow-right"></use></svg></a>`
     : "";
 
   shopConfig.innerHTML = `
@@ -466,7 +467,7 @@ async function loadShopConfig(shopId) {
       try {
         await saveRow(shopId, btn.dataset.kind, btn.dataset.id, tr);
         showStatus("Salvo com sucesso.", true);
-        btn.textContent = "Salvo ✓";
+        btn.innerHTML = `Salvo <svg class="icon"><use href="#icon-check"></use></svg>`;
       } catch (err) {
         showStatus(err.message || "Não foi possível salvar.", false);
         btn.textContent = original;
@@ -492,7 +493,7 @@ async function loadShopConfig(shopId) {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || "Não foi possível conceder o teste grátis.");
       showStatus("Teste grátis concedido com sucesso.", true);
-      btn.textContent = "Concedido ✓";
+      btn.innerHTML = `Concedido <svg class="icon"><use href="#icon-check"></use></svg>`;
       loadShopConfig(shopId).catch(() => {});
       loadBillingOverview().catch(() => {});
     } catch (err) {

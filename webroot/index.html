@@ -5,10 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Painel da Barbearia: Agendamento e atendimento via WhatsApp com IA</title>
 <meta name="description" content="Plataforma SaaS multi-tenant para barbearias: atendimento e agendamento automático via WhatsApp com IA, dashboard de faturamento e clientes, e cobrança recorrente via Stripe." />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%232fa04f'/><stop offset='55%25' stop-color='%231e8e3e'/><stop offset='100%25' stop-color='%230d652d'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%92%88</text></svg>" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%232fa04f'/><stop offset='55%25' stop-color='%231e8e3e'/><stop offset='100%25' stop-color='%230d652d'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><g transform='translate(16.4 16.4) scale(2.8)'><path fill='white' d='M6 6m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0'/><path fill='white' d='M6 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0'/><path fill='white' stroke='white' stroke-width='1.5' d='M20 4L8.12 15.88'/><path fill='white' stroke='white' stroke-width='1.5' d='M14.47 14.48L20 20'/><path fill='white' stroke='white' stroke-width='1.5' d='M8.12 8.12L12 12'/></g></svg>" />
 <meta name="theme-color" content="#f8f9fa" />
 <script src="/assets/theme-init.js"></script>
 <link rel="stylesheet" href="/assets/theme.css">
+<script src="/assets/icons.js" defer></script>
 <style>
   body { position: relative; z-index: 0; }
 
@@ -359,7 +360,7 @@
 
   <header class="topbar">
     <a class="brand" href="/">
-      <div class="logo">💈</div>
+      <div class="logo"><svg class="icon"><use href="#icon-brand-razor"></use></svg></div>
       <span>Painel da Barbearia</span>
     </a>
     <nav class="main-nav">
@@ -378,7 +379,7 @@
     <!-- HERO -->
     <section class="hero-grid">
       <div class="hero-copy">
-        <span class="eyebrow">✨ Agendamento e atendimento via WhatsApp com IA</span>
+        <span class="eyebrow"><svg class="icon"><use href="#icon-sparkle"></use></svg> Agendamento e atendimento via WhatsApp com IA</span>
         <h1>Sua barbearia atendendo e agendando sozinha no <span class="brand-text">WhatsApp</span></h1>
         <p class="lead">
           Conecte o número da sua barbearia, a IA responde clientes, marca, cancela e
@@ -386,16 +387,16 @@
           faturamento, ocupação e histórico de clientes.
         </p>
         <div class="hero-features">
-          <div class="hero-feature"><span class="ico">🤖</span>Agente de IA que agenda de verdade</div>
-          <div class="hero-feature"><span class="ico">📅</span>Agenda por barbeiro em tempo real</div>
-          <div class="hero-feature"><span class="ico">📊</span>Dashboard de faturamento e clientes</div>
-          <div class="hero-feature"><span class="ico">🔒</span>Sessão segura + LGPD</div>
+          <div class="hero-feature"><span class="ico"><svg class="icon"><use href="#icon-bot"></use></svg></span>Agente de IA que agenda de verdade</div>
+          <div class="hero-feature"><span class="ico"><svg class="icon"><use href="#icon-calendar"></use></svg></span>Agenda por barbeiro em tempo real</div>
+          <div class="hero-feature"><span class="ico"><svg class="icon"><use href="#icon-chart"></use></svg></span>Dashboard de faturamento e clientes</div>
+          <div class="hero-feature"><span class="ico"><svg class="icon"><use href="#icon-lock"></use></svg></span>Sessão segura + LGPD</div>
         </div>
         <div class="hero-cta">
-          <a class="btn-primary link" href="/signup.html">Teste grátis por 7 dias →</a>
+          <a class="btn-primary link" href="/signup.html">Teste grátis por 7 dias <svg class="icon"><use href="#icon-arrow-right"></use></svg></a>
           <a class="btn-secondary link" href="#produto">Ver o produto</a>
         </div>
-        <div class="trust-line"><span class="check">✓</span> Sem cartão de crédito para começar o teste.</div>
+        <div class="trust-line"><span class="check"><svg class="icon"><use href="#icon-check"></use></svg></span> Sem cartão de crédito para começar o teste.</div>
       </div>
 
       <div class="hero-visual">
@@ -406,7 +407,7 @@
               <div class="mock-title">WhatsApp · Barbearia Vintage</div>
             </div>
             <div class="chat-head">
-              <div class="chat-avatar">💈</div>
+              <div class="chat-avatar"><svg class="icon"><use href="#icon-brand-razor"></use></svg></div>
               <div>
                 <div class="name">Assistente da Barbearia</div>
                 <div class="status">Online · IA treinada</div>
@@ -421,11 +422,11 @@
             </div>
           </div>
           <div class="float-toast a">
-            <div class="ico">📅</div>
+            <div class="ico"><svg class="icon"><use href="#icon-calendar"></use></svg></div>
             <div><b>Agendamento criado</b><small>Corte · Carlos · 19:30</small></div>
           </div>
           <div class="float-toast b">
-            <div class="ico">💰</div>
+            <div class="ico"><svg class="icon"><use href="#icon-coin"></use></svg></div>
             <div><b>Faturamento do dia</b><small>R$ 480,00 · 12 atendimentos</small></div>
           </div>
         </div>
@@ -440,26 +441,26 @@
       </div>
 
       <div class="tab-bar" id="tab-bar">
-        <button class="tab-btn active" data-tab="0">🤖 Atendimento com IA</button>
-        <button class="tab-btn" data-tab="1">📅 Agenda e horários</button>
-        <button class="tab-btn" data-tab="2">📊 Faturamento e ocupação</button>
-        <button class="tab-btn" data-tab="3">👥 CRM de clientes</button>
-        <button class="tab-btn" data-tab="4">🧑‍💼 Multi-barbeiro</button>
-        <button class="tab-btn" data-tab="5">🔔 Lembretes e avaliações</button>
+        <button class="tab-btn active" data-tab="0"><svg class="icon"><use href="#icon-bot"></use></svg> Atendimento com IA</button>
+        <button class="tab-btn" data-tab="1"><svg class="icon"><use href="#icon-calendar"></use></svg> Agenda e horários</button>
+        <button class="tab-btn" data-tab="2"><svg class="icon"><use href="#icon-chart"></use></svg> Faturamento e ocupação</button>
+        <button class="tab-btn" data-tab="3"><svg class="icon"><use href="#icon-users"></use></svg> CRM de clientes</button>
+        <button class="tab-btn" data-tab="4"><svg class="icon"><use href="#icon-briefcase"></use></svg> Multi-barbeiro</button>
+        <button class="tab-btn" data-tab="5"><svg class="icon"><use href="#icon-bell"></use></svg> Lembretes e avaliações</button>
       </div>
       <div class="autoplay-row">
-        <button id="autoplay-toggle" title="Pausar/retomar">❚❚</button>
+        <button id="autoplay-toggle" title="Pausar/retomar"><svg class="icon"><use href="#icon-pause"></use></svg></button>
         <span id="autoplay-label">Auto-play em execução</span>
         <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
         <span id="tab-counter" class="tab-counter">1 / 6</span>
-        <button id="tab-next" title="Próximo recurso" aria-label="Próximo recurso">»</button>
+        <button id="tab-next" title="Próximo recurso" aria-label="Próximo recurso"><svg class="icon"><use href="#icon-arrow-right"></use></svg></button>
       </div>
 
       <div class="feature-panels" id="feature-panels">
       <!-- Painel 0: IA -->
       <div class="feature-panel active" data-panel="0">
         <div>
-          <div class="ico-badge">🤖</div>
+          <div class="ico-badge"><svg class="icon"><use href="#icon-bot"></use></svg></div>
           <div class="kicker">Produto</div>
           <h3>A IA agenda, cancela e reagenda de verdade</h3>
           <p class="desc">Nada de robô que só devolve link. O assistente entende o contexto da conversa,
@@ -483,7 +484,7 @@
       <!-- Painel 1: Agenda -->
       <div class="feature-panel" data-panel="1">
         <div>
-          <div class="ico-badge">📅</div>
+          <div class="ico-badge"><svg class="icon"><use href="#icon-calendar"></use></svg></div>
           <div class="kicker">Produto</div>
           <h3>Agenda por barbeiro, sem conflito de horário</h3>
           <p class="desc">Cada barbeiro tem sua própria disponibilidade, bloqueios de horário e histórico de
@@ -506,7 +507,7 @@
       <!-- Painel 2: Faturamento -->
       <div class="feature-panel" data-panel="2">
         <div>
-          <div class="ico-badge">📊</div>
+          <div class="ico-badge"><svg class="icon"><use href="#icon-chart"></use></svg></div>
           <div class="kicker">Produto</div>
           <h3>Faturamento e ocupação em tempo real</h3>
           <p class="desc">Veja quanto entrou hoje, a tendência da semana e os horários mais ocupados,
@@ -529,7 +530,7 @@
       <!-- Painel 3: CRM -->
       <div class="feature-panel" data-panel="3">
         <div>
-          <div class="ico-badge">👥</div>
+          <div class="ico-badge"><svg class="icon"><use href="#icon-users"></use></svg></div>
           <div class="kicker">Produto</div>
           <h3>Histórico de cliente identificado pelo telefone</h3>
           <p class="desc">Cada cliente é reconhecido automaticamente pelo número de WhatsApp, com todo o
@@ -542,17 +543,17 @@
           <div class="tip-box"><b>Dica:</b> clientes podem solicitar exclusão dos próprios dados (LGPD) direto pelo site.</div>
         </div>
         <div class="card feature-mock">
-          <div class="mock-row"><div><div class="name">Mariana Lima</div><div class="sub">8 visitas · última há 12 dias</div></div><span class="mock-pill brand">★ 5.0</span></div>
+          <div class="mock-row"><div><div class="name">Mariana Lima</div><div class="sub">8 visitas · última há 12 dias</div></div><span class="mock-pill brand"><svg class="icon icon-filled" style="width:0.85em;height:0.85em;"><use href="#icon-star"></use></svg> 5.0</span></div>
           <div class="mock-row"><div><div class="name">Pedro Alves</div><div class="sub">aniversário em 3 dias</div></div><span class="mock-pill warn">lembrete</span></div>
           <div class="mock-row"><div><div class="name">João Souza</div><div class="sub">sem visita há 45 dias</div></div><span class="mock-pill warn">reconquista</span></div>
-          <div class="mock-row"><div><div class="name">Marcos Dias</div><div class="sub">12 visitas · cliente fiel</div></div><span class="mock-pill good">★ 4.9</span></div>
+          <div class="mock-row"><div><div class="name">Marcos Dias</div><div class="sub">12 visitas · cliente fiel</div></div><span class="mock-pill good"><svg class="icon icon-filled" style="width:0.85em;height:0.85em;"><use href="#icon-star"></use></svg> 4.9</span></div>
         </div>
       </div>
 
       <!-- Painel 4: Multi-barbeiro -->
       <div class="feature-panel" data-panel="4">
         <div>
-          <div class="ico-badge">🧑‍💼</div>
+          <div class="ico-badge"><svg class="icon"><use href="#icon-briefcase"></use></svg></div>
           <div class="kicker">Produto</div>
           <h3>Uma barbearia, vários barbeiros, um único número</h3>
           <p class="desc">Cada barbearia é isolada no sistema (multi-tenant): o dono gerencia barbeiros,
@@ -575,7 +576,7 @@
       <!-- Painel 5: Lembretes -->
       <div class="feature-panel" data-panel="5">
         <div>
-          <div class="ico-badge">🔔</div>
+          <div class="ico-badge"><svg class="icon"><use href="#icon-bell"></use></svg></div>
           <div class="kicker">Produto</div>
           <h3>Lembretes automáticos e notificações push</h3>
           <p class="desc">Menos "esqueci" e menos falta: o cliente recebe lembrete por WhatsApp e o barbeiro
@@ -590,7 +591,7 @@
         <div class="card feature-mock">
           <div class="mock-row"><div><div class="name">Lembrete enviado</div><div class="sub">Mariana · 19:30 hoje</div></div><span class="mock-pill good">entregue</span></div>
           <div class="mock-row"><div><div class="name">Escalação para humano</div><div class="sub">cliente pediu desconto</div></div><span class="mock-pill warn">push enviado</span></div>
-          <div class="mock-row"><div><div class="name">Avaliação recebida</div><div class="sub">Pedro · ★★★★★</div></div><span class="mock-pill good">registrada</span></div>
+          <div class="mock-row"><div><div class="name">Avaliação recebida</div><div class="sub">Pedro · <svg class="icon icon-filled" style="width:0.85em;height:0.85em;"><use href="#icon-star"></use></svg> 5.0</div><span class="mock-pill good">registrada</span></div>
           <div class="mock-row"><div><div class="name">Backup diário</div><div class="sub">banco de dados</div></div><span class="mock-pill good">concluído</span></div>
         </div>
       </div>
@@ -600,7 +601,7 @@
     <!-- COMO FUNCIONA -->
     <section id="como-funciona" class="tight reveal">
       <div class="section-head">
-        <span class="eyebrow">⚙️ Fluxo simples</span>
+        <span class="eyebrow"><svg class="icon"><use href="#icon-settings"></use></svg> Fluxo simples</span>
         <h2>Como funciona na prática</h2>
         <p>Do cadastro ao primeiro atendimento automático, em poucos passos.</p>
       </div>
@@ -635,28 +636,28 @@
     <!-- RECURSOS EXTRA -->
     <section class="tight reveal">
       <div class="section-head">
-        <span class="eyebrow">🛡️ Segurança e conformidade</span>
+        <span class="eyebrow"><svg class="icon"><use href="#icon-shield"></use></svg> Segurança e conformidade</span>
         <h2>Pensado pra rodar sério, não só pra demo</h2>
         <p>Detalhes que não aparecem na tela, mas evitam dor de cabeça.</p>
       </div>
       <div class="grid-4">
         <div class="card mini-card">
-          <div class="ico-badge">🔐</div>
+          <div class="ico-badge"><svg class="icon"><use href="#icon-lock"></use></svg></div>
           <h4>Sessão segura</h4>
           <p>Login com sessão armazenada no Postgres, headers de segurança (CSP, HSTS) e limite de tentativas.</p>
         </div>
         <div class="card mini-card">
-          <div class="ico-badge">📄</div>
+          <div class="ico-badge"><svg class="icon"><use href="#icon-document"></use></svg></div>
           <h4>LGPD nativo</h4>
           <p>Cliente pode solicitar exclusão dos próprios dados direto pelo site, sem abrir chamado.</p>
         </div>
         <div class="card mini-card">
-          <div class="ico-badge">🧾</div>
+          <div class="ico-badge"><svg class="icon"><use href="#icon-document"></use></svg></div>
           <h4>Auditoria</h4>
           <p>Toda ação sensível do dono fica registrada em log de auditoria, com data e responsável.</p>
         </div>
         <div class="card mini-card">
-          <div class="ico-badge">💾</div>
+          <div class="ico-badge"><svg class="icon"><use href="#icon-save"></use></svg></div>
           <h4>Backup automático</h4>
           <p>Backup diário do banco de dados, sem depender de ninguém lembrar de fazer.</p>
         </div>
@@ -666,7 +667,7 @@
     <!-- PREÇOS -->
     <section id="precos" class="tight reveal">
       <div class="section-head">
-        <span class="eyebrow">💳 Planos e valores</span>
+        <span class="eyebrow"><svg class="icon"><use href="#icon-credit-card"></use></svg> Planos e valores</span>
         <h2>Preços para cada tamanho de barbearia</h2>
         <p>Comece grátis por 7 dias. Sem cartão de crédito para testar.</p>
       </div>
@@ -721,7 +722,7 @@
     <!-- FAQ -->
     <section id="faq" class="tight reveal">
       <div class="section-head">
-        <span class="eyebrow">❓ Perguntas frequentes</span>
+        <span class="eyebrow"><svg class="icon"><use href="#icon-help"></use></svg> Perguntas frequentes</span>
         <h2>Perguntas frequentes</h2>
         <p>Tudo o que você precisa saber para decidir com confiança.</p>
       </div>
@@ -756,11 +757,11 @@
     <!-- CTA FINAL -->
     <section class="tight reveal">
       <div class="cta-final">
-        <span class="eyebrow">🚀 Pronto para começar?</span>
+        <span class="eyebrow"><svg class="icon"><use href="#icon-rocket"></use></svg> Pronto para começar?</span>
         <h2>Deixe o WhatsApp da sua barbearia trabalhar sozinho</h2>
         <p>Teste grátis por 7 dias, sem cartão de crédito. Cancele quando quiser.</p>
         <div class="hero-cta">
-          <a class="btn-primary link" href="/signup.html">Criar minha conta →</a>
+          <a class="btn-primary link" href="/signup.html">Criar minha conta <svg class="icon"><use href="#icon-arrow-right"></use></svg></a>
           <a class="btn-secondary link" href="/login.html">Já tenho conta</a>
         </div>
       </div>
@@ -771,7 +772,7 @@
     <div class="footer-grid">
       <div>
         <div class="brand" style="margin-bottom:12px;">
-          <div class="logo">💈</div>
+          <div class="logo"><svg class="icon"><use href="#icon-brand-razor"></use></svg></div>
           <span>Painel da Barbearia</span>
         </div>
         <p style="font-size:12.5px; color:var(--text-muted); max-width:280px; line-height:1.6;">
@@ -861,14 +862,14 @@
 
     function startAutoplay() {
       playing = true;
-      autoplayToggle.textContent = '❚❚';
+      autoplayToggle.innerHTML = '<svg class="icon"><use href="#icon-pause"></use></svg>';
       autoplayLabel.textContent = 'Auto-play em execução';
       runProgressBar();
       autoplayTimer = setTimeout(advance, TAB_DURATION);
     }
     function stopAutoplay() {
       playing = false;
-      autoplayToggle.textContent = '▶';
+      autoplayToggle.innerHTML = '<svg class="icon"><use href="#icon-play"></use></svg>';
       autoplayLabel.textContent = 'Auto-play pausado';
       progressFill.style.transition = 'none';
       progressFill.style.transform = 'scaleX(0)';

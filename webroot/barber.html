@@ -5,10 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Painel do Barbeiro</title>
 <link rel="manifest" href="/manifest.json" />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%232fa04f'/><stop offset='55%25' stop-color='%231e8e3e'/><stop offset='100%25' stop-color='%230d652d'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text x='50' y='70' font-size='56' text-anchor='middle'>%F0%9F%92%88</text></svg>" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%232fa04f'/><stop offset='55%25' stop-color='%231e8e3e'/><stop offset='100%25' stop-color='%230d652d'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><g transform='translate(16.4 16.4) scale(2.8)'><path fill='white' d='M6 6m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0'/><path fill='white' d='M6 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0'/><path fill='white' stroke='white' stroke-width='1.5' d='M20 4L8.12 15.88'/><path fill='white' stroke='white' stroke-width='1.5' d='M14.47 14.48L20 20'/><path fill='white' stroke='white' stroke-width='1.5' d='M8.12 8.12L12 12'/></g></svg>" />
 <meta name="theme-color" content="#f8f9fa" />
 <script src="/assets/theme-init.js"></script>
 <link rel="stylesheet" href="/assets/theme.css">
+<script src="/assets/icons.js" defer></script>
 <script src="/assets/modal.js" defer></script>
 <script src="/assets/theme-toggle.js" defer></script>
 <script src="/assets/tour.js" defer></script>
@@ -214,16 +215,16 @@
 <div class="sidebar-scrim" id="sidebar-scrim"></div>
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-brand brand">
-    <div class="logo">✂️</div>
+    <div class="logo"><svg class="icon"><use href="#icon-brand-razor"></use></svg></div>
     <div class="titles">
       <h1 id="barber-name">Minha Agenda</h1>
       <p id="shop-label">Barbearia</p>
     </div>
   </div>
   <nav class="sidebar-nav" id="page-tabs">
-    <button data-page="overview" class="active"><span class="nav-ico">🏠</span>Visão geral</button>
-    <button data-page="agenda"><span class="nav-ico">📅</span>Agenda</button>
-    <button data-page="bloqueios"><span class="nav-ico">🚫</span>Bloqueios</button>
+    <button data-page="overview" class="active"><span class="nav-ico"><svg class="icon"><use href="#icon-home"></use></svg></span>Visão geral</button>
+    <button data-page="agenda"><span class="nav-ico"><svg class="icon"><use href="#icon-calendar"></use></svg></span>Agenda</button>
+    <button data-page="bloqueios"><span class="nav-ico"><svg class="icon"><use href="#icon-block"></use></svg></span>Bloqueios</button>
   </nav>
   <div class="sidebar-footer">
     <button id="logout-btn" class="logout" style="cursor:pointer;">Sair</button>
@@ -232,11 +233,11 @@
 
 <div class="app-main">
 <header class="topbar">
-  <button id="sidebar-toggle" class="sidebar-toggle" title="Abrir menu" aria-label="Abrir menu" aria-expanded="false" aria-controls="sidebar">☰</button>
+  <button id="sidebar-toggle" class="sidebar-toggle" title="Abrir menu" aria-label="Abrir menu" aria-expanded="false" aria-controls="sidebar"><svg class="icon"><use href="#icon-menu"></use></svg></button>
   <div class="topbar-right">
-    <button id="tour-btn" class="icon-btn" title="Ver tour guiado" style="font-size:16px;">🧭</button>
-    <button id="push-btn" class="icon-btn" title="Ativar notificações push" style="display:none; font-size:16px;">🔔</button>
-    <div class="theme-switch" id="theme-switch"><div class="knob" id="theme-knob">🌙</div></div>
+    <button id="tour-btn" class="icon-btn" title="Ver tour guiado" style="font-size:16px;"><svg class="icon"><use href="#icon-compass"></use></svg></button>
+    <button id="push-btn" class="icon-btn" title="Ativar notificações push" style="display:none; font-size:16px;"><svg class="icon"><use href="#icon-bell"></use></svg></button>
+    <div class="theme-switch" id="theme-switch"><div class="knob" id="theme-knob"><svg class="icon"><use href="#icon-moon"></use></svg></div></div>
   </div>
 </header>
 
@@ -464,7 +465,7 @@ function apptRowHtml(a) {
       <div class="appt-side">
         <div class="appt-time">${a.start_time} – ${a.end_time}</div>
         <span class="badge ${a.computed_status}"><span class="dot"></span>${STATUS_LABEL[a.computed_status]}</span>
-        <button class="icon-btn" data-edit-appt="${a.id}" title="Editar">✏️</button>
+        <button class="icon-btn" data-edit-appt="${a.id}" title="Editar"><svg class="icon"><use href="#icon-edit"></use></svg></button>
       </div>
     </div>
     <div class="edit-appt-form" id="edit-appt-form-${a.id}">
@@ -497,7 +498,7 @@ function apptRowHtml(a) {
       <div class="form-actions" style="grid-column:1/-1;">
         <button class="btn-primary" data-save-appt="${a.id}">Salvar</button>
         <button class="btn-secondary" data-cancel-appt="${a.id}">Cancelar</button>
-        <button class="icon-btn danger" data-delete-appt="${a.id}" title="Excluir agendamento" style="margin-left:auto;">🗑️</button>
+        <button class="icon-btn danger" data-delete-appt="${a.id}" title="Excluir agendamento" style="margin-left:auto;"><svg class="icon"><use href="#icon-trash"></use></svg></button>
       </div>
     </div>
   `;
@@ -820,7 +821,7 @@ async function loadMyBlocks() {
         <div class="item-meta">${b.recurring ? "Todo dia" : b.date} · ${b.start_time}–${b.end_time}</div>
       </div>
       <div class="item-actions">
-        <button class="icon-btn danger" data-delete-my-block="${b.id}" title="Remover">🗑️</button>
+        <button class="icon-btn danger" data-delete-my-block="${b.id}" title="Remover"><svg class="icon"><use href="#icon-trash"></use></svg></button>
       </div>
     </div>
   `).join("");
@@ -969,6 +970,6 @@ async function setupPush() {
   setInterval(loadAll, 60000);
 })();
 </script>
-<a href="/ajuda.html" target="_blank" rel="noopener" class="help-fab" title="Central de Ajuda">❓</a>
+<a href="/ajuda.html" target="_blank" rel="noopener" class="help-fab" title="Central de Ajuda"><svg class="icon"><use href="#icon-help"></use></svg></a>
 </body>
 </html>

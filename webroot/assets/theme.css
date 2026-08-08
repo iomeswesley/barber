@@ -591,6 +591,19 @@ html[data-theme="dark"] .theme-switch .knob { transform: translateX(0); }
 }
 .dropdown-divider { height: 1px; background: var(--divider); margin: 6px 2px; }
 
+/* Ícone SVG padrão da plataforma — consome os <symbol> injetados por
+   assets/icons.js (sprite em assets/icons.svg). Sem fill (stroke-only) e
+   cor herdada de currentColor, pra colorir e trocar de tema junto com o
+   texto ao lado, sem precisar de variante por tema como emoji precisaria. */
+.icon {
+  width: 1em; height: 1em; flex-shrink: 0;
+  fill: none; stroke: currentColor; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+  vertical-align: -0.15em;
+}
+/* Variante preenchida (ex: estrela de avaliação marcada) */
+.icon.icon-filled { fill: currentColor; stroke: none; }
+
 /* Ícone de ajuda — "?" neutro em vez do emoji ❓ (que no iOS renderiza
    vermelho e destoava do resto do topbar, sobretudo ao lado do toggle
    de tema verde). */
