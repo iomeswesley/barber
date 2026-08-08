@@ -21,7 +21,7 @@
     "seed": "tsx --env-file=.env prisma/seed.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.68.0",
+    "@anthropic-ai/sdk": "^0.116.0",
     "@aws-sdk/client-s3": "^3.1086.0",
     "@prisma/client": "^6.16.0",
     "@sentry/node": "^10.66.0",

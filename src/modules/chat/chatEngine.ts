@@ -570,18 +570,17 @@ export async function sendMessage(
 
       try {
         for (let i = 0; i < MAX_ITERATIONS; i++) {
-          // TODO(effort): fluxo é mecânico (seguir passos, chamar
-          // ferramentas, textos curtos) — daria pra setar
-          // output_config: { effort: "low" } pra cortar o gasto de thinking
-          // adaptativo (ligado por padrão no Sonnet 5). Não dá ainda: o SDK
-          // instalado (@anthropic-ai/sdk 0.68.0) é anterior a esse parâmetro
-          // — precisa atualizar o SDK primeiro (mudança separada).
+          // Fluxo é mecânico (seguir passos, chamar ferramentas, textos
+          // curtos) — não precisa de raciocínio profundo. "low" corta o
+          // gasto de thinking adaptativo (ligado por padrão no Sonnet 5)
+          // sem trocar de modelo.
           const response = await client.messages.create({
             model: MODEL,
             max_tokens: 1024,
             system,
             tools,
             messages: session.messages,
+            output_config: { effort: "low" },
           });
 
           logChatUsage(barbershopId, MODEL, response.usage);
