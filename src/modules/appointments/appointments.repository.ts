@@ -96,7 +96,7 @@ export function cancelAppointment(id: number) {
 
 export async function updateAppointmentFields(
   id: number,
-  data: { serviceId?: number; endTime?: string; status?: "confirmed" | "no_show" }
+  data: { serviceId?: number; endTime?: string; status?: "confirmed" | "no_show"; notes?: string | null }
 ) {
   return prisma.appointment.update({ where: { id }, data });
 }

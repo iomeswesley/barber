@@ -23,6 +23,7 @@ function makeAppointment(overrides: Partial<AppointmentDTO> = {}): AppointmentDT
     clientName: "Cliente Teste",
     clientPhone: "11999998888",
     barbershopName: "Barbearia Vintage",
+    notes: null,
     ...overrides,
   };
 }

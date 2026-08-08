@@ -199,7 +199,7 @@ appointmentsRouter.put("/api/appointments/:id", requireAuth, async (req, res, ne
     if (req.session.user!.role === "barber" && appointment!.barberId !== req.session.user!.barberId) {
       throw new AppError("Você só pode editar seus próprios agendamentos", 403);
     }
-    const { clientName, serviceId, status, productSales } = req.body || {};
+    const { clientName, serviceId, status, productSales, notes } = req.body || {};
     if (status && !["confirmed", "no_show"].includes(status)) throw new AppError("status inválido");
 
     const sales = Array.isArray(productSales) ? productSales : [];
@@ -209,7 +209,7 @@ appointmentsRouter.put("/api/appointments/:id", requireAuth, async (req, res, ne
       if (!belongsToSession(req, product)) throw new AppError("Produto inválido");
     }
 
-    const updated = await updateAppointmentDetails(Number(req.params.id), { clientName, serviceId, status });
+    const updated = await updateAppointmentDetails(Number(req.params.id), { clientName, serviceId, status, notes });
     const soldProducts = await replaceAppointmentProductSales(
       req.session.user!.barbershopId,
       updated.clientId,

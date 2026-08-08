@@ -1117,6 +1117,7 @@
         </div>
         <div class="form-actions" style="margin-top:auto;">
           <button class="btn-secondary" id="client-search-clear">Limpar filtro</button>
+          <button class="btn-secondary" id="nudge-all-btn">Convidar atrasados a voltar</button>
         </div>
       </div>
       <div id="clients-table"></div>
@@ -1161,6 +1162,19 @@
       </ol>
       <div class="form-actions" id="whatsapp-connect-actions" style="display:none;">
         <button class="btn-primary" id="whatsapp-connect-btn">Conectar meu WhatsApp</button>
+      </div>
+    </div>
+
+    <div class="section-title">Tom de voz da IA</div>
+    <div class="card panel" id="tone-examples-card">
+      <div class="hint">Cole aqui exemplos de mensagens que você já mandou pra clientes no WhatsApp — o bot usa como referência de tom e vocabulário nas próprias respostas (não copia literalmente, só se inspira no seu jeito de escrever).</div>
+      <div id="tone-examples-list" style="margin-top:12px;"></div>
+      <div class="form-field" style="margin-top:10px;">
+        <textarea id="tone-example-input" rows="2" placeholder='Ex: "Opa! Bora marcar então, só me diz o dia que fica melhor pra você 😉"'></textarea>
+      </div>
+      <div class="form-actions">
+        <button class="btn-secondary" id="tone-example-add-btn">+ Adicionar exemplo</button>
+        <button class="btn-primary" id="tone-examples-save-btn">Salvar exemplos</button>
       </div>
     </div>
 
@@ -2207,6 +2221,10 @@ function apptRowHtml(a, { editable = true } = {}) {
           <option value="no_show" ${a.status === "no_show" ? "selected" : ""}>Não compareceu</option>
         </select>
       </div>
+      <div class="form-field" style="grid-column:1/-1;">
+        <label>Notas do atendimento (opcional)</label>
+        <textarea id="edit-appt-notes-${a.id}" rows="2" placeholder="Preferência de corte, observação sobre o cliente...">${escapeHtml(a.notes || "")}</textarea>
+      </div>
       <div class="form-actions" style="grid-column:1/-1;">
         <button class="btn-primary" data-save-appt="${a.id}">Salvar</button>
         <button class="btn-secondary" data-cancel-appt="${a.id}">Cancelar</button>
@@ -2313,6 +2331,7 @@ async function openClientApptModal(appt) {
         </div>
         <div class="vh-meta">${v.service_name} com ${v.barber_name}${v.status === "no_show" ? " · Não compareceu" : ""}</div>
         ${v.products.length > 0 ? `<div class="vh-products">${v.products.map((p) => `<span class="vh-product-chip">${p.name}${p.quantity > 1 ? ` ×${p.quantity}` : ""}</span>`).join("")}</div>` : ""}
+        ${v.notes ? `<div class="vh-notes" style="margin-top:4px; font-size:12px; color:var(--text-secondary); font-style:italic;">"${escapeHtml(v.notes)}"</div>` : ""}
       </div>`
       )
       .join("")}
@@ -2382,6 +2401,7 @@ function wireApptEditHandlers(container, onSaved) {
       const clientName = container.querySelector(`#edit-appt-name-${id}`).value;
       const serviceId = container.querySelector(`#edit-appt-service-${id}`).value;
       const status = container.querySelector(`#edit-appt-status-${id}`).value;
+      const notes = container.querySelector(`#edit-appt-notes-${id}`).value;
 
       const productsDiv = container.querySelector(`#edit-appt-products-${id}`);
       const rows = productsDiv ? productsDiv.querySelectorAll(".product-sale-row") : [];
@@ -2395,7 +2415,7 @@ function wireApptEditHandlers(container, onSaved) {
       const res = await fetch(`/api/appointments/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientName, serviceId, status, productSales }),
+        body: JSON.stringify({ clientName, serviceId, status, productSales, notes }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -3828,6 +3848,36 @@ document.getElementById("client-search-clear").addEventListener("click", () => {
   renderClientsTable();
 });
 
+document.getElementById("nudge-all-btn").addEventListener("click", async () => {
+  const overdueCount = allClientsCache.filter((c) => c.dueStatus === "atrasado").length;
+  if (overdueCount === 0) {
+    await showAlertModal("Nenhum cliente atrasado no momento.");
+    return;
+  }
+  const proceed = await showConfirmModal(
+    `Mandar mensagem de reconquista pra ${overdueCount} cliente(s) atrasado(s)? Só chega em quem já deu consentimento de marketing.`,
+    { destructive: false }
+  );
+  if (!proceed) return;
+
+  const btn = document.getElementById("nudge-all-btn");
+  btn.disabled = true;
+  try {
+    const res = await fetch("/api/manage/clients/nudge-all", { method: "POST" });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      await showAlertModal(data?.error || "Erro ao disparar reconquista em massa");
+      return;
+    }
+    await showAlertModal(
+      `Enviado pra ${data.sent} cliente(s).` + (data.skippedNoOptIn ? ` ${data.skippedNoOptIn} pulado(s) por falta de opt-in de marketing.` : "")
+    );
+    await loadClients();
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 /* ---------------- Estoque ---------------- */
 async function loadStockOverview() {
   const stock = await (await fetch("/api/manage/stock-overview")).json();
@@ -4075,6 +4125,68 @@ window.addEventListener("message", (event) => {
     }
   } catch {
     // Mensagens de outras origens/formatos no mesmo canal — ignora.
+  }
+});
+
+/* ---------------- Tom de voz da IA ---------------- */
+let toneExamplesCache = [];
+
+function renderToneExamplesList() {
+  const list = document.getElementById("tone-examples-list");
+  if (toneExamplesCache.length === 0) {
+    list.innerHTML = `<div class="empty-state" style="padding:8px 0;">Nenhum exemplo cadastrado ainda — o bot usa um tom padrão.</div>`;
+    return;
+  }
+  list.innerHTML = toneExamplesCache
+    .map(
+      (ex, i) => `
+    <div class="tone-example-row" style="display:flex; align-items:flex-start; gap:8px; padding:8px 0; border-bottom:1px solid var(--divider);">
+      <div style="flex:1; font-size:13px;">"${escapeHtml(ex)}"</div>
+      <button class="icon-btn" data-remove-tone-example="${i}" title="Remover">🗑️</button>
+    </div>`
+    )
+    .join("");
+  list.querySelectorAll("[data-remove-tone-example]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      toneExamplesCache.splice(Number(btn.dataset.removeToneExample), 1);
+      renderToneExamplesList();
+    });
+  });
+}
+
+async function loadToneExamples() {
+  const data = await (await fetch("/api/manage/tone-examples")).json();
+  toneExamplesCache = data.examples || [];
+  renderToneExamplesList();
+}
+
+document.getElementById("tone-example-add-btn").addEventListener("click", () => {
+  const input = document.getElementById("tone-example-input");
+  const text = input.value.trim();
+  if (!text) return;
+  toneExamplesCache.push(text);
+  input.value = "";
+  renderToneExamplesList();
+});
+
+document.getElementById("tone-examples-save-btn").addEventListener("click", async (e) => {
+  const btn = e.target;
+  btn.disabled = true;
+  try {
+    const res = await fetch("/api/manage/tone-examples", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ examples: toneExamplesCache }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      await showAlertModal(data?.error || "Erro ao salvar exemplos de tom de voz");
+      return;
+    }
+    toneExamplesCache = data.examples;
+    renderToneExamplesList();
+  } finally {
+    btn.disabled = false;
   }
 });
 
@@ -4663,7 +4775,7 @@ document.querySelectorAll("#page-tabs button").forEach((btn) => {
     }
     if (page === "configuracoes" && !configuracoesLoaded) {
       configuracoesLoaded = true;
-      await Promise.all([loadManageData(), loadBusinessHours(), loadBackups(), loadBillingStatus(), loadClientPlans(), loadWhatsappConnectStatus()]);
+      await Promise.all([loadManageData(), loadBusinessHours(), loadBackups(), loadBillingStatus(), loadClientPlans(), loadWhatsappConnectStatus(), loadToneExamples()]);
     }
     if (page === "auditoria") {
       auditoriaLoaded = true;

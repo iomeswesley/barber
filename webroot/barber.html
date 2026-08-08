@@ -377,6 +377,9 @@
 
 <script>
 function currency(v) { return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v || 0); }
+function escapeHtml(str) {
+  return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
 
 // Encolhe a fonte de um .kpi-value até caber numa linha só — evita quebrar em
 // duas linhas quando o valor tem muitos dígitos (ex: "R$ 15.005").
@@ -487,6 +490,10 @@ function apptRowHtml(a) {
           <option value="no_show" ${a.status === "no_show" ? "selected" : ""}>Não compareceu</option>
         </select>
       </div>
+      <div class="form-field" style="grid-column:1/-1;">
+        <label>Notas do atendimento (opcional)</label>
+        <textarea id="edit-appt-notes-${a.id}" rows="2" placeholder="Preferência de corte, observação sobre o cliente...">${escapeHtml(a.notes || "")}</textarea>
+      </div>
       <div class="form-actions" style="grid-column:1/-1;">
         <button class="btn-primary" data-save-appt="${a.id}">Salvar</button>
         <button class="btn-secondary" data-cancel-appt="${a.id}">Cancelar</button>
@@ -549,6 +556,7 @@ function wireApptEditHandlers(container, onSaved) {
       const clientName = container.querySelector(`#edit-appt-name-${id}`).value;
       const serviceId = container.querySelector(`#edit-appt-service-${id}`).value;
       const status = container.querySelector(`#edit-appt-status-${id}`).value;
+      const notes = container.querySelector(`#edit-appt-notes-${id}`).value;
 
       const productsDiv = container.querySelector(`#edit-appt-products-${id}`);
       const rows = productsDiv ? productsDiv.querySelectorAll(".product-sale-row") : [];
@@ -562,7 +570,7 @@ function wireApptEditHandlers(container, onSaved) {
       const res = await fetch(`/api/appointments/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientName, serviceId, status, productSales }),
+        body: JSON.stringify({ clientName, serviceId, status, productSales, notes }),
       });
       if (!res.ok) {
         const err = await res.json();

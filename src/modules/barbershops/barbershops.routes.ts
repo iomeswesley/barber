@@ -6,6 +6,8 @@ import {
   getBarbershops,
   getBusinessHours,
   updateBusinessHours,
+  getToneExamples,
+  updateToneExamples,
 } from "./barbershops.repository.js";
 import { getServices } from "@/modules/services/services.repository.js";
 import { getBarbers } from "@/modules/barbers/barbers.repository.js";
@@ -63,6 +65,36 @@ barbershopsRouter.put("/api/manage/business-hours", requireAuth, requireOwner, a
     );
     await logAudit(barbershopId, req.session.user!.name, "Alterou horário de funcionamento", "por dia da semana");
     res.json(updated.map(toApiBusinessHours));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Exemplos reais de mensagens que a barbearia já mandou a clientes, usados
+// como referência de tom/vocabulário pelo bot (ver buildStableSystemPrompt
+// em chatEngine.ts) — self-service, sem precisar do dev pra ajustar.
+const MAX_TONE_EXAMPLES = 20;
+const MAX_TONE_EXAMPLE_LENGTH = 500;
+
+barbershopsRouter.get("/api/manage/tone-examples", requireAuth, requireOwner, async (req, res) => {
+  res.json({ examples: await getToneExamples(req.session.user!.barbershopId) });
+});
+
+barbershopsRouter.put("/api/manage/tone-examples", requireAuth, requireOwner, async (req, res, next) => {
+  try {
+    const { examples } = req.body || {};
+    if (!Array.isArray(examples)) throw new AppError("examples deve ser uma lista de textos");
+    if (examples.length > MAX_TONE_EXAMPLES) throw new AppError(`Máximo de ${MAX_TONE_EXAMPLES} exemplos`);
+
+    const cleaned = examples
+      .map((e) => (typeof e === "string" ? e.trim() : ""))
+      .filter((e) => e.length > 0)
+      .map((e) => e.slice(0, MAX_TONE_EXAMPLE_LENGTH));
+
+    const barbershopId = req.session.user!.barbershopId;
+    await updateToneExamples(barbershopId, cleaned);
+    await logAudit(barbershopId, req.session.user!.name, "Atualizou exemplos de tom de voz da IA", `${cleaned.length} exemplo(s)`);
+    res.json({ examples: cleaned });
   } catch (err) {
     next(err);
   }

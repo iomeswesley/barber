@@ -147,6 +147,45 @@ dashboardRouter.post("/api/manage/clients/:id/nudge", requireAuth, requireOwner,
   }
 });
 
+// Dispara a mensagem de reconquista pra todos os clientes "atrasados" de uma
+// vez (mesma lógica de dueStatus do nudge individual acima) — sequencial, não
+// paralelo, então já fica naturalmente serializado; cada envio ainda passa
+// pelo orçamento de trial e pelo opt-in de marketing dentro de
+// sendComeBackMessage/tryConsumeWhatsappTrialBudget, sem limite extra por
+// campanha além disso.
+dashboardRouter.post("/api/manage/clients/nudge-all", requireAuth, requireOwner, async (req, res, next) => {
+  try {
+    const barbershopId = req.session.user!.barbershopId;
+    const overdueClients = (await getClientStats(barbershopId)).filter((c) => c.dueStatus === "atrasado");
+    const shop = await getBarbershop(barbershopId);
+
+    let sent = 0;
+    let skippedNoOptIn = 0;
+    for (const c of overdueClients) {
+      const client = await getClientById(c.id);
+      // Mensagem de reconquista é categoria marketing na Meta — só pode ser
+      // enviada pra quem consentiu.
+      if (!client!.marketingOptIn) {
+        skippedNoOptIn++;
+        continue;
+      }
+      const lastAppointment = await getClientLastAppointment(c.id, barbershopId);
+      await sendComeBackMessage(barbershopId, client!.phone, client!.name, shop?.name || "nossa barbearia", lastAppointment);
+      sent++;
+    }
+
+    await logAudit(
+      barbershopId,
+      req.session.user!.name,
+      "Disparou reconquista em massa",
+      `${sent} enviada(s), ${skippedNoOptIn} sem opt-in de marketing`
+    );
+    res.json({ sent, skippedNoOptIn, totalOverdue: overdueClients.length });
+  } catch (err) {
+    next(err);
+  }
+});
+
 /* ---------------- Backup do banco (owner only) ---------------- */
 
 dashboardRouter.get("/api/manage/backups", requireAuth, requireOwner, async (_req, res, next) => {

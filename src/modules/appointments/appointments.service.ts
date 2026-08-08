@@ -179,7 +179,7 @@ export async function getAffectedAppointments(
 
 export async function updateAppointmentDetails(
   id: number,
-  { clientName, serviceId, status }: { clientName?: string; serviceId?: number | string; status?: string }
+  { clientName, serviceId, status, notes }: { clientName?: string; serviceId?: number | string; status?: string; notes?: string }
 ): Promise<AppointmentDTO> {
   const appointment = await getAppointmentById(id);
   if (!appointment) throw new AppError("Agendamento não encontrado", 404);
@@ -197,6 +197,12 @@ export async function updateAppointmentDetails(
 
   if (status && ["confirmed", "no_show"].includes(status)) {
     await updateAppointmentFields(id, { status: status as "confirmed" | "no_show" });
+  }
+
+  // undefined = campo nem enviado, não mexe; string vazia vira null no banco,
+  // distinguindo "sem nota" de payload incompleto.
+  if (notes !== undefined) {
+    await updateAppointmentFields(id, { notes: notes.trim() || null });
   }
 
   return (await getAppointmentById(id))!;

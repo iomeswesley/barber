@@ -13,6 +13,15 @@ export function getBarbershopByWhatsappPhoneNumberId(phoneNumberId: string) {
   return prisma.barbershop.findUnique({ where: { whatsappPhoneNumberId: phoneNumberId } });
 }
 
+export async function getToneExamples(barbershopId: number): Promise<string[]> {
+  const shop = await prisma.barbershop.findUnique({ where: { id: barbershopId }, select: { toneExamples: true } });
+  return shop?.toneExamples ?? [];
+}
+
+export function updateToneExamples(barbershopId: number, examples: string[]) {
+  return prisma.barbershop.update({ where: { id: barbershopId }, data: { toneExamples: examples } });
+}
+
 export function getBusinessHours(barbershopId: number) {
   return prisma.businessHours.findMany({
     where: { barbershopId },

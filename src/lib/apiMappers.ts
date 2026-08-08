@@ -47,6 +47,7 @@ export function toApiAppointment(a: AppointmentDTO & { computedStatus?: string }
     client_name: a.clientName,
     client_phone: a.clientPhone,
     barbershop_name: a.barbershopName,
+    notes: a.notes,
     ...(a.computedStatus !== undefined ? { computed_status: a.computedStatus } : {}),
   };
 }
@@ -216,6 +217,7 @@ export function toApiClientVisit(a: {
   date: Date;
   startTime: string;
   status: string;
+  notes: string | null;
   service: { name: string; priceCents: number };
   barber: { name: string };
   productSales: { quantity: number; product: { name: string; priceCents: number } }[];
@@ -225,6 +227,7 @@ export function toApiClientVisit(a: {
     date: localDateStr(a.date),
     start_time: a.startTime,
     status: a.status,
+    notes: a.notes,
     service_name: a.service.name,
     barber_name: a.barber.name,
     price_cents: a.service.priceCents,

@@ -24,6 +24,7 @@ export interface AppointmentDTO {
   clientName: string;
   clientPhone: string;
   barbershopName: string;
+  notes: string | null;
 }
 
 export const appointmentInclude = {
@@ -72,5 +73,6 @@ export function toAppointmentDTO(a: AppointmentWithRelations): AppointmentDTO {
     clientName: a.client.name,
     clientPhone: a.client.phone,
     barbershopName: a.barbershop.name,
+    notes: a.notes,
   };
 }
