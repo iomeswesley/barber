@@ -26,6 +26,7 @@ import { sendWhatsappText, whatsappConfigured } from "@/lib/whatsapp.js";
 import { createShortLink } from "@/lib/shortLink.js";
 import { prisma } from "@/lib/prisma.js";
 import { env } from "@/config/env.js";
+import { logChatUsage } from "./chatUsage.js";
 import type { Barbershop, Prisma } from "@prisma/client";
 
 const client = new Anthropic();
@@ -569,6 +570,12 @@ export async function sendMessage(
 
       try {
         for (let i = 0; i < MAX_ITERATIONS; i++) {
+          // TODO(effort): fluxo é mecânico (seguir passos, chamar
+          // ferramentas, textos curtos) — daria pra setar
+          // output_config: { effort: "low" } pra cortar o gasto de thinking
+          // adaptativo (ligado por padrão no Sonnet 5). Não dá ainda: o SDK
+          // instalado (@anthropic-ai/sdk 0.68.0) é anterior a esse parâmetro
+          // — precisa atualizar o SDK primeiro (mudança separada).
           const response = await client.messages.create({
             model: MODEL,
             max_tokens: 1024,
@@ -576,6 +583,8 @@ export async function sendMessage(
             tools,
             messages: session.messages,
           });
+
+          logChatUsage(barbershopId, MODEL, response.usage);
 
           session.messages.push({ role: "assistant", content: response.content });
 

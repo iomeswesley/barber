@@ -399,6 +399,25 @@ model ProcessedWhatsappMessage {
   @@map("processed_whatsapp_messages")
 }
 
+// Uso de tokens da Anthropic por chamada do bot de WhatsApp — sem isso não
+// havia nenhuma telemetria de custo de IA, só estimativa. Uma linha por
+// chamada a client.messages.create (não por mensagem do cliente — uma
+// mensagem pode disparar várias chamadas dentro do loop de ferramentas em
+// chatEngine.ts). Ver scripts/chat-usage-report.ts pra somar por barbearia/mês.
+model ChatUsageLog {
+  id                      Int      @id @default(autoincrement())
+  barbershopId            Int      @map("barbershop_id")
+  model                   String
+  inputTokens             Int      @map("input_tokens")
+  outputTokens            Int      @map("output_tokens")
+  cacheCreationInputTokens Int     @default(0) @map("cache_creation_input_tokens")
+  cacheReadInputTokens    Int      @default(0) @map("cache_read_input_tokens")
+  createdAt               DateTime @default(now()) @map("created_at")
+
+  @@index([barbershopId, createdAt])
+  @@map("chat_usage_logs")
+}
+
 // Backing dos rate limiters (login, chat, autoatendimento público) — em
 // Postgres em vez de Map em memória, porque em serverless cada instância
 // teria seu próprio Map e o limite não valeria nada na prática (mesmo bug
