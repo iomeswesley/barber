@@ -4210,6 +4210,12 @@ async function loadWhatsappConnectStatus() {
     return;
   }
 
+  // Carrega o SDK do Facebook já aqui (não só no clique) — se o clique tivesse
+  // que esperar o SDK carregar via rede antes de chamar FB.login(), o
+  // navegador perde o "gesto do usuário" nesse meio tempo e bloqueia o popup
+  // silenciosamente (parece que "não acontece nada" ao clicar).
+  loadFacebookSdk(config.app_id);
+
   const status = await (await fetch("/api/manage/whatsapp/connect/status")).json();
   hint.textContent = WHATSAPP_STATUS_LABEL[status.status] || WHATSAPP_STATUS_LABEL.not_connected;
   if (status.status === "connected" && status.display_phone) {
