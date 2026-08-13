@@ -65,7 +65,11 @@ export function createApp() {
           styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
           fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
           imgSrc: ["'self'", "data:"],
-          connectSrc: ["'self'", "https://www.facebook.com", "https://graph.facebook.com"],
+          connectSrc: ["'self'", "https://www.facebook.com", "https://graph.facebook.com", "https://connect.facebook.net"],
+          // O SDK do Facebook (Embedded Signup) abre um iframe/popup de
+          // login apontando pra esses domínios — sem frameSrc explícito,
+          // o CSP cai no default-src 'self' e bloqueia silenciosamente.
+          frameSrc: ["https://www.facebook.com", "https://staticxx.facebook.com"],
           frameAncestors: ["'self'"],
         },
       },
