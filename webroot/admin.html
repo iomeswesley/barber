@@ -4303,16 +4303,17 @@ async function loadWhatsappConnectStatus() {
 
       FB.login(
         (response) => {
+          // FB.login() chama esse callback mais de uma vez durante o fluxo
+          // (inclusive antes do usuário terminar de interagir, sem "code" e
+          // sem status "unknown") — só reagimos quando um "code" de verdade
+          // chega. Cancelamento de verdade é detectado só pelo CANCEL/ERROR
+          // que o próprio assistente da Meta manda via postMessage (ver
+          // window.addEventListener("message", ...) mais acima).
           const code = response.authResponse?.code;
           if (code) {
             whatsappSignupCode = code;
-          } else if (response.status !== "unknown") {
-            // Sem authResponse e status diferente de "unknown" = o usuário
-            // recusou/fechou logo na primeira tela do Facebook Login, antes
-            // de chegar no assistente do WhatsApp — cancelamento de verdade.
-            whatsappSignupCancelled = true;
+            finalizeWhatsappSignup();
           }
-          finalizeWhatsappSignup();
         },
         {
           config_id: config.config_id,
