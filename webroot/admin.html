@@ -4243,32 +4243,38 @@ async function loadWhatsappConnectStatus() {
     try {
       await loadFacebookSdk(config.app_id);
       whatsappSignupData = null;
-      FB.login(
-        async (response) => {
-          const code = response.authResponse?.code;
-          if (!code || !whatsappSignupData) {
-            btn.disabled = false;
-            btn.textContent = "Conectar meu WhatsApp";
-            if (response.status !== "unknown") await showAlertModal("Conexão cancelada ou incompleta. Tente de novo.");
-            return;
-          }
-          btn.textContent = "Finalizando conexão...";
-          try {
-            const res = await fetch("/api/manage/whatsapp/connect/callback", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ code, waba_id: whatsappSignupData.wabaId, phone_number_id: whatsappSignupData.phoneNumberId }),
-            });
-            const body = await res.json();
-            if (!res.ok) {
-              await showAlertModal(body.error || "Erro ao finalizar a conexão do WhatsApp.");
-            }
-          } catch {
-            await showAlertModal("Erro de conexão com o servidor.");
-          }
+      // FB.login rejeita callback async ("Expression is of type asyncfunction,
+      // not function") — precisa ser uma função síncrona comum, que só
+      // dispara a lógica assíncrona por dentro sem ser ela mesma async.
+      const handleFbLoginResponse = async (response) => {
+        const code = response.authResponse?.code;
+        if (!code || !whatsappSignupData) {
           btn.disabled = false;
           btn.textContent = "Conectar meu WhatsApp";
-          await loadWhatsappConnectStatus();
+          if (response.status !== "unknown") await showAlertModal("Conexão cancelada ou incompleta. Tente de novo.");
+          return;
+        }
+        btn.textContent = "Finalizando conexão...";
+        try {
+          const res = await fetch("/api/manage/whatsapp/connect/callback", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code, waba_id: whatsappSignupData.wabaId, phone_number_id: whatsappSignupData.phoneNumberId }),
+          });
+          const body = await res.json();
+          if (!res.ok) {
+            await showAlertModal(body.error || "Erro ao finalizar a conexão do WhatsApp.");
+          }
+        } catch {
+          await showAlertModal("Erro de conexão com o servidor.");
+        }
+        btn.disabled = false;
+        btn.textContent = "Conectar meu WhatsApp";
+        await loadWhatsappConnectStatus();
+      };
+      FB.login(
+        (response) => {
+          handleFbLoginResponse(response).catch((err) => console.error("[WHATSAPP CONNECT] Falha ao processar retorno do login:", err));
         },
         {
           config_id: config.config_id,
