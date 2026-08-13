@@ -4108,14 +4108,24 @@ const WHATSAPP_STATUS_LABEL = {
 let fbSdkLoadPromise = null;
 function loadFacebookSdk(appId) {
   if (fbSdkLoadPromise) return fbSdkLoadPromise;
-  fbSdkLoadPromise = new Promise((resolve) => {
+  fbSdkLoadPromise = new Promise((resolve, reject) => {
     window.fbAsyncInit = function () {
-      FB.init({ appId, autoLogAppEvents: true, xfbml: false, version: "v21.0" });
+      try {
+        FB.init({ appId, autoLogAppEvents: true, xfbml: false, version: "v21.0" });
+      } catch (err) {
+        fbSdkLoadPromise = null; // permite tentar carregar de novo num próximo clique
+        reject(err);
+        return;
+      }
       resolve();
     };
     const script = document.createElement("script");
     script.src = "https://connect.facebook.net/pt_BR/sdk.js";
     script.async = true;
+    script.onerror = () => {
+      fbSdkLoadPromise = null;
+      reject(new Error("Falha ao carregar o script do Facebook (connect.facebook.net) — bloqueado por rede, adblock ou CSP."));
+    };
     document.body.appendChild(script);
   });
   return fbSdkLoadPromise;
@@ -4214,7 +4224,7 @@ async function loadWhatsappConnectStatus() {
   // que esperar o SDK carregar via rede antes de chamar FB.login(), o
   // navegador perde o "gesto do usuário" nesse meio tempo e bloqueia o popup
   // silenciosamente (parece que "não acontece nada" ao clicar).
-  loadFacebookSdk(config.app_id);
+  loadFacebookSdk(config.app_id).catch((err) => console.error("[WHATSAPP CONNECT] Falha ao pré-carregar SDK do Facebook:", err));
 
   const status = await (await fetch("/api/manage/whatsapp/connect/status")).json();
   hint.textContent = WHATSAPP_STATUS_LABEL[status.status] || WHATSAPP_STATUS_LABEL.not_connected;
@@ -4277,7 +4287,8 @@ async function loadWhatsappConnectStatus() {
           extras: { setup: {}, featureType: "", sessionInfoVersion: "3" },
         }
       );
-    } catch {
+    } catch (err) {
+      console.error("[WHATSAPP CONNECT] Falha ao abrir a conexão:", err);
       btn.disabled = false;
       btn.textContent = "Conectar meu WhatsApp";
       await showAlertModal("Não foi possível carregar a conexão com a Meta agora. Tente de novo em instantes.");
