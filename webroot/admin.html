@@ -4131,7 +4131,17 @@ function loadFacebookSdk(appId) {
   return fbSdkLoadPromise;
 }
 
+// O FB.login() devolve o "code" assim que o usuário autoriza o Facebook Login
+// — isso acontece BEM antes de ele terminar o assistente de configuração do
+// WhatsApp, que continua aberto no mesmo popup. Só sabemos que ele terminou
+// de verdade quando chega a mensagem WA_EMBEDDED_SIGNUP/FINISH abaixo. Por
+// isso guardamos os dois sinais separados e só finalizamos quando os dois
+// chegarem — tratar "code chegou mas FINISH ainda não" como cancelamento
+// (como o código fazia antes) dispara um erro falso no meio do fluxo normal.
 let whatsappSignupData = null;
+let whatsappSignupCancelled = false;
+let finalizeWhatsappSignup = null; // setado enquanto uma tentativa de conexão está em andamento
+
 window.addEventListener("message", (event) => {
   if (!event.origin.endsWith("facebook.com")) return;
   try {
@@ -4139,7 +4149,10 @@ window.addEventListener("message", (event) => {
     if (data.type !== "WA_EMBEDDED_SIGNUP") return;
     if (data.event === "FINISH") {
       whatsappSignupData = { wabaId: data.data.waba_id, phoneNumberId: data.data.phone_number_id };
+    } else if (data.event === "CANCEL" || data.event === "ERROR") {
+      whatsappSignupCancelled = true;
     }
+    if (finalizeWhatsappSignup) finalizeWhatsappSignup();
   } catch {
     // Mensagens de outras origens/formatos no mesmo canal — ignora.
   }
@@ -4243,23 +4256,35 @@ async function loadWhatsappConnectStatus() {
     try {
       await loadFacebookSdk(config.app_id);
       whatsappSignupData = null;
+      whatsappSignupCancelled = false;
+      let whatsappSignupCode = null;
+
       // FB.login rejeita callback async ("Expression is of type asyncfunction,
       // not function") — precisa ser uma função síncrona comum, que só
       // dispara a lógica assíncrona por dentro sem ser ela mesma async.
-      const handleFbLoginResponse = async (response) => {
-        const code = response.authResponse?.code;
-        if (!code || !whatsappSignupData) {
+      // Também não finaliza sozinha: só chama finalizeWhatsappSignup(), que
+      // decide se já tem os dois sinais (code + dados do FINISH) ou se ainda
+      // precisa esperar.
+      const finalize = async () => {
+        if (whatsappSignupCancelled) {
+          finalizeWhatsappSignup = null;
           btn.disabled = false;
           btn.textContent = "Conectar meu WhatsApp";
-          if (response.status !== "unknown") await showAlertModal("Conexão cancelada ou incompleta. Tente de novo.");
+          await showAlertModal("Conexão cancelada. Quando quiser, é só clicar em \"Conectar meu WhatsApp\" de novo.");
           return;
         }
+        if (!whatsappSignupCode || !whatsappSignupData) {
+          // Ainda falta algum dos dois sinais — o popup continua aberto,
+          // então só espera (não mexe no botão nem mostra erro nenhum).
+          return;
+        }
+        finalizeWhatsappSignup = null;
         btn.textContent = "Finalizando conexão...";
         try {
           const res = await fetch("/api/manage/whatsapp/connect/callback", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ code, waba_id: whatsappSignupData.wabaId, phone_number_id: whatsappSignupData.phoneNumberId }),
+            body: JSON.stringify({ code: whatsappSignupCode, waba_id: whatsappSignupData.wabaId, phone_number_id: whatsappSignupData.phoneNumberId }),
           });
           const body = await res.json();
           if (!res.ok) {
@@ -4272,9 +4297,22 @@ async function loadWhatsappConnectStatus() {
         btn.textContent = "Conectar meu WhatsApp";
         await loadWhatsappConnectStatus();
       };
+      finalizeWhatsappSignup = () => finalize().catch((err) => console.error("[WHATSAPP CONNECT] Falha ao processar retorno do login:", err));
+
+      btn.textContent = "Aguardando você concluir no popup da Meta...";
+
       FB.login(
         (response) => {
-          handleFbLoginResponse(response).catch((err) => console.error("[WHATSAPP CONNECT] Falha ao processar retorno do login:", err));
+          const code = response.authResponse?.code;
+          if (code) {
+            whatsappSignupCode = code;
+          } else if (response.status !== "unknown") {
+            // Sem authResponse e status diferente de "unknown" = o usuário
+            // recusou/fechou logo na primeira tela do Facebook Login, antes
+            // de chegar no assistente do WhatsApp — cancelamento de verdade.
+            whatsappSignupCancelled = true;
+          }
+          finalizeWhatsappSignup();
         },
         {
           config_id: config.config_id,
@@ -4295,6 +4333,7 @@ async function loadWhatsappConnectStatus() {
       );
     } catch (err) {
       console.error("[WHATSAPP CONNECT] Falha ao abrir a conexão:", err);
+      finalizeWhatsappSignup = null;
       btn.disabled = false;
       btn.textContent = "Conectar meu WhatsApp";
       await showAlertModal("Não foi possível carregar a conexão com a Meta agora. Tente de novo em instantes.");
