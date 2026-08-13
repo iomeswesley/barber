@@ -4144,6 +4144,10 @@ let finalizeWhatsappSignup = null; // setado enquanto uma tentativa de conexão 
 
 window.addEventListener("message", (event) => {
   if (!event.origin.endsWith("facebook.com")) return;
+  // TODO(debug): remover depois de descobrir por que o FINISH não estava
+  // chegando — loga toda mensagem de origem facebook.com, mesmo as que a
+  // gente ainda não trata.
+  console.log("[WHATSAPP CONNECT DEBUG] mensagem recebida de", event.origin, ":", event.data);
   try {
     const data = JSON.parse(event.data);
     if (data.type !== "WA_EMBEDDED_SIGNUP") return;
