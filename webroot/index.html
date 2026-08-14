@@ -191,10 +191,7 @@
     display: flex; align-items: center; justify-content: center;
   }
   .progress-track { flex: 1; max-width: 160px; height: 3px; border-radius: 3px; background: var(--surface-raise-2); overflow: hidden; }
-  /* transform (scaleX) em vez de width: anima só na GPU/thread de composição,
-     sem forçar recálculo de layout a cada frame — ver runProgressBar() no
-     script, que troca o antigo loop de requestAnimationFrame por isso. */
-  .progress-fill { height: 100%; width: 100%; transform-origin: left; transform: scaleX(0); background: var(--brand-grad-text); }
+  .progress-fill { height: 100%; width: 0%; background: var(--brand-grad-text); transition: width .1s linear; }
   .tab-counter { font-variant-numeric: tabular-nums; white-space: nowrap; flex-shrink: 0; }
   @media (max-width: 480px) {
     .autoplay-row { flex-wrap: wrap; }
@@ -386,7 +383,7 @@
       <span>Painel da Barbearia</span>
     </a>
     <nav class="main-nav">
-      <a href="#produto">Produto</a>
+      <a href="#recursos">Recursos</a>
       <a href="#como-funciona">Como funciona</a>
       <a href="#precos">Preços</a>
       <a href="#faq">FAQ</a>
@@ -405,8 +402,9 @@
         <h1>Sua barbearia atendendo e agendando sozinha no <span class="brand-text">WhatsApp</span></h1>
         <p class="lead">
           Conecte o número da sua barbearia, a IA responde clientes, marca, cancela e
-          reagenda horários automaticamente, e você acompanha tudo em um painel com
-          faturamento, ocupação e histórico de clientes.
+          reagenda horários automaticamente — falando do jeito que a sua equipe já fala,
+          não com tom de robô — e você acompanha tudo em um painel com faturamento,
+          ocupação e histórico de clientes.
         </p>
         <div class="hero-features">
           <div class="hero-feature"><span class="ico"><svg class="icon"><use href="#icon-bot"></use></svg></span>Agente de IA que agenda de verdade</div>
@@ -416,7 +414,7 @@
         </div>
         <div class="hero-cta">
           <a class="btn-primary link" href="/signup.html">Teste grátis por 7 dias <svg class="icon"><use href="#icon-arrow-right"></use></svg></a>
-          <a class="btn-secondary link" href="#como-funciona">Ver o produto</a>
+          <a class="btn-secondary link" href="#como-funciona">Ver como funciona</a>
         </div>
         <div class="trust-line"><span class="check"><svg class="icon"><use href="#icon-check"></use></svg></span> Sem cartão de crédito para começar o teste.</div>
       </div>
@@ -437,10 +435,10 @@
               <div class="chat-badge">IA</div>
             </div>
             <div class="chat-body">
-              <div class="bubble in">Oi! Vocês têm horário pra corte hoje à noite?<time>19:42</time></div>
+              <div class="bubble in">Oi! Vocês têm horário pra um corte amanhã à noite?<time>19:42</time></div>
               <div class="bubble out">Temos sim! Encontrei 19:30 com o Carlos ou 20:00 com o Rafael. Qual prefere?<time>19:42</time></div>
               <div class="bubble in">Pode ser 19:30 com o Carlos<time>19:43</time></div>
-              <div class="bubble out">Perfeito, agendado! Corte + Carlos, hoje às 19:30. Te aviso 1h antes 👍<time>19:43</time></div>
+              <div class="bubble out">Perfeito, agendado! Corte com o Carlos, amanhã às 19:30. Te aviso antes 👍<time>19:43</time></div>
             </div>
           </div>
           <div class="float-toast a">
@@ -699,7 +697,7 @@
         <div class="card feature-mock">
           <div class="mock-row"><div><div class="name">Lembrete enviado</div><div class="sub">Mariana · 19:30 hoje</div></div><span class="mock-pill good">entregue</span></div>
           <div class="mock-row"><div><div class="name">Escalação para humano</div><div class="sub">cliente pediu desconto</div></div><span class="mock-pill warn">push enviado</span></div>
-          <div class="mock-row"><div><div class="name">Avaliação recebida</div><div class="sub">Pedro · <svg class="icon icon-filled" style="width:0.85em;height:0.85em;"><use href="#icon-star"></use></svg> 5.0</div><span class="mock-pill good">registrada</span></div>
+          <div class="mock-row"><div><div class="name">Avaliação recebida</div><div class="sub">Pedro · <svg class="icon icon-filled" style="width:0.85em;height:0.85em;"><use href="#icon-star"></use></svg> 5.0</div></div><span class="mock-pill good">registrada</span></div>
           <div class="mock-row"><div><div class="name">Backup diário</div><div class="sub">banco de dados</div></div><span class="mock-pill good">concluído</span></div>
         </div>
       </div>
@@ -811,6 +809,10 @@
           <div class="faq-a"><p>Ela escala o atendimento para um humano e o barbeiro/dono recebe uma notificação push no navegador na hora.</p></div>
         </div>
         <div class="card faq-item">
+          <div class="faq-q"><div class="q-ico">?</div><span class="txt">A IA vai soar robótica com os meus clientes?</span><span class="chev">▾</span></div>
+          <div class="faq-a"><p>Não precisa. Em Configurações você cadastra alguns exemplos reais de mensagens que sua equipe já manda, e a IA usa isso como referência de tom — respondendo do jeito que a sua barbearia fala, não com um texto genérico de central de atendimento.</p></div>
+        </div>
+        <div class="card faq-item">
           <div class="faq-q"><div class="q-ico">?</div><span class="txt">Dá pra ter mais de um barbeiro?</span><span class="chev">▾</span></div>
           <div class="faq-a"><p>Sim. O plano Starter cobre até 2 barbeiros ativos e o Pro é ilimitado, cada um com login e agenda própria.</p></div>
         </div>
@@ -852,7 +854,7 @@
       </div>
       <div>
         <h5>Produto</h5>
-        <a href="#produto">Recursos</a>
+        <a href="#recursos">Recursos</a>
         <a href="#como-funciona">Como funciona</a>
         <a href="#precos">Preços</a>
       </div>
@@ -885,7 +887,8 @@
     const TAB_DURATION = 15000;
     let current = 0;
     let playing = true;
-    let autoplayTimer = null;
+    let rafId = null;
+    let segmentStart = null;
 
     function showTab(index) {
       current = index;
@@ -904,47 +907,32 @@
       bar.scrollTo({ left: target, behavior: 'smooth' });
     }
 
-    // Barra de progresso animada só em CSS (transform, acelerada por GPU) em
-    // vez do antigo loop de requestAnimationFrame atualizando `width` a cada
-    // frame. O rAF antigo forçava recálculo de layout ~60x/s o tempo todo —
-    // autoplay fica ligado por padrão, então isso rodava sem parar — e
-    // competia com o thread de scroll no mobile, dando a sensação de página
-    // "vibrando"/travando ao rolar. Trocado por uma única transition CSS de
-    // TAB_DURATION e um setTimeout pra avançar de aba quando ela termina.
-    function runProgressBar() {
-      progressFill.style.transition = 'none';
-      progressFill.style.transform = 'scaleX(0)';
-      // Ler uma propriedade de layout (offsetWidth) força o navegador a
-      // aplicar o transition:none e o scaleX(0) ANTES de seguir — sem esse
-      // reflow síncrono, religar a transição e trocar o valor final logo
-      // em seguida vira um "salto" direto pro alvo em vez de animar (o
-      // navegador nunca chega a registrar o estado zerado como ponto de
-      // partida). Técnica padrão pra reiniciar uma transição CSS.
-      void progressFill.offsetWidth;
-      progressFill.style.transition = `transform ${TAB_DURATION}ms linear`;
-      progressFill.style.transform = 'scaleX(1)';
-    }
-
-    function advance() {
-      showTab((current + 1) % panels.length);
-      runProgressBar();
-      autoplayTimer = setTimeout(advance, TAB_DURATION);
+    function tick(ts) {
+      if (!playing) return;
+      if (segmentStart === null) segmentStart = ts;
+      const elapsed = ts - segmentStart;
+      const pct = Math.min(100, (elapsed / TAB_DURATION) * 100);
+      progressFill.style.width = pct + '%';
+      if (elapsed >= TAB_DURATION) {
+        segmentStart = ts;
+        showTab((current + 1) % panels.length);
+      }
+      rafId = requestAnimationFrame(tick);
     }
 
     function startAutoplay() {
       playing = true;
+      segmentStart = null;
       autoplayToggle.innerHTML = '<svg class="icon"><use href="#icon-pause"></use></svg>';
       autoplayLabel.textContent = 'Auto-play em execução';
-      runProgressBar();
-      autoplayTimer = setTimeout(advance, TAB_DURATION);
+      rafId = requestAnimationFrame(tick);
     }
     function stopAutoplay() {
       playing = false;
       autoplayToggle.innerHTML = '<svg class="icon"><use href="#icon-play"></use></svg>';
       autoplayLabel.textContent = 'Auto-play pausado';
-      progressFill.style.transition = 'none';
-      progressFill.style.transform = 'scaleX(0)';
-      if (autoplayTimer) clearTimeout(autoplayTimer);
+      progressFill.style.width = '0%';
+      if (rafId) cancelAnimationFrame(rafId);
     }
 
     tabButtons.forEach((btn) => {
