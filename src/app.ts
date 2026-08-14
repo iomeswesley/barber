@@ -55,9 +55,18 @@ export function createApp() {
   // crossOriginEmbedderPolicy desligado: o padrão do helmet quebraria o
   // carregamento do Google Fonts e do Chart.js via CDN (exigem que a
   // origem externa mande um header CORP que elas não mandam).
+  //
+  // crossOriginOpenerPolicy desligado: o padrão do helmet ("same-origin")
+  // isola a página do popup do Facebook Login (Embedded Signup) em grupos de
+  // contexto de navegação diferentes — o popup passa a enxergar
+  // window.opener como null e o postMessage de conclusão (WA_EMBEDDED_SIGNUP
+  // / FINISH) nunca chega no listener em admin.html, mesmo com tudo mais
+  // certo (SDK, CSP, config da Meta). Sintoma: popup fecha sozinho depois do
+  // "Finish", nada é logado. Causa raiz descoberta em 2026-08-14.
   app.use(
     helmet({
       crossOriginEmbedderPolicy: false,
+      crossOriginOpenerPolicy: false,
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
