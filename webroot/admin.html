@@ -4318,8 +4318,22 @@ async function loadWhatsappConnectStatus() {
       // Também não finaliza sozinha: só chama finalizeWhatsappSignup(), que
       // decide se já tem os dois sinais (code + dados do FINISH) ou se ainda
       // precisa esperar.
+      // Se o usuário fechar o popup na marra (botão nativo do navegador, sem
+      // passar pelo Cancelar do próprio assistente da Meta), nenhum sinal
+      // chega — nem code, nem CANCEL/ERROR por postMessage, porque o
+      // assistente que mandaria isso já não existe mais. Sem esse timeout o
+      // botão ficaria travado pra sempre em "Aguardando...". Zerado sempre
+      // que a finalização acontece de verdade (sucesso ou cancelamento real).
+      const stuckTimer = setTimeout(() => {
+        if (finalizeWhatsappSignup === null) return; // já finalizou por outro caminho
+        finalizeWhatsappSignup = null;
+        btn.disabled = false;
+        btn.textContent = "Conectar meu WhatsApp";
+      }, 3 * 60 * 1000);
+
       const finalize = async () => {
         if (whatsappSignupCancelled) {
+          clearTimeout(stuckTimer);
           finalizeWhatsappSignup = null;
           btn.disabled = false;
           btn.textContent = "Conectar meu WhatsApp";
@@ -4331,6 +4345,7 @@ async function loadWhatsappConnectStatus() {
           // então só espera (não mexe no botão nem mostra erro nenhum).
           return;
         }
+        clearTimeout(stuckTimer);
         finalizeWhatsappSignup = null;
         btn.textContent = "Finalizando conexão...";
         try {
@@ -4392,6 +4407,9 @@ async function loadWhatsappConnectStatus() {
       btn.textContent = "Conectar meu WhatsApp";
       await showAlertModal("Não foi possível carregar a conexão com a Meta agora. Tente de novo em instantes.");
     }
+    // stuckTimer (se chegou a ser criado) é limpo dentro de finalize() nos
+    // caminhos de sucesso/cancelamento — se cair aqui no catch antes disso,
+    // o próprio guard `finalizeWhatsappSignup === null` faz ele virar no-op.
   };
 }
 
