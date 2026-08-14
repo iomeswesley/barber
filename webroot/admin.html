@@ -1164,6 +1164,9 @@
       <div class="form-actions" id="whatsapp-connect-actions" style="display:none;">
         <button class="btn-primary" id="whatsapp-connect-btn">Conectar meu WhatsApp</button>
       </div>
+      <div class="form-actions" id="whatsapp-disconnect-actions" style="display:none;">
+        <button class="btn-secondary" id="whatsapp-disconnect-btn">Desconectar este número</button>
+      </div>
     </div>
 
     <div class="section-title">Tom de voz da IA</div>
@@ -4270,6 +4273,30 @@ async function loadWhatsappConnectStatus() {
   const showConnectFlow = status.status === "not_connected" || status.status === "error";
   steps.style.display = showConnectFlow ? "block" : "none";
   actions.style.display = showConnectFlow ? "flex" : "none";
+
+  const disconnectActions = document.getElementById("whatsapp-disconnect-actions");
+  disconnectActions.style.display = showConnectFlow ? "none" : "flex";
+  document.getElementById("whatsapp-disconnect-btn").onclick = async () => {
+    const ok = await showConfirmModal(
+      "Desconectar este número de WhatsApp? O atendimento automático e os lembretes param até você conectar de novo."
+    );
+    if (!ok) return;
+    const dBtn = document.getElementById("whatsapp-disconnect-btn");
+    dBtn.disabled = true;
+    dBtn.textContent = "Desconectando...";
+    try {
+      const res = await fetch("/api/manage/whatsapp/connect/disconnect", { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        await showAlertModal(data?.error || "Erro ao desconectar o WhatsApp.");
+      }
+    } catch {
+      await showAlertModal("Erro de conexão com o servidor.");
+    }
+    dBtn.disabled = false;
+    dBtn.textContent = "Desconectar este número";
+    await loadWhatsappConnectStatus();
+  };
 
   document.getElementById("whatsapp-connect-btn").onclick = async () => {
     const btn = document.getElementById("whatsapp-connect-btn");

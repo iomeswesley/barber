@@ -40,6 +40,24 @@ export function setWhatsappConnectionStatusByWabaId(wabaId: string, status: stri
   return prisma.barbershop.updateMany({ where: { whatsappWabaId: wabaId }, data: { whatsappConnectionStatus: status } });
 }
 
+// Limpa a conexão salva no banco (usado pelo botão "Desconectar" no painel).
+// Não revoga o token do lado da Meta nem desfaz o registro do número na Cloud
+// API — só reseta o estado local pra permitir reconectar (inclusive
+// reconectar o mesmo número de novo) pelo próprio fluxo self-service.
+export function clearWhatsappConnection(barbershopId: number) {
+  return prisma.barbershop.update({
+    where: { id: barbershopId },
+    data: {
+      whatsappWabaId: null,
+      whatsappPhoneNumberId: null,
+      whatsappAccessTokenEnc: null,
+      whatsappPinEnc: null,
+      whatsappDisplayPhone: null,
+      whatsappConnectionStatus: "not_connected",
+    },
+  });
+}
+
 // Token de acesso descriptografado, só pra uso interno de envio (nunca sai
 // pra fora do backend) — separado de getWhatsappConnection pra não expor o
 // campo criptografado sem necessidade em rotas que só mostram status.

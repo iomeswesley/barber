@@ -12,7 +12,7 @@ import {
   getDisplayPhoneNumber,
   createTemplates,
 } from "./whatsappConnect.service.js";
-import { getWhatsappConnection, saveWhatsappConnection } from "./whatsappConnect.repository.js";
+import { getWhatsappConnection, saveWhatsappConnection, clearWhatsappConnection } from "./whatsappConnect.repository.js";
 
 export const whatsappConnectRouter = Router();
 
@@ -71,6 +71,16 @@ whatsappConnectRouter.post("/api/manage/whatsapp/connect/callback", requireAuth,
     }
 
     res.json({ status: "pending_templates", display_phone: displayPhone });
+  } catch (err) {
+    next(err);
+  }
+});
+
+whatsappConnectRouter.post("/api/manage/whatsapp/connect/disconnect", requireAuth, requireOwner, async (req, res, next) => {
+  try {
+    const barbershopId = req.session.user!.barbershopId;
+    await clearWhatsappConnection(barbershopId);
+    res.json({ status: "not_connected" });
   } catch (err) {
     next(err);
   }
