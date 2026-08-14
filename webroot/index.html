@@ -64,7 +64,7 @@
     background: var(--brand-soft); border: 1px solid rgb(var(--color-primary) / 0.25);
     padding: 6px 14px; border-radius: 999px; margin-bottom: 20px;
   }
-  h1 { font-size: clamp(34px, 5vw, 54px); line-height: 1.08; margin: 0 0 20px; color: var(--text-primary); }
+  h1 { font-size: clamp(36px, 5.5vw, 60px); line-height: 1.06; margin: 0 0 20px; color: var(--text-primary); }
   h2 { font-size: clamp(26px, 3.4vw, 38px); line-height: 1.15; margin: 0 0 14px; }
   .section-head { max-width: 640px; margin: 0 auto 48px; text-align: center; }
   .section-head p { color: var(--text-secondary); font-size: 15.5px; line-height: 1.6; }
@@ -73,7 +73,7 @@
   /* ---------- Hero ---------- */
   .hero-grid {
     display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 56px; align-items: center;
-    padding-top: 64px;
+    padding-top: 92px;
   }
   .hero-copy p.lead { font-size: 16.5px; color: var(--text-secondary); line-height: 1.65; margin-bottom: 28px; max-width: 520px; }
   .hero-features { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 30px; }
@@ -100,7 +100,7 @@
     border-bottom: 1px solid var(--card-border); background: var(--surface-raise);
   }
   .mock-dot { width: 9px; height: 9px; border-radius: 50%; }
-  .mock-dot.r { background: #f04747; } .mock-dot.y { background: #fab219; } .mock-dot.g { background: #10b981; }
+  .mock-dot.r { background: var(--danger); } .mock-dot.y { background: var(--warn); } .mock-dot.g { background: var(--good); }
   .mock-title { margin-left: auto; font-size: 11px; color: var(--text-muted); }
   .chat-head {
     display: flex; align-items: center; gap: 10px; padding: 14px 16px;
@@ -151,6 +151,14 @@
     .float-toast.a { top: 6px; left: 6px; }
     .float-toast.b { bottom: 6px; right: 6px; }
   }
+
+  /* ---------- Barra de confiança ---------- */
+  .trust-bar {
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 28px;
+    padding: 28px 0; border-top: 1px solid var(--divider); border-bottom: 1px solid var(--divider);
+  }
+  .trust-bar-item { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--text-secondary); }
+  .trust-bar-item .ico { font-size: 15px; flex-shrink: 0; }
 
   /* ---------- Reveal ao rolar a página ---------- */
   .reveal { opacity: 0; transform: translateY(28px); transition: opacity .7s ease, transform .7s ease; }
@@ -274,6 +282,20 @@
   @media (max-width: 900px) { .grid-3 { grid-template-columns: 1fr 1fr; } .grid-4 { grid-template-columns: 1fr 1fr; } }
   @media (max-width: 560px) { .grid-3, .grid-4 { grid-template-columns: 1fr; } }
 
+  /* ---------- Recursos grid (bento) ---------- */
+  .bento-grid { display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: minmax(150px, auto); gap: 16px; }
+  .bento-tile { padding: 22px; display: flex; flex-direction: column; justify-content: center; }
+  .bento-tile.span-2 { grid-column: span 2; }
+  .bento-tile .ico-badge {
+    width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    font-size: 18px; background: var(--brand-soft); margin-bottom: 14px;
+  }
+  .bento-tile h4 { font-size: 14.5px; margin: 0 0 6px; }
+  .bento-tile.span-2 h4 { font-size: 16px; }
+  .bento-tile p { font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; margin: 0; }
+  @media (max-width: 900px) { .bento-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 560px) { .bento-grid { grid-template-columns: 1fr; } .bento-tile.span-2 { grid-column: span 1; } }
+
   /* ---------- Pricing ---------- */
   .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; align-items: stretch; }
   .price-card { padding: 30px 26px; display: flex; flex-direction: column; position: relative; }
@@ -394,7 +416,7 @@
         </div>
         <div class="hero-cta">
           <a class="btn-primary link" href="/signup.html">Teste grátis por 7 dias <svg class="icon"><use href="#icon-arrow-right"></use></svg></a>
-          <a class="btn-secondary link" href="#produto">Ver o produto</a>
+          <a class="btn-secondary link" href="#como-funciona">Ver o produto</a>
         </div>
         <div class="trust-line"><span class="check"><svg class="icon"><use href="#icon-check"></use></svg></span> Sem cartão de crédito para começar o teste.</div>
       </div>
@@ -429,6 +451,90 @@
             <div class="ico"><svg class="icon"><use href="#icon-coin"></use></svg></div>
             <div><b>Faturamento do dia</b><small>R$ 480,00 · 12 atendimentos</small></div>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONFIANÇA -->
+    <section class="trust-bar reveal" id="confianca">
+      <div class="trust-bar-item"><span class="ico"><svg class="icon"><use href="#icon-check-circle"></use></svg></span> WhatsApp Cloud API oficial da Meta</div>
+      <div class="trust-bar-item"><span class="ico"><svg class="icon"><use href="#icon-briefcase"></use></svg></span> Multi-barbeiro e multi-barbearia</div>
+      <div class="trust-bar-item"><span class="ico"><svg class="icon"><use href="#icon-document"></use></svg></span> LGPD nativo</div>
+      <div class="trust-bar-item"><span class="ico"><svg class="icon"><use href="#icon-gift"></use></svg></span> Teste grátis de 7 dias, sem cartão</div>
+    </section>
+
+    <!-- COMO FUNCIONA -->
+    <section id="como-funciona" class="tight reveal">
+      <div class="section-head">
+        <span class="eyebrow"><svg class="icon"><use href="#icon-settings"></use></svg> Fluxo simples</span>
+        <h2>Como funciona na prática</h2>
+        <p>Do cadastro ao primeiro atendimento automático, em poucos passos.</p>
+      </div>
+      <div class="steps-grid">
+        <div class="card step-card">
+          <span class="step-badge">Passo 01</span>
+          <h4>Crie sua conta</h4>
+          <p>Cadastre sua barbearia, confirme o e-mail e comece o teste grátis de 7 dias, sem cartão.</p>
+          <span class="step-num">01</span>
+        </div>
+        <div class="card step-card">
+          <span class="step-badge">Passo 02</span>
+          <h4>Conecte o WhatsApp</h4>
+          <p>Ligue o número da barbearia à WhatsApp Cloud API oficial da Meta, sem número pessoal.</p>
+          <span class="step-num">02</span>
+        </div>
+        <div class="card step-card">
+          <span class="step-badge">Passo 03</span>
+          <h4>Cadastre serviços e barbeiros</h4>
+          <p>Defina preços, duração, horário de funcionamento e quem atende o quê.</p>
+          <span class="step-num">03</span>
+        </div>
+        <div class="card step-card">
+          <span class="step-badge">Passo 04</span>
+          <h4>A IA assume o atendimento</h4>
+          <p>Clientes agendam sozinhos pelo WhatsApp e você acompanha tudo pelo painel.</p>
+          <span class="step-num">04</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- RECURSOS (bento) -->
+    <section id="recursos" class="tight reveal">
+      <div class="section-head">
+        <span class="eyebrow"><svg class="icon"><use href="#icon-puzzle"></use></svg> Recursos</span>
+        <h2>Tudo que sua barbearia precisa, num só painel</h2>
+        <p>Da IA que atende de verdade até a segurança que roda por trás, sem aparecer na tela.</p>
+      </div>
+      <div class="bento-grid">
+        <div class="card bento-tile span-2">
+          <div class="ico-badge"><svg class="icon"><use href="#icon-bot"></use></svg></div>
+          <h4>A IA agenda, cancela e reagenda de verdade</h4>
+          <p>Consulta horários livres e cria o agendamento direto no seu banco de dados — não é um robô que só devolve link.</p>
+        </div>
+        <div class="card bento-tile">
+          <div class="ico-badge"><svg class="icon"><use href="#icon-lock"></use></svg></div>
+          <h4>Sessão segura</h4>
+          <p>Login com sessão armazenada no Postgres, headers de segurança (CSP, HSTS) e limite de tentativas.</p>
+        </div>
+        <div class="card bento-tile">
+          <div class="ico-badge"><svg class="icon"><use href="#icon-document"></use></svg></div>
+          <h4>LGPD nativo</h4>
+          <p>Cliente pode solicitar exclusão dos próprios dados direto pelo site, sem abrir chamado.</p>
+        </div>
+        <div class="card bento-tile span-2">
+          <div class="ico-badge"><svg class="icon"><use href="#icon-chart"></use></svg></div>
+          <h4>Faturamento e ocupação em tempo real</h4>
+          <p>Veja quanto entrou hoje, a tendência da semana e os horários mais ocupados, sem precisar abrir planilha.</p>
+        </div>
+        <div class="card bento-tile">
+          <div class="ico-badge"><svg class="icon"><use href="#icon-document"></use></svg></div>
+          <h4>Auditoria</h4>
+          <p>Toda ação sensível do dono fica registrada em log de auditoria, com data e responsável.</p>
+        </div>
+        <div class="card bento-tile">
+          <div class="ico-badge"><svg class="icon"><use href="#icon-save"></use></svg></div>
+          <h4>Backup automático</h4>
+          <p>Backup diário do banco de dados, sem depender de ninguém lembrar de fazer.</p>
         </div>
       </div>
     </section>
@@ -470,8 +576,10 @@
             <li>Consulta serviços, barbeiros e horários disponíveis em tempo real</li>
             <li>Cria, cancela e reagenda direto na conversa do WhatsApp</li>
             <li>Escala pra um humano quando não sabe responder</li>
+            <li>Aprende o tom de voz da sua barbearia com exemplos reais de mensagens que vocês já mandam</li>
           </ul>
           <div class="tip-box"><b>Dica:</b> a IA também roda no widget de chat do seu site, não só no WhatsApp.</div>
+          <div class="tip-box"><b>Sem cara de robô:</b> em Configurações você cola algumas mensagens que sua equipe manda no dia a dia — a IA usa isso como referência e responde do jeito que sua barbearia já fala com o cliente, não com um tom genérico de central de atendimento.</div>
         </div>
         <div class="card feature-mock">
           <div class="mock-row"><div><div class="name">verificar_horarios_disponiveis</div><div class="sub">ferramenta da IA</div></div><span class="mock-pill good">ok</span></div>
@@ -598,68 +706,31 @@
       </div>
     </section>
 
-    <!-- COMO FUNCIONA -->
-    <section id="como-funciona" class="tight reveal">
+    <!-- SOCIAL PROOF: hoje são destaques de capacidade real do produto, não
+         depoimentos de clientes — a plataforma ainda não tem citações reais
+         coletadas. Quando houver, trocar por cards de citação (avatar + nome
+         + barbearia + depoimento) em vez de inventar nomes/citações falsas. -->
+    <section id="social-proof" class="tight reveal">
       <div class="section-head">
-        <span class="eyebrow"><svg class="icon"><use href="#icon-settings"></use></svg> Fluxo simples</span>
-        <h2>Como funciona na prática</h2>
-        <p>Do cadastro ao primeiro atendimento automático, em poucos passos.</p>
+        <span class="eyebrow"><svg class="icon"><use href="#icon-handshake"></use></svg> Por que confiar</span>
+        <h2>Feito pra rodar de verdade numa barbearia</h2>
+        <p>Sem letra miúda: é a mesma infraestrutura oficial da Meta, com dados isolados por barbearia.</p>
       </div>
-      <div class="steps-grid">
-        <div class="card step-card">
-          <span class="step-badge">Passo 01</span>
-          <h4>Crie sua conta</h4>
-          <p>Cadastre sua barbearia, confirme o e-mail e comece o teste grátis de 7 dias, sem cartão.</p>
-          <span class="step-num">01</span>
-        </div>
-        <div class="card step-card">
-          <span class="step-badge">Passo 02</span>
-          <h4>Conecte o WhatsApp</h4>
-          <p>Ligue o número da barbearia à WhatsApp Cloud API oficial da Meta, sem número pessoal.</p>
-          <span class="step-num">02</span>
-        </div>
-        <div class="card step-card">
-          <span class="step-badge">Passo 03</span>
-          <h4>Cadastre serviços e barbeiros</h4>
-          <p>Defina preços, duração, horário de funcionamento e quem atende o quê.</p>
-          <span class="step-num">03</span>
-        </div>
-        <div class="card step-card">
-          <span class="step-badge">Passo 04</span>
-          <h4>A IA assume o atendimento</h4>
-          <p>Clientes agendam sozinhos pelo WhatsApp e você acompanha tudo pelo painel.</p>
-          <span class="step-num">04</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- RECURSOS EXTRA -->
-    <section class="tight reveal">
-      <div class="section-head">
-        <span class="eyebrow"><svg class="icon"><use href="#icon-shield"></use></svg> Segurança e conformidade</span>
-        <h2>Pensado pra rodar sério, não só pra demo</h2>
-        <p>Detalhes que não aparecem na tela, mas evitam dor de cabeça.</p>
-      </div>
-      <div class="grid-4">
+      <div class="grid-3">
         <div class="card mini-card">
-          <div class="ico-badge"><svg class="icon"><use href="#icon-lock"></use></svg></div>
-          <h4>Sessão segura</h4>
-          <p>Login com sessão armazenada no Postgres, headers de segurança (CSP, HSTS) e limite de tentativas.</p>
+          <div class="ico-badge"><svg class="icon"><use href="#icon-check-circle"></use></svg></div>
+          <h4>WhatsApp Cloud API oficial da Meta</h4>
+          <p>Sem QR Code em celular pessoal, sem risco de bloqueio — número comercial da própria barbearia.</p>
         </div>
         <div class="card mini-card">
-          <div class="ico-badge"><svg class="icon"><use href="#icon-document"></use></svg></div>
-          <h4>LGPD nativo</h4>
-          <p>Cliente pode solicitar exclusão dos próprios dados direto pelo site, sem abrir chamado.</p>
+          <div class="ico-badge"><svg class="icon"><use href="#icon-briefcase"></use></svg></div>
+          <h4>Multi-barbeiro, multi-barbearia</h4>
+          <p>Cada barbearia isolada no sistema, cada barbeiro com login e agenda próprios.</p>
         </div>
         <div class="card mini-card">
-          <div class="ico-badge"><svg class="icon"><use href="#icon-document"></use></svg></div>
-          <h4>Auditoria</h4>
-          <p>Toda ação sensível do dono fica registrada em log de auditoria, com data e responsável.</p>
-        </div>
-        <div class="card mini-card">
-          <div class="ico-badge"><svg class="icon"><use href="#icon-save"></use></svg></div>
-          <h4>Backup automático</h4>
-          <p>Backup diário do banco de dados, sem depender de ninguém lembrar de fazer.</p>
+          <div class="ico-badge"><svg class="icon"><use href="#icon-gift"></use></svg></div>
+          <h4>Teste grátis de 7 dias</h4>
+          <p>Acesso completo ao painel e à IA, sem pedir cartão de crédito pra começar.</p>
         </div>
       </div>
     </section>
