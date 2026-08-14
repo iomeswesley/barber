@@ -49,7 +49,27 @@ export function generateRegistrationPin(): string {
   return String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
 }
 
+// Redefine o PIN de verificação em 2 passos do número direto no nó
+// {phone_number_id} (endpoint diferente do /register abaixo) — não exige o
+// PIN antigo, só um token válido. Chamamos isso sempre antes do /register
+// pra garantir que o PIN que vamos usar ali é sempre o que a gente acabou de
+// gerar, mesmo se o número já tiver 2FA de uma conexão anterior (senão o
+// /register rejeita com "(#133005) Two step verification PIN Mismatch" — foi
+// exatamente o que aconteceu ao reconectar um número já registrado antes).
+async function setTwoStepPin(phoneNumberId: string, accessToken: string, pin: string): Promise<void> {
+  const res = await fetch(`${GRAPH_BASE}/${phoneNumberId}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ pin }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new AppError(`Falha ao definir o PIN de verificação do WhatsApp (${res.status}): ${body}`, 502);
+  }
+}
+
 export async function registerPhoneNumber(phoneNumberId: string, accessToken: string, pin: string): Promise<void> {
+  await setTwoStepPin(phoneNumberId, accessToken, pin);
   const res = await fetch(`${GRAPH_BASE}/${phoneNumberId}/register`, {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
