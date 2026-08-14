@@ -4141,22 +4141,40 @@ function loadFacebookSdk(appId) {
 let whatsappSignupData = null;
 let whatsappSignupCancelled = false;
 let finalizeWhatsappSignup = null; // setado enquanto uma tentativa de conexão está em andamento
+let whatsappCancelFinalizeTimer = null; // debounce do CANCEL falso, ver comentário abaixo
 
 window.addEventListener("message", (event) => {
   if (!event.origin.endsWith("facebook.com")) return;
-  // TODO(debug): remover depois de descobrir por que o FINISH não estava
-  // chegando — loga toda mensagem de origem facebook.com, mesmo as que a
-  // gente ainda não trata.
+  // TODO(debug): remover depois de confirmar em produção que o FINISH chega
+  // e a conexão finaliza de ponta a ponta — loga toda mensagem de origem
+  // facebook.com, mesmo as que a gente ainda não trata.
   console.log("[WHATSAPP CONNECT DEBUG] mensagem recebida de", event.origin, ":", event.data);
   try {
     const data = JSON.parse(event.data);
     if (data.type !== "WA_EMBEDDED_SIGNUP") return;
     if (data.event === "FINISH") {
       whatsappSignupData = { wabaId: data.data.waba_id, phoneNumberId: data.data.phone_number_id };
+      // Um FINISH sempre vence um CANCEL anterior: a Meta manda um CANCEL
+      // "falso" no meio do fluxo (ex.: ao trocar de passo, tipicamente com
+      // current_step ASSET_SELECTION) seguido, logo depois, do FINISH real —
+      // não é o usuário desistindo de verdade.
+      whatsappSignupCancelled = false;
+      if (whatsappCancelFinalizeTimer) {
+        clearTimeout(whatsappCancelFinalizeTimer);
+        whatsappCancelFinalizeTimer = null;
+      }
+      if (finalizeWhatsappSignup) finalizeWhatsappSignup();
     } else if (data.event === "CANCEL" || data.event === "ERROR") {
       whatsappSignupCancelled = true;
+      // Não finaliza na hora: espera um pouco pra dar chance de um FINISH
+      // real chegar logo em seguida (ver comentário acima). Só trata como
+      // cancelamento de verdade se, passado esse intervalo, nada mais mudou.
+      if (whatsappCancelFinalizeTimer) clearTimeout(whatsappCancelFinalizeTimer);
+      whatsappCancelFinalizeTimer = setTimeout(() => {
+        whatsappCancelFinalizeTimer = null;
+        if (whatsappSignupCancelled && finalizeWhatsappSignup) finalizeWhatsappSignup();
+      }, 1500);
     }
-    if (finalizeWhatsappSignup) finalizeWhatsappSignup();
   } catch {
     // Mensagens de outras origens/formatos no mesmo canal — ignora.
   }
@@ -4261,6 +4279,10 @@ async function loadWhatsappConnectStatus() {
       await loadFacebookSdk(config.app_id);
       whatsappSignupData = null;
       whatsappSignupCancelled = false;
+      if (whatsappCancelFinalizeTimer) {
+        clearTimeout(whatsappCancelFinalizeTimer);
+        whatsappCancelFinalizeTimer = null;
+      }
       let whatsappSignupCode = null;
 
       // FB.login rejeita callback async ("Expression is of type asyncfunction,
