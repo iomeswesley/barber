@@ -25,6 +25,20 @@ export function getClientPlan(id: number) {
   return prisma.clientPlan.findUnique({ where: { id } });
 }
 
+// Pro link público de assinatura (assinar-plano.html) — precisa do nome da
+// barbearia e do serviço (quando o benefício é atrelado a um) pra montar a
+// página sem exigir login nem escolher a barbearia num dropdown, já que o
+// ID do plano sozinho já identifica os dois.
+export function getClientPlanWithBusiness(id: number) {
+  return prisma.clientPlan.findUnique({
+    where: { id },
+    include: {
+      business: { select: { name: true, stripeConnectOnboarded: true } },
+      service: { select: { name: true } },
+    },
+  });
+}
+
 export interface CreateClientPlanInput {
   name: string;
   priceCents: number;

@@ -4774,6 +4774,7 @@ function renderClientPlans(plans) {
         <div class="item-meta">${currency(p.price_cents / 100)}/mês · ${BENEFIT_LABELS[p.benefit_type](p.benefit_value)}</div>
       </div>
       <div class="item-actions">
+        ${p.active ? `<button class="icon-btn" data-copy-client-plan-link="${p.id}" title="Copiar link de assinatura"><svg class="icon"><use href="#icon-document"></use></svg></button>` : ""}
         <button class="icon-btn" data-rename-client-plan="${p.id}" title="Editar"><svg class="icon"><use href="#icon-edit"></use></svg></button>
         <button class="icon-btn ${p.active ? "danger" : ""}" data-toggle-client-plan="${p.id}" data-active="${p.active}" title="${p.active ? "Desativar" : "Ativar"}">${p.active ? '<svg class="icon"><use href="#icon-block"></use></svg>' : '<svg class="icon"><use href="#icon-check-circle"></use></svg>'}</button>
       </div>
@@ -4782,6 +4783,22 @@ function renderClientPlans(plans) {
   `
     )
     .join("");
+
+  // Link direto de assinatura (assinar-plano.html) — o dono copia e manda
+  // pro cliente no WhatsApp/Instagram/etc., sem precisar conversar com a
+  // IA nem o cliente escolher a barbearia num dropdown (ver assinar-plano.html).
+  list.querySelectorAll("[data-copy-client-plan-link]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.copyClientPlanLink;
+      const url = `${location.origin}/assinar-plano.html?plan=${id}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        await showAlertModal("Link copiado! É só colar e mandar pro cliente.", { variant: "success" });
+      } catch {
+        await showAlertModal(`Não consegui copiar automaticamente. Link: ${url}`);
+      }
+    });
+  });
 
   list.querySelectorAll("[data-toggle-client-plan]").forEach((btn) => {
     btn.addEventListener("click", async () => {

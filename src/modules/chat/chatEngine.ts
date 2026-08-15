@@ -367,8 +367,8 @@ async function executeTool(barbershop: Business, name: string, input: any, custo
       };
     }
     case "assinar_plano_assinatura": {
-      // Diferente do checkout público (minha-conta.html), aqui o telefone já
-      // veio autenticado pela própria Meta (é o remetente real da
+      // Diferente do checkout público (assinar-plano.html), aqui o telefone
+      // já veio autenticado pela própria Meta (é o remetente real da
       // mensagem) — dispensa o código OTP que faz sentido só quando
       // qualquer visitante anônimo pode digitar qualquer telefone.
       await verifyPhoneViaTrustedChannel(customerPhone);
@@ -377,8 +377,8 @@ async function executeTool(barbershop: Business, name: string, input: any, custo
         input.plano_id,
         customerPhone,
         input.nome_cliente,
-        `${base}/minha-conta.html?plan=success`,
-        `${base}/minha-conta.html?plan=cancel`
+        `${base}/assinar-plano.html?plan=${input.plano_id}&status=success`,
+        `${base}/assinar-plano.html?plan=${input.plano_id}&status=cancel`
       );
       // URL de Checkout Session do Stripe é enorme — encurta antes de mandar
       // por WhatsApp (ver src/lib/shortLink.ts).

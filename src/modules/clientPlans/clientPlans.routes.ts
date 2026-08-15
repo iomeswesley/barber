@@ -8,6 +8,7 @@ import { selfServiceRateLimiter, otpRateLimiter } from "@/middleware/rateLimiter
 import { logAudit } from "@/modules/auditLog/auditLog.repository.js";
 import { toApiClientPlan } from "@/lib/apiMappers.js";
 import { assertProPlan } from "@/modules/billing/billing.service.js";
+import { describeClientPlanBenefit } from "@/modules/chat/chatEngine.js";
 import {
   createConnectAccount,
   createAccountLink,
@@ -28,6 +29,7 @@ import {
   setConnectOnboardedByAccountId,
   getClientPlans,
   getClientPlan,
+  getClientPlanWithBusiness,
   createClientPlan,
   updateClientPlan,
   setClientPlanActive,
@@ -229,6 +231,26 @@ clientPlansRouter.get("/api/public/barbershops/:id/client-plans", selfServiceRat
   }
 });
 
+// Detalhe público de UM plano — base do link direto de assinatura
+// (webroot/assinar-plano.html, ?plan=<id>) que o dono copia em Configurações
+// ou que a IA manda no chat: com o ID do plano só, a página já sabe qual
+// barbearia é, sem precisar de dropdown nem do cliente escolher nada.
+clientPlansRouter.get("/api/public/client-plans/:id", selfServiceRateLimiter, async (req, res, next) => {
+  try {
+    const plan = await getClientPlanWithBusiness(Number(req.params.id));
+    if (!plan || !plan.active || !plan.business.stripeConnectOnboarded) {
+      throw new AppError("Plano não encontrado", 404);
+    }
+    res.json({
+      ...toApiClientPlan(plan),
+      business_name: plan.business.name,
+      benefit_description: describeClientPlanBenefit(plan, plan.service?.name),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 clientPlansRouter.post("/api/public/client-plans/verify/start", otpRateLimiter, async (req, res, next) => {
   try {
     const businessId = Number(req.body?.businessId);
@@ -260,12 +282,13 @@ clientPlansRouter.post("/api/public/client-plans/:id/checkout", selfServiceRateL
     if (!phone || !name) throw new AppError("Nome e telefone são obrigatórios");
 
     const base = env.PUBLIC_BASE_URL || `${req.protocol}://${req.get("host")}`;
+    const planId = Number(req.params.id);
     const url = await createClientPlanCheckoutSession(
-      Number(req.params.id),
+      planId,
       phone,
       name,
-      `${base}/minha-conta.html?plan=success`,
-      `${base}/minha-conta.html?plan=cancel`
+      `${base}/assinar-plano.html?plan=${planId}&status=success`,
+      `${base}/assinar-plano.html?plan=${planId}&status=cancel`
     );
     res.json({ url });
   } catch (err) {
