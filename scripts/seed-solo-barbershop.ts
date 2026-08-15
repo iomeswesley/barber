@@ -41,9 +41,9 @@ function minutesToTime(mins: number): string {
 }
 
 const CLIENT_NAMES = [
-  "Beatriz Cunha", "Camila Rezende", "Larissa Prado", "Juliana Barros", "Patrícia Nunes",
-  "Sabrina Duarte", "Vanessa Freitas", "Priscila Farias", "Débora Azevedo", "Aline Monteiro",
-  "Fernanda Lopes", "Tatiane Rocha", "Carolina Melo", "Bianca Teixeira", "Renata Pires",
+  "Bernardo Cunha", "Caio Rezende", "Leonardo Prado", "Julio Barros", "Patrick Nunes",
+  "Samuel Duarte", "Vitor Freitas", "Ricardo Farias", "Denis Azevedo", "Alan Monteiro",
+  "Fabrício Lopes", "Tiago Rocha", "Cauã Melo", "Bruno Teixeira", "Renato Pires",
 ];
 
 const REVIEW_COMMENTS = [
