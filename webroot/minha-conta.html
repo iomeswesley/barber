@@ -80,7 +80,15 @@
     <select id="shop-select"><option value="">Carregando...</option></select>
     <label>Seu telefone (com DDD)</label>
     <input type="text" id="phone-input" placeholder="Ex: 11999998888" />
-    <button class="primary" id="lookup-btn">Ver meus agendamentos</button>
+    <button class="primary" id="lookup-btn">Enviar código de confirmação</button>
+  </div>
+
+  <div class="card" id="otp-card" style="display:none;">
+    <p class="hint" style="margin-bottom:14px;">Mandamos um código pelo WhatsApp pro número informado. Cole ele abaixo pra confirmar que é você.</p>
+    <label>Código recebido</label>
+    <input type="text" id="otp-input" inputmode="numeric" placeholder="6 dígitos" />
+    <button class="primary" id="confirm-otp-btn">Confirmar código</button>
+    <button class="secondary" id="resend-otp-btn" style="width:100%; margin-top:8px;">Reenviar código</button>
   </div>
 
   <div id="results"></div>
@@ -310,7 +318,62 @@ async function lookupAppointments() {
   history.forEach((a) => wireHistoryCard(a));
 }
 
-document.getElementById("lookup-btn").addEventListener("click", lookupAppointments);
+async function startVerification() {
+  hideError();
+  currentShopId = document.getElementById("shop-select").value;
+  currentPhone = document.getElementById("phone-input").value.replace(/\D/g, "");
+  if (!currentShopId || !currentPhone) {
+    showError("Escolha a barbearia e informe seu telefone.");
+    return;
+  }
+  const btn = document.getElementById("lookup-btn");
+  btn.disabled = true;
+  try {
+    const res = await fetch("/api/public/verify/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ businessId: currentShopId, phone: currentPhone }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      showError(err.error || "Erro ao enviar o código de confirmação");
+      return;
+    }
+    document.getElementById("otp-card").style.display = "block";
+    document.getElementById("otp-input").focus();
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function confirmVerification() {
+  hideError();
+  const code = document.getElementById("otp-input").value.trim();
+  if (!code) { showError("Informe o código recebido."); return; }
+  const btn = document.getElementById("confirm-otp-btn");
+  btn.disabled = true;
+  try {
+    const res = await fetch("/api/public/verify/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone: currentPhone, code }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      showError(err.error || "Código incorreto");
+      return;
+    }
+    document.getElementById("otp-card").style.display = "none";
+    document.getElementById("otp-input").value = "";
+    await lookupAppointments();
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.getElementById("lookup-btn").addEventListener("click", startVerification);
+document.getElementById("confirm-otp-btn").addEventListener("click", confirmVerification);
+document.getElementById("resend-otp-btn").addEventListener("click", startVerification);
 
 loadShops();
 </script>

@@ -6,6 +6,7 @@ import { normalizePhone } from "@/lib/time.js";
 import { generateIcs } from "@/lib/ics.js";
 import { logAudit } from "@/modules/auditLog/auditLog.repository.js";
 import { getClientByPhone, findOrCreateClient } from "@/modules/clients/clients.repository.js";
+import { assertPhoneVerifiedRecently } from "@/modules/clients/phoneVerification.service.js";
 import { getProduct, getProductSalesForAppointment, replaceAppointmentProductSales } from "@/modules/products/products.repository.js";
 import { toApiAppointment, toApiProductSale } from "@/lib/apiMappers.js";
 import { vertical } from "@/config/env.js";
@@ -23,14 +24,22 @@ import {
 export const appointmentsRouter = Router();
 
 /* ---------------- Autoatendimento público (sem passar pelo chat) ---------------- */
-// Modelo de confiança igual ao do chat: o telefone do cliente é a única checagem de
-// identidade, igual a como o WhatsApp já os identifica hoje. Rate-limited por telefone.
+// Modelo de confiança: criar agendamento novo e ver horários livres continuam
+// só com o telefone digitado (não revelam nem alteram dado de terceiro — na
+// pior das hipóteses alguém agenda um horário em nome de outro número, que o
+// próprio dono vê e pode cancelar). Ver histórico, cancelar, reagendar e
+// baixar o .ics exigem o telefone ter passado pelo código OTP do WhatsApp
+// há no máximo 15 min (assertPhoneVerifiedRecently, mesmo mecanismo dos
+// Planos de Assinatura — ver [[project_saas_rewrite]]) — sem isso, bastava
+// saber o telefone de alguém pra ver o histórico dela ou cancelar/reagendar
+// um compromisso que não é seu. Rate-limited por telefone em todas.
 
 appointmentsRouter.get("/api/public/appointments", selfServiceRateLimiter, async (req, res, next) => {
   try {
     const { businessId, phone } = req.query;
     const normalizedPhone = normalizePhone(phone);
     if (!businessId || !normalizedPhone) throw new AppError("businessId e phone são obrigatórios");
+    await assertPhoneVerifiedRecently(normalizedPhone);
     const appointments = await getAppointmentsByClientPhone(normalizedPhone, Number(businessId), { upcomingOnly: true });
     res.json(appointments.map(toApiAppointment));
   } catch (err) {
@@ -43,6 +52,7 @@ appointmentsRouter.get("/api/public/appointment-history", selfServiceRateLimiter
     const { businessId, phone } = req.query;
     const normalizedPhone = normalizePhone(phone);
     if (!businessId || !normalizedPhone) throw new AppError("businessId e phone são obrigatórios");
+    await assertPhoneVerifiedRecently(normalizedPhone);
     const appointments = await getClientAppointmentHistory(normalizedPhone, Number(businessId));
     res.json(appointments.map(toApiAppointment));
   } catch (err) {
@@ -95,6 +105,7 @@ appointmentsRouter.post("/api/public/appointments/:id/cancel", selfServiceRateLi
     if (!appointment || appointment.clientPhone !== normalizedPhone) {
       throw new AppError("Agendamento não encontrado", 404);
     }
+    await assertPhoneVerifiedRecently(normalizedPhone);
     res.json(toApiAppointment(await cancelAppointment(appointment.id)));
   } catch (err) {
     next(err);
@@ -108,6 +119,7 @@ appointmentsRouter.post("/api/public/appointments/:id/reschedule", selfServiceRa
     if (!appointment || appointment.clientPhone !== normalizedPhone) {
       throw new AppError("Agendamento não encontrado", 404);
     }
+    await assertPhoneVerifiedRecently(normalizedPhone);
     const { newDate, newStartTime } = req.body || {};
     if (!newDate || !newStartTime) throw new AppError("newDate e newStartTime são obrigatórios");
     res.json(toApiAppointment(await rescheduleAppointment(appointment.id, newDate, newStartTime)));
@@ -116,17 +128,22 @@ appointmentsRouter.post("/api/public/appointments/:id/reschedule", selfServiceRa
   }
 });
 
-appointmentsRouter.get("/api/appointments/:id/ics", selfServiceRateLimiter, async (req, res) => {
-  const appointment = await getAppointmentByIdRaw(Number(req.params.id));
-  const normalizedPhone = normalizePhone(req.query?.phone);
-  if (!appointment || !normalizedPhone || appointment.clientPhone !== normalizedPhone) {
-    return res.status(404).send("Agendamento não encontrado");
-  }
+appointmentsRouter.get("/api/appointments/:id/ics", selfServiceRateLimiter, async (req, res, next) => {
+  try {
+    const appointment = await getAppointmentByIdRaw(Number(req.params.id));
+    const normalizedPhone = normalizePhone(req.query?.phone);
+    if (!appointment || !normalizedPhone || appointment.clientPhone !== normalizedPhone) {
+      return res.status(404).send("Agendamento não encontrado");
+    }
+    await assertPhoneVerifiedRecently(normalizedPhone);
 
-  const ics = generateIcs(appointment);
-  res.setHeader("Content-Type", "text/calendar; charset=utf-8");
-  res.setHeader("Content-Disposition", `attachment; filename="agendamento-${appointment.id}.ics"`);
-  res.send(ics);
+    const ics = generateIcs(appointment);
+    res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="agendamento-${appointment.id}.ics"`);
+    res.send(ics);
+  } catch (err) {
+    next(err);
+  }
 });
 
 /* ---------------- Painel do dono (protegido) ---------------- */

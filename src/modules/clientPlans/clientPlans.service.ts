@@ -1,19 +1,11 @@
-import crypto from "node:crypto";
 import { stripe, stripeConfigured } from "@/lib/stripe.js";
-import { sendWhatsappAuthTemplate, resolveBarbershopAccessToken } from "@/lib/whatsapp.js";
 import { AppError } from "@/middleware/errorHandler.js";
 import { env } from "@/config/env.js";
-import { hashPassword, verifyPassword } from "@/lib/auth.js";
-import { getBarbershop } from "@/modules/businesses/businesses.repository.js";
 import { findOrCreateClient } from "@/modules/clients/clients.repository.js";
+import { assertPhoneVerifiedRecently } from "@/modules/clients/phoneVerification.service.js";
 import {
   getActiveSubscriptions,
   incrementUsedThisPeriod,
-  upsertPhoneVerification,
-  getPhoneVerification,
-  incrementPhoneVerificationAttempts,
-  markPhoneVerified,
-  upsertPhoneVerifiedTrusted,
   getConnectAccountId,
   getClientPlan,
   getClientPlans,
@@ -26,6 +18,17 @@ import type { ClientPlanSubscriptionStatus } from "@prisma/client";
 import type Stripe from "stripe";
 
 export { stripeConfigured };
+
+// Verificação de telefone: movida pra src/modules/clients/phoneVerification.ts
+// em 2026-08-15 (reaproveitada agora pelas rotas de agendamento e exclusão
+// LGPD) — reexportada aqui pra não quebrar quem já importa daqui
+// (clientPlans.routes.ts, clientPlans.service.test.ts).
+export {
+  startPhoneVerification,
+  confirmPhoneVerification,
+  verifyPhoneViaTrustedChannel,
+  assertPhoneVerifiedRecently,
+} from "@/modules/clients/phoneVerification.service.js";
 
 /* ---------------- Consumo do benefício no agendamento ---------------- */
 
@@ -77,42 +80,6 @@ export async function resolveChargedPrice(
   return { priceChargedCents: null, subscriptionId: null, creditConsumed: false };
 }
 
-/* ---------------- Verificação de telefone via WhatsApp ---------------- */
-
-const OTP_EXPIRY_MS = 10 * 60_000;
-const OTP_MAX_ATTEMPTS = 5;
-const OTP_VERIFIED_WINDOW_MS = 15 * 60_000;
-
-export async function startPhoneVerification(businessId: number, phone: string): Promise<void> {
-  const shop = await getBarbershop(businessId);
-  if (!shop?.whatsappPhoneNumberId) {
-    throw new AppError("Verificação indisponível pra essa barbearia.", 400);
-  }
-  const code = String(crypto.randomInt(100000, 1000000));
-  const codeHash = hashPassword(code);
-  await upsertPhoneVerification(phone, codeHash, new Date(Date.now() + OTP_EXPIRY_MS));
-  const accessToken = resolveBarbershopAccessToken(shop);
-  await sendWhatsappAuthTemplate(shop.whatsappPhoneNumberId, phone, "client_plan_otp", code, "pt_BR", accessToken);
-}
-
-export async function confirmPhoneVerification(phone: string, code: string): Promise<void> {
-  const verification = await getPhoneVerification(phone);
-  if (!verification) throw new AppError("Nenhum código pendente pra esse telefone. Peça um novo código.", 400);
-  if (verification.expiresAt < new Date()) throw new AppError("Código expirado. Peça um novo código.", 400);
-  if (verification.attempts >= OTP_MAX_ATTEMPTS) throw new AppError("Muitas tentativas. Peça um novo código.", 400);
-  if (!verifyPassword(code, verification.codeHash)) {
-    await incrementPhoneVerificationAttempts(phone);
-    throw new AppError("Código incorreto.", 400);
-  }
-  await markPhoneVerified(phone);
-}
-
-// Ver comentário de upsertPhoneVerifiedTrusted — só pro bot de chat, nunca
-// pro checkout público (minha-conta.html).
-export async function verifyPhoneViaTrustedChannel(phone: string): Promise<void> {
-  await upsertPhoneVerifiedTrusted(phone);
-}
-
 // Lista de planos pra oferecer ao cliente — usado pelo bot de chat. Só
 // mostra algo se a barbearia já concluiu o onboarding do Stripe Connect
 // (senão o cliente veria um plano que não dá pra assinar de verdade).
@@ -120,13 +87,6 @@ export async function getOfferableClientPlans(businessId: number) {
   const connect = await getConnectAccountId(businessId);
   if (!connect?.stripeConnectOnboarded) return [];
   return getClientPlans(businessId, { includeInactive: false });
-}
-
-export async function assertPhoneVerifiedRecently(phone: string): Promise<void> {
-  const verification = await getPhoneVerification(phone);
-  if (!verification?.verifiedAt || Date.now() - verification.verifiedAt.getTime() > OTP_VERIFIED_WINDOW_MS) {
-    throw new AppError("Verifique seu telefone antes de assinar.", 403);
-  }
 }
 
 /* ---------------- Checkout público ---------------- */

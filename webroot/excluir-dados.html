@@ -58,7 +58,15 @@
         <select id="shop-select"><option value="">Carregando...</option></select>
         <label>Seu telefone (com DDD)</label>
         <input type="text" id="phone-input" placeholder="Ex: 11999998888" />
-        <button id="submit-btn">Excluir meus dados</button>
+        <button id="submit-btn">Enviar código de confirmação</button>
+      </div>
+
+      <div id="otp-view" style="display:none;">
+        <div class="error" id="otp-error-box" style="display:none;"></div>
+        <p class="hint" style="margin-bottom:14px;">Mandamos um código pelo WhatsApp pro número informado. Cole ele abaixo pra confirmar que é você — depois disso a exclusão é permanente.</p>
+        <label>Código recebido</label>
+        <input type="text" id="otp-input" inputmode="numeric" placeholder="6 dígitos" />
+        <button id="confirm-btn">Confirmar e excluir meus dados</button>
       </div>
 
       <div id="success-view" style="display:none;" class="success-state">
@@ -82,44 +90,93 @@ function showError(msg) {
   box.textContent = msg;
   box.style.display = "block";
 }
+function showOtpError(msg) {
+  const box = document.getElementById("otp-error-box");
+  box.textContent = msg;
+  box.style.display = "block";
+}
+
+let currentBusinessId = "";
+let currentPhone = "";
 
 document.getElementById("submit-btn").addEventListener("click", async () => {
   document.getElementById("error-box").style.display = "none";
-  const businessId = document.getElementById("shop-select").value;
-  const phone = document.getElementById("phone-input").value;
-  if (!businessId || !phone.trim()) {
+  currentBusinessId = document.getElementById("shop-select").value;
+  currentPhone = document.getElementById("phone-input").value.replace(/\D/g, "");
+  if (!currentBusinessId || !currentPhone) {
     showError("Escolha a barbearia e informe seu telefone.");
     return;
   }
+
+  const btn = document.getElementById("submit-btn");
+  btn.disabled = true;
+  try {
+    const res = await fetch("/api/public/verify/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ businessId: currentBusinessId, phone: currentPhone }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showError(data.error || "Não foi possível enviar o código de confirmação.");
+      return;
+    }
+    document.getElementById("form-view").style.display = "none";
+    document.getElementById("otp-view").style.display = "block";
+    document.getElementById("otp-input").focus();
+  } catch (err) {
+    showError("Erro de conexão com o servidor.");
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById("confirm-btn").addEventListener("click", async () => {
+  document.getElementById("otp-error-box").style.display = "none";
+  const code = document.getElementById("otp-input").value.trim();
+  if (!code) { showOtpError("Informe o código recebido."); return; }
 
   const confirmed = await showConfirmModal(
     "Tem certeza? Essa ação não pode ser desfeita — seus dados pessoais serão removidos permanentemente."
   );
   if (!confirmed) return;
 
-  const btn = document.getElementById("submit-btn");
+  const btn = document.getElementById("confirm-btn");
   btn.disabled = true;
   btn.textContent = "Excluindo...";
 
   try {
+    const verifyRes = await fetch("/api/public/verify/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone: currentPhone, code }),
+    });
+    const verifyData = await verifyRes.json();
+    if (!verifyRes.ok) {
+      showOtpError(verifyData.error || "Código incorreto.");
+      btn.disabled = false;
+      btn.textContent = "Confirmar e excluir meus dados";
+      return;
+    }
+
     const res = await fetch("/api/public/clients/data-deletion", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ businessId, phone }),
+      body: JSON.stringify({ businessId: currentBusinessId, phone: currentPhone }),
     });
     const data = await res.json();
     if (!res.ok) {
-      showError(data.error || "Não foi possível processar sua solicitação.");
+      showOtpError(data.error || "Não foi possível processar sua solicitação.");
       btn.disabled = false;
-      btn.textContent = "Excluir meus dados";
+      btn.textContent = "Confirmar e excluir meus dados";
       return;
     }
-    document.getElementById("form-view").style.display = "none";
+    document.getElementById("otp-view").style.display = "none";
     document.getElementById("success-view").style.display = "block";
   } catch (err) {
-    showError("Erro de conexão com o servidor.");
+    showOtpError("Erro de conexão com o servidor.");
     btn.disabled = false;
-    btn.textContent = "Excluir meus dados";
+    btn.textContent = "Confirmar e excluir meus dados";
   }
 });
 </script>

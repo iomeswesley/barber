@@ -147,41 +147,7 @@ export function getSubscriptionByStripeId(stripeSubscriptionId: string) {
   return prisma.clientPlanSubscription.findUnique({ where: { stripeSubscriptionId } });
 }
 
-/* ---------------- Verificação de telefone ---------------- */
-
-export function upsertPhoneVerification(phone: string, codeHash: string, expiresAt: Date) {
-  return prisma.phoneVerification.upsert({
-    where: { phone },
-    update: { codeHash, expiresAt, attempts: 0, verifiedAt: null },
-    create: { phone, codeHash, expiresAt, attempts: 0 },
-  });
-}
-
-export function getPhoneVerification(phone: string) {
-  return prisma.phoneVerification.findUnique({ where: { phone } });
-}
-
-export function incrementPhoneVerificationAttempts(phone: string) {
-  return prisma.phoneVerification.update({ where: { phone }, data: { attempts: { increment: 1 } } });
-}
-
-export function markPhoneVerified(phone: string) {
-  return prisma.phoneVerification.update({ where: { phone }, data: { verifiedAt: new Date() } });
-}
-
-// Confia no canal pra provar que o telefone é do próprio cliente — usado só
-// pelo fluxo de chat do WhatsApp, onde o número já vem autenticado pela
-// própria Meta (é o remetente real da mensagem). Diferente do checkout
-// público (minha-conta.html), onde qualquer visitante pode digitar
-// qualquer telefone e por isso passa pelo código OTP de verdade
-// (upsertPhoneVerification + confirmPhoneVerification). codeHash/expiresAt
-// aqui são só placeholders pra satisfazer o schema — assertPhoneVerifiedRecently
-// só olha verifiedAt, nunca essas duas colunas.
-export function upsertPhoneVerifiedTrusted(phone: string) {
-  const now = new Date();
-  return prisma.phoneVerification.upsert({
-    where: { phone },
-    update: { verifiedAt: now },
-    create: { phone, codeHash: "trusted-channel", expiresAt: now, attempts: 0, verifiedAt: now },
-  });
-}
+// Verificação de telefone: movida pra src/modules/clients/phoneVerification.*
+// em 2026-08-15 (o modelo PhoneVerification é genérico, sem FK pra
+// ClientPlan, e passou a ser reaproveitado pelas rotas públicas de
+// agendamento e exclusão LGPD, não só pelo checkout de plano).
