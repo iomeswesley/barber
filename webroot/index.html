@@ -225,7 +225,20 @@
     .float-toast.b { bottom: -16px; }
   }
   @media (max-width: 860px) {
-    .hero-grid { grid-template-columns: 1fr; }
+    .hero-grid {
+      grid-template-columns: 1fr;
+      /* Menos respiro entre o header e o "eyebrow" no mobile (o desktop usa
+         40px, que sobra demais numa tela estreita). */
+      padding-top: 14px;
+      /* align-items:start (não center, herdado da regra base pro desktop):
+         como os dois blocos dividem a MESMA célula do grid (ver abaixo) e o
+         texto do hero é bem mais alto que o mock do WhatsApp, a altura da
+         célula acompanha o texto — com "center" o mock (mais curto) ficava
+         centralizado nessa altura toda, sobrando um vão vazio grande acima
+         dele antes da troca. Com "start" os dois nascem colados no topo da
+         célula. */
+      align-items: start;
+    }
 
     /* ---------- Sequência mobile: mock de WhatsApp toca a animação, some
        e o texto do hero aparece no lugar dele (sem precisar rolar) ----------
