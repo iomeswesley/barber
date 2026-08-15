@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Barbearia Bot — Agendamento e atendimento via WhatsApp com IA para barbearias</title>
+<title>barber.bot — Agendamento e atendimento via WhatsApp com IA para barbearias</title>
 <meta name="description" content="Plataforma SaaS multi-tenant para barbearias: atendimento e agendamento automático via WhatsApp com IA, dashboard de faturamento e clientes, e cobrança recorrente via Stripe." />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%232fa04f'/><stop offset='55%25' stop-color='%231e8e3e'/><stop offset='100%25' stop-color='%230d652d'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><g transform='translate(16.4 16.4) scale(2.8)'><path fill='white' d='M6 6m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0'/><path fill='white' d='M6 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0'/><path fill='white' stroke='white' stroke-width='1.5' d='M20 4L8.12 15.88'/><path fill='white' stroke='white' stroke-width='1.5' d='M14.47 14.48L20 20'/><path fill='white' stroke='white' stroke-width='1.5' d='M8.12 8.12L12 12'/></g></svg>" />
 <meta name="theme-color" content="#faf9f7" />
@@ -28,18 +28,26 @@
     --wa-teal: #128c7e;
   }
 
-  body { position: relative; z-index: 0; }
+  /* padding-top de fallback pro tamanho típico do header fixo (ver JS no
+     fim da página, que recalcula o valor exato assim que carrega — isto
+     aqui só evita o conteúdo nascer escondido atrás do header antes do JS
+     rodar, e cobre o caso raro de JS desativado). */
+  body { position: relative; z-index: 0; padding-top: 78px; }
+  @media (max-width: 860px) { body { padding-top: 70px; } }
 
   /* ---------- Header (pill flutuante) ---------- */
   header.topbar {
-    position: sticky; top: 0; z-index: 40;
+    /* position:fixed (não sticky) de propósito: no Safari/Chrome mobile,
+       um header sticky é recalculado contra a posição de rolagem a cada
+       frame — some com a mudança de altura da barra de endereço do
+       celular durante o scroll, e o cabeçalho aparece "vibrando"/tremendo
+       na tela (bug já visto também no odonto-saas, mesmo componente).
+       Fixed tira o header do fluxo de vez, sem essa recomputação por
+       frame. Compensado pelo padding-top no <body>, calculado via JS
+       (ver script no fim da página) porque a altura do header muda com
+       o breakpoint (nav some no mobile). */
+    position: fixed; top: 0; left: 0; right: 0; z-index: 40;
     padding: 14px 22px;
-    /* Promove pra própria camada de composição — sem isso, navegadores
-       mobile (principalmente iOS Safari) recalculam o "sticky" junto com o
-       resto da página a cada frame de scroll, e numa página longa isso
-       aparece como o cabeçalho "vibrando" enquanto rola. */
-    transform: translateZ(0);
-    backface-visibility: hidden;
   }
   .topbar-inner {
     max-width: 1160px; margin: 0 auto;
@@ -66,6 +74,14 @@
   }
   nav.main-nav a:hover { color: var(--text-primary); }
   .header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  /* Abaixo de 480px o texto "Teste grátis" some do meio da pill do header
+     mobile — troca pro rótulo curto "Teste" nesse breakpoint (o link ainda
+     leva pro mesmo /signup.html, só o texto muda). */
+  .header-actions .cta-short { display: none; }
+  @media (max-width: 480px) {
+    .header-actions .cta-full { display: none; }
+    .header-actions .cta-short { display: inline; }
+  }
   .btn-ghost {
     font-size: 12.5px; font-weight: 600; color: var(--text-secondary); text-decoration: none;
     padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--card-border);
@@ -362,7 +378,7 @@
     <div class="topbar-inner">
       <a class="brand" href="/">
         <div class="logo"><svg class="icon" style="width:17px;height:17px;"><use href="#icon-brand-razor"></use></svg></div>
-        <span>Barbearia Bot</span>
+        <span>barber.bot</span>
       </a>
       <nav class="main-nav">
         <a href="#recursos">Recursos</a>
@@ -372,7 +388,7 @@
       </nav>
       <div class="header-actions">
         <a class="btn-ghost" href="/login.html">Entrar</a>
-        <a class="btn-primary link" href="/signup.html">Teste grátis</a>
+        <a class="btn-primary link" href="/signup.html"><span class="cta-full">Teste grátis</span><span class="cta-short">Teste</span></a>
       </div>
     </div>
   </header>
@@ -613,7 +629,7 @@
 
   <footer class="site-footer">
     <div class="footer-inner">
-      <span>Barbearia Bot · agendamento por WhatsApp com IA</span>
+      <span>barber.bot · agendamento por WhatsApp com IA</span>
       <span class="footer-links">
         <a href="/privacidade.html">Privacidade</a>
         <a href="/termos.html">Termos</a>
@@ -622,6 +638,20 @@
   </footer>
 
   <script>
+    // ---- Compensa o header virar position:fixed (ver comentário no CSS de
+    // header.topbar) — sem esse padding-top, o conteúdo do <main> nasceria
+    // escondido atrás do header. Recalcula no load/resize porque a altura
+    // muda com o breakpoint (nav some no mobile). ----
+    (function syncHeaderHeight() {
+      const header = document.querySelector('header.topbar');
+      if (!header) return;
+      function sync() {
+        document.body.style.paddingTop = header.offsetHeight + 'px';
+      }
+      sync();
+      window.addEventListener('resize', sync);
+    })();
+
     // ---- FAQ accordion (abertura única) ----
     document.querySelectorAll('.faq-item').forEach((item) => {
       item.querySelector('.faq-q').addEventListener('click', () => {
