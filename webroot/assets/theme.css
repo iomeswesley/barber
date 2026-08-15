@@ -382,8 +382,6 @@ h1, h2, h3 {
   /* Claro é o padrão agora: knob começa à direita e volta pra esquerda no escuro. */
   transform: translateX(26px);
   transition: transform .2s var(--ease), background-color .2s ease;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 12px;
 }
 html[data-theme="dark"] .theme-switch .knob { transform: translateX(0); }
 
@@ -654,12 +652,15 @@ html[data-theme="dark"] .theme-switch .knob { transform: translateX(0); }
 }
 #help-btn:hover .help-icon-badge { background: var(--brand); }
 
-/* Sino de notificações */
+/* Sino de notificações — flex pra centralizar o número de verdade (o truque
+   de line-height/text-align deixava o dígito visualmente um pouco alto,
+   fora do centro do círculo). */
 .notif-badge {
   position: absolute; top: -3px; right: -3px;
   min-width: 15px; height: 15px; padding: 0 3px;
+  display: inline-flex; align-items: center; justify-content: center;
   border-radius: 999px; background: var(--danger); color: rgb(var(--p-white));
-  font-size: 9.5px; font-weight: 800; line-height: 15px; text-align: center;
+  font-size: 9.5px; font-weight: 800; line-height: 1;
   border: 2px solid var(--card-bg-solid);
 }
 

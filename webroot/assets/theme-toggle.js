@@ -7,9 +7,10 @@
   const themeKnob = document.getElementById("theme-knob");
   if (!themeSwitch || !themeKnob) return;
 
+  // Bolinha lisa, sem emoji de sol/lua — a posição (esquerda/direita) já diz
+  // qual tema está ativo, o glyph só acrescentava ruído visual.
   function applyTheme(theme) {
     document.documentElement.setAttribute("data-theme", theme);
-    themeKnob.textContent = theme === "light" ? "☀️" : "🌙";
     localStorage.setItem("theme", theme);
     document.dispatchEvent(new CustomEvent("themechange", { detail: { theme } }));
   }
@@ -20,9 +21,5 @@
   });
 
   // O tema em si já foi aplicado por assets/theme-init.js, que roda síncrono
-  // no <head> pra evitar flash — aqui só resta sincronizar o ícone do switch.
-  // Nada de disparar "themechange" neste ponto: os gráficos ainda nem existem
-  // e o evento provocaria um refresh prematuro. Ele só dispara no clique.
-  const currentTheme = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
-  themeKnob.textContent = currentTheme === "light" ? "☀️" : "🌙";
+  // no <head> pra evitar flash — nada mais a sincronizar aqui além do clique.
 })();

@@ -5026,7 +5026,7 @@ function updateTimestamp() {
 function renderNotifBell(lowStockCount, escalationCount) {
   const badge = document.getElementById("notif-badge");
   const total = lowStockCount + escalationCount;
-  badge.style.display = total > 0 ? "block" : "none";
+  badge.style.display = total > 0 ? "inline-flex" : "none";
   badge.textContent = total > 9 ? "9+" : String(total);
 
   const body = document.getElementById("notif-panel-body");
