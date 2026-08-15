@@ -226,6 +226,49 @@
   }
   @media (max-width: 860px) {
     .hero-grid { grid-template-columns: 1fr; }
+
+    /* ---------- Sequência mobile: mock de WhatsApp toca a animação, some
+       e o texto do hero aparece no lugar dele (sem precisar rolar) ----------
+       Empilha os dois na MESMA célula do grid (mesma linha/coluna) — a
+       altura da linha se ajusta ao maior dos dois desde o primeiro paint
+       (nenhum vira display:none, só opacidade/visibilidade mudam), então
+       não há pulo de layout antes/durante/depois da troca. O disparo (classe
+       .hero-swapped em .hero-grid) vem do próprio heroChat(), depois que a
+       animação do chat termina — ver script no fim da página. */
+    .hero-copy,
+    .hero-visual {
+      grid-column: 1;
+      grid-row: 1;
+    }
+    .hero-copy {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity .6s ease, visibility 0s linear .6s;
+    }
+    .hero-visual {
+      opacity: 1;
+      visibility: visible;
+      transition: opacity .6s ease, visibility 0s linear 0s;
+    }
+    .hero-grid.hero-swapped .hero-copy {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transition: opacity .6s ease, visibility 0s linear 0s;
+    }
+    .hero-grid.hero-swapped .hero-visual {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity .6s ease, visibility 0s linear .6s;
+    }
+  }
+  @media (max-width: 860px) and (prefers-reduced-motion: reduce) {
+    .hero-copy,
+    .hero-visual {
+      transition: none;
+    }
   }
 
   /* ---------- Faixa de recursos/confiança ---------- */
@@ -370,7 +413,15 @@
   .footer-inner a:hover { color: var(--brand); }
   .footer-links { display: flex; gap: 14px; }
 </style>
-<noscript><style>.reveal { opacity: 1 !important; transform: none !important; } .chat-msg { opacity: 1 !important; transform: none !important; } .float-toast { opacity: 1 !important; transform: none !important; }</style></noscript>
+<noscript><style>
+.reveal { opacity: 1 !important; transform: none !important; }
+.chat-msg { opacity: 1 !important; transform: none !important; }
+.float-toast { opacity: 1 !important; transform: none !important; }
+@media (max-width: 860px) {
+  .hero-copy { opacity: 1 !important; visibility: visible !important; pointer-events: auto !important; }
+  .hero-visual { grid-row: 2 !important; opacity: 1 !important; visibility: visible !important; }
+}
+</style></noscript>
 </head>
 <body>
 
@@ -734,6 +785,18 @@
         if (i >= msgs.length) {
           if (toastA) toastA.classList.add('show');
           if (toastB) toastB.classList.add('show');
+
+          // Só no mobile (mesmo breakpoint de .hero-grid): depois que os dois
+          // toasts aparecem, espera um pouco pro visitante ler e troca o mock
+          // de chat pelo texto do hero, na mesma posição da tela (crossfade
+          // via CSS, ver .hero-grid.hero-swapped). matchMedia é avaliado uma
+          // única vez aqui — não fica escutando resize.
+          if (window.matchMedia('(max-width: 860px)').matches) {
+            const heroGrid = body.closest('.hero-grid');
+            if (heroGrid) {
+              setTimeout(() => heroGrid.classList.add('hero-swapped'), 1400);
+            }
+          }
           return;
         }
         // Mesmo intervalo entre cada mensagem (500ms antes da primeira,
