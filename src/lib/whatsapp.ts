@@ -84,9 +84,13 @@ export async function sendWhatsappTemplate(
 }
 
 // Envia um template de categoria Authentication (ex: código de verificação
-// de telefone antes do checkout de plano) — a Meta exige exatamente um botão
-// do tipo OTP nesses templates, então o corpo E o botão precisam receber o
-// código, em componentes separados (diferente de sendWhatsappTemplate).
+// de telefone antes do checkout de plano) — apesar do template ser criado
+// como botão OTP/copy_code (ver whatsappConnect/templates.ts), a Meta expõe
+// e valida esse botão como sub_type "url" no envio (a própria URL de OTP
+// embute o {{1}}), não "copy_code"/coupon_code — usar sub_type errado aqui
+// dá erro 132018 "Button at index 0 must be of type Url". Corpo E botão
+// precisam receber o código, em componentes separados (diferente de
+// sendWhatsappTemplate).
 export async function sendWhatsappAuthTemplate(
   phoneNumberId: string,
   to: string,
@@ -112,9 +116,9 @@ export async function sendWhatsappAuthTemplate(
           { type: "body", parameters: [{ type: "text", text: code }] },
           {
             type: "button",
-            sub_type: "copy_code",
+            sub_type: "url",
             index: "0",
-            parameters: [{ type: "coupon_code", coupon_code: code }],
+            parameters: [{ type: "text", text: code }],
           },
         ],
       },
