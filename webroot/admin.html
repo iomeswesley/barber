@@ -2599,10 +2599,6 @@ async function loadReviews() {
 }
 
 /* ---------------- Manage barbers & services ---------------- */
-async function loadManageData() {
-  await Promise.all([loadManageBarbers(), loadManageServices(), loadTimeBlocks()]);
-}
-
 async function loadManageBarbers() {
   const barbers = await (await fetch("/api/manage/barbers")).json();
   // Configurações já busca a lista completa de barbeiros — aproveita pra
@@ -4940,18 +4936,23 @@ let historicoLoaded = false;
 let auditoriaLoaded = false;
 let estoqueLoaded = false;
 let configuracoesLoaded = false;
+let tiposLoaded = false;
 
 document.querySelectorAll("#page-tabs button").forEach((btn) => {
   btn.addEventListener("click", async () => {
     document.querySelectorAll("#page-tabs button").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     const page = btn.dataset.page;
-    ["overview", "agenda", "conversas", "historico", "estoque", "configuracoes", "auditoria"].forEach((p) => {
+    ["overview", "agenda", "tipos", "conversas", "historico", "estoque", "configuracoes", "auditoria"].forEach((p) => {
       document.getElementById(`page-${p}`).style.display = p === page ? "block" : "none";
     });
     if (page === "agenda" && !agendaLoaded) {
       agendaLoaded = true;
       await renderAgenda();
+    }
+    if (page === "tipos" && !tiposLoaded) {
+      tiposLoaded = true;
+      await loadManageServices();
     }
     if (page === "conversas" && !conversasLoaded) {
       conversasLoaded = true;
@@ -4967,7 +4968,7 @@ document.querySelectorAll("#page-tabs button").forEach((btn) => {
     }
     if (page === "configuracoes" && !configuracoesLoaded) {
       configuracoesLoaded = true;
-      await Promise.all([loadManageData(), loadBusinessHours(), loadBackups(), loadBillingStatus(), loadClientPlans(), loadWhatsappConnectStatus(), loadToneExamples()]);
+      await Promise.all([loadManageBarbers(), loadTimeBlocks(), loadBusinessHours(), loadBackups(), loadBillingStatus(), loadClientPlans(), loadWhatsappConnectStatus(), loadToneExamples()]);
     }
     if (page === "auditoria") {
       auditoriaLoaded = true;
