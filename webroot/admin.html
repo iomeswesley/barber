@@ -6,7 +6,7 @@
 <title>Painel Premium</title>
 <link rel="manifest" href="/manifest.json" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%232fa04f'/><stop offset='55%25' stop-color='%231e8e3e'/><stop offset='100%25' stop-color='%230d652d'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><g transform='translate(16.4 16.4) scale(2.8)'><path fill='white' d='M6 6m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0'/><path fill='white' d='M6 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0'/><path fill='white' stroke='white' stroke-width='1.5' d='M20 4L8.12 15.88'/><path fill='white' stroke='white' stroke-width='1.5' d='M14.47 14.48L20 20'/><path fill='white' stroke='white' stroke-width='1.5' d='M8.12 8.12L12 12'/></g></svg>" />
-<meta name="theme-color" content="#f8f9fa" />
+<meta name="theme-color" content="#faf9f7" />
 <script src="/assets/vendor/chart.umd.min.js"></script>
 <script src="/assets/theme-init.js"></script>
 <link rel="stylesheet" href="/assets/theme.css">
@@ -54,6 +54,7 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 20px; flex-shrink: 0;
     background: var(--brand-grad-logo);
+    color: var(--brand-ink);
   }
   .brand .titles { min-width: 0; }
   .brand .titles h1 {
@@ -130,7 +131,7 @@
     white-space: nowrap;
   }
   .plan-badge-trialing { background: linear-gradient(135deg, #e8c9a0, #cd7f32 60%, #8a5522); color: #2b1608; }
-  .plan-badge-starter { background: linear-gradient(135deg, #f2f2f2, #c0c0c0 55%, #8f8f8f); color: #1a1a1a; }
+  .plan-badge-starter { background: linear-gradient(135deg, #e8e6e1, #b9b6ae 55%, #86837b); color: #1a1a1a; }
   .plan-badge-pro { background: linear-gradient(135deg, #f5d576, #d4af37 55%, #9c7a1e); color: #2b2003; }
   .plan-badge-past_due { background: var(--danger-soft); color: var(--danger); }
   .plan-badge-none { background: var(--surface-raise-2); color: var(--text-muted); }
@@ -175,6 +176,28 @@
     flex-shrink: 0;
   }
   .section-title:first-child { margin-top: 4px; }
+
+  /* ---------- Container de duas camadas (só em Configurações) ----------
+     Moldura com fundo suave + título/descrição, e por dentro uma caixa
+     sólida separada por uma linha — igual ao padrão de "settings section"
+     do Cal.com. O resto do painel continua usando .section-title (rótulo
+     pequeno em caixa-alta) — esse par novo é só pra Configurações, que
+     tem seções mais numerosas e se beneficia da separação mais clara. */
+  .settings-section {
+    background: var(--surface-raise);
+    border: 1px solid var(--divider);
+    border-radius: var(--radius);
+    margin: 18px 0;
+    overflow: hidden;
+  }
+  .settings-section:first-child { margin-top: 4px; }
+  .settings-section-head { padding: 16px 20px 14px; }
+  .settings-section-head h2 { font-size: 14.5px; font-weight: 700; margin: 0 0 3px; color: var(--text-primary); }
+  .settings-section-head p { font-size: 12.5px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+  .settings-section .card.panel {
+    border-radius: 0; border: none; border-top: 1px solid var(--divider);
+    box-shadow: none; margin: 0;
+  }
 
   /* ---------- KPI cards ---------- */
   .kpi-grid {
@@ -245,7 +268,7 @@
   }
   .kpi-label { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 1.4px; }
   .kpi-value {
-    font-family: "Segoe UI", "Inter", sans-serif;
+    font-family: "Inter", "Segoe UI", sans-serif;
     /* Tamanho base — clamp() sozinho não bastava porque só reage ao tamanho da
        TELA, não ao tamanho do PRÓPRIO TEXTO (um valor com muitos dígitos, tipo
        "R$ 15.005", ainda quebrava em duas linhas mesmo bem pequeno). O ajuste
@@ -432,10 +455,7 @@
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-thumb { background: var(--card-border-hover); border-radius: 999px; }
 
-  /* ---------- Management panels (barbers/services/blocks) ---------- */
-  .manage-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
-  @media (min-width: 1000px) { .manage-grid { grid-template-columns: 1fr 1fr; } }
-
+  /* ---------- Management panels (barbers/blocks) ---------- */
   .item-row {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
     padding: 10px 12px; border-radius: 12px; background: var(--surface-raise);
@@ -531,11 +551,11 @@
   .gcal-daycol.today { background-color: rgb(var(--color-primary) / 0.035); }
   .gcal-now-line {
     position: absolute; left: 52px; right: 0; height: 0; z-index: 2; pointer-events: none;
-    border-top: 2px solid #e2593f;
+    border-top: 2px solid var(--danger);
   }
   .gcal-now-line::before {
     content: ""; position: absolute; left: -5px; top: -5px;
-    width: 9px; height: 9px; border-radius: 50%; background: #e2593f;
+    width: 9px; height: 9px; border-radius: 50%; background: var(--danger);
   }
   .gcal-event {
     position: absolute; overflow: hidden; cursor: pointer;
@@ -770,6 +790,7 @@
   <nav class="sidebar-nav" id="page-tabs">
     <button data-page="overview" class="active"><span class="nav-ico"><svg class="icon"><use href="#icon-home"></use></svg></span>Visão geral</button>
     <button data-page="agenda"><span class="nav-ico"><svg class="icon"><use href="#icon-calendar"></use></svg></span>Agenda</button>
+    <button data-page="tipos"><span class="nav-ico"><svg class="icon"><use href="#icon-clipboard"></use></svg></span>Serviços</button>
     <button data-page="conversas"><span class="nav-ico"><svg class="icon"><use href="#icon-chat"></use></svg></span>Conversas</button>
     <button data-page="historico"><span class="nav-ico"><svg class="icon"><use href="#icon-history"></use></svg></span>Histórico</button>
     <button data-page="estoque"><span class="nav-ico"><svg class="icon"><use href="#icon-inventory"></use></svg></span>Estoque</button>
@@ -813,7 +834,7 @@
     </div>
 
     <div class="theme-switch" id="theme-switch" title="Alternar tema claro/escuro">
-      <div class="knob" id="theme-knob"><svg class="icon"><use href="#icon-moon"></use></svg></div>
+      <div class="knob" id="theme-knob"></div>
     </div>
 
     <div class="dropdown-wrap">
@@ -850,14 +871,7 @@
     </div>
     <div class="greeting-meta">
       <span class="greeting-date"><span><svg class="icon"><use href="#icon-calendar"></use></svg></span><span id="greeting-date-text"></span></span>
-      <div class="dropdown-wrap align-left">
-        <button type="button" class="period-select" id="period-select-btn">Este mês <span class="ps-arrow">▾</span></button>
-        <div class="dropdown-panel" id="period-panel" style="min-width:180px;">
-          <button type="button" class="dropdown-item" id="period-option-month"><span class="dd-meta"><span class="dd-title">Este mês</span></span></button>
-          <button type="button" class="dropdown-item is-disabled" disabled><span class="dd-meta"><span class="dd-title">Este trimestre</span></span><span class="dd-soon">Em breve</span></button>
-          <button type="button" class="dropdown-item is-disabled" disabled><span class="dd-meta"><span class="dd-title">Este ano</span></span><span class="dd-soon">Em breve</span></button>
-        </div>
-      </div>
+      <span class="period-select" title="Os números abaixo são sempre do mês atual">Este mês</span>
     </div>
   </div>
   <div class="alert-banner" id="alert-banner" style="display:none;"></div>
@@ -1045,6 +1059,25 @@
     </div>
   </div>
 
+  <div id="page-tipos" class="page-section" style="display:none;">
+    <div class="section-title">Serviços</div>
+    <div class="card panel">
+      <div class="hint">Preço e duração usados pelo chat pra calcular horários e valores — cada um vira uma opção que a IA oferece no WhatsApp.</div>
+      <div id="services-manage-list"></div>
+      <span class="add-toggle" id="toggle-add-service">+ Adicionar serviço</span>
+      <div class="inline-form" id="add-service-form">
+        <div class="form-grid">
+          <div class="form-field" style="grid-column: 1 / -1;"><label>Nome<span class="required-mark">*</span></label><input type="text" id="new-service-name" /></div>
+          <div class="form-field"><label>Preço (R$)<span class="required-mark">*</span></label><input type="number" step="0.01" id="new-service-price" /></div>
+          <div class="form-field"><label>Duração (min)<span class="required-mark">*</span></label><input type="number" id="new-service-duration" /></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-primary" id="save-service-btn">Salvar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="page-conversas" class="page-section" style="display:none;">
     <div class="section-title">Conversas do WhatsApp</div>
     <div class="card panel conversas-layout" id="conversas-layout">
@@ -1152,7 +1185,11 @@
   </div>
 
   <div id="page-configuracoes" class="page-section" style="display:none;">
-    <div class="section-title">WhatsApp</div>
+    <div class="settings-section">
+      <div class="settings-section-head">
+        <h2>WhatsApp</h2>
+        <p>Configure o número de WhatsApp que a IA usa pra atender seus clientes.</p>
+      </div>
     <div class="card panel" id="whatsapp-connect-card">
       <div class="hint" id="whatsapp-connect-hint">Carregando...</div>
       <ol id="whatsapp-connect-steps" style="margin:14px 0 16px; padding-left:20px; font-size:12.5px; color: var(--text-secondary); line-height:1.7; display:none;">
@@ -1168,21 +1205,13 @@
         <button class="btn-secondary" id="whatsapp-disconnect-btn">Desconectar este número</button>
       </div>
     </div>
-
-    <div class="section-title">Tom de voz da IA</div>
-    <div class="card panel" id="tone-examples-card">
-      <div class="hint">Cole aqui exemplos de mensagens que você já mandou pra clientes no WhatsApp — o bot usa como referência de tom e vocabulário nas próprias respostas (não copia literalmente, só se inspira no seu jeito de escrever).</div>
-      <div id="tone-examples-list" style="margin-top:12px;"></div>
-      <div class="form-field" style="margin-top:10px;">
-        <textarea id="tone-example-input" rows="2" placeholder='Ex: "Opa! Bora marcar então, só me diz o dia que fica melhor pra você 😉"'></textarea>
-      </div>
-      <div class="form-actions">
-        <button class="btn-secondary" id="tone-example-add-btn">+ Adicionar exemplo</button>
-        <button class="btn-primary" id="tone-examples-save-btn">Salvar exemplos</button>
-      </div>
     </div>
 
-    <div class="section-title">Cobrança</div>
+    <div class="settings-section">
+      <div class="settings-section-head">
+        <h2>Cobrança</h2>
+        <p>Gerencie sua assinatura e acompanhe o uso do plano.</p>
+      </div>
     <div class="card panel" id="billing-card">
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:4px;">
         <span id="billing-plan-pill" class="plan-badge" style="display:none;"></span>
@@ -1200,8 +1229,13 @@
         <button class="btn-secondary" id="billing-portal-btn">Gerenciar assinatura</button>
       </div>
     </div>
+    </div>
 
-    <div class="section-title">Planos para clientes</div>
+    <div class="settings-section">
+      <div class="settings-section-head">
+        <h2>Planos para clientes</h2>
+        <p>Crie planos de assinatura que seus clientes podem contratar direto com a barbearia.</p>
+      </div>
     <div class="card panel" id="client-plans-card">
       <div class="hint" id="client-plans-hint">Carregando...</div>
       <div id="client-plans-locked" style="display:none;">
@@ -1242,8 +1276,34 @@
         </div>
       </div>
     </div>
+    </div>
 
-    <div class="section-title">Horário de funcionamento</div>
+    <div class="settings-section">
+      <div class="settings-section-head">
+        <h2>Tom de voz da IA</h2>
+        <p>Ensine a IA a escrever do jeito que sua barbearia já fala.</p>
+      </div>
+    <div class="card panel" id="tone-examples-card">
+      <div class="hint">Cole aqui exemplos de mensagens reais que você já mandou pra clientes no WhatsApp. A IA usa isso como referência de estilo — vocabulário, formalidade, jeito de escrever — em vez de um tom genérico.</div>
+      <div class="form-field" style="margin-top:12px;">
+        <label>Novo exemplo</label>
+        <textarea id="tone-example-input" rows="2" placeholder='Ex: Opa! Bora marcar então, só me diz o dia que fica melhor pra você 😉' maxlength="500"></textarea>
+      </div>
+      <div class="form-actions">
+        <button class="btn-secondary" id="tone-example-add-btn">+ Adicionar exemplo</button>
+      </div>
+      <div style="margin-top:16px;" id="tone-examples-list"></div>
+      <div class="form-actions">
+        <button class="btn-primary" id="tone-examples-save-btn">Salvar exemplos</button>
+      </div>
+    </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-head">
+        <h2>Horário de funcionamento</h2>
+        <p>Defina os dias e horários em que sua barbearia atende.</p>
+      </div>
     <div class="card panel">
       <div class="hint">Horário por dia da semana, usado para calcular os horários disponíveis no chat. Marque "fechado" para os dias sem atendimento.</div>
       <div id="weekday-hours-list" style="margin-top:12px;"></div>
@@ -1251,8 +1311,13 @@
         <button class="btn-primary" id="hours-save-btn">Salvar horário</button>
       </div>
     </div>
+    </div>
 
-    <div class="section-title">Bloqueios de horário</div>
+    <div class="settings-section">
+      <div class="settings-section-head">
+        <h2>Bloqueios de horário</h2>
+        <p>Bloqueie folgas, feriados e intervalos pra não aparecerem como disponíveis.</p>
+      </div>
     <div class="card panel">
       <div class="hint">Folga, feriado, intervalo de almoço — bloqueios recorrentes valem todo dia; os fixos valem só na data escolhida.</div>
       <div class="form-grid">
@@ -1297,54 +1362,43 @@
       </div>
       <div style="margin-top:16px;" id="block-list"></div>
     </div>
+    </div>
 
-    <div class="section-title">Gerenciar barbeiros e serviços</div>
-    <div class="manage-grid">
-      <div class="card panel">
-        <h2>Barbeiros</h2>
-        <div class="hint">Desativar mantém o histórico, mas some das novas opções do chat.</div>
-        <div id="barbers-manage-list"></div>
-        <span class="add-toggle" id="toggle-add-barber">+ Adicionar barbeiro</span>
-        <div class="inline-form" id="add-barber-form">
-          <div class="form-grid full">
-            <div class="form-field"><label>Nome</label><input type="text" id="new-barber-name" /></div>
-            <div class="form-field" id="new-barber-username-field"><label>Usuário (login)</label><input type="text" id="new-barber-username" autocomplete="off" /></div>
-            <div class="form-field" id="new-barber-password-field"><label>Senha</label><input type="password" id="new-barber-password" autocomplete="new-password" /></div>
-            <div class="form-field"><label>Comissão de serviço (%)</label><input type="number" step="0.1" min="0" max="100" id="new-barber-service-commission" value="40" /></div>
-            <div class="form-field"><label>Comissão de produto (%)</label><input type="number" step="0.1" min="0" max="100" id="new-barber-product-commission" value="0" /></div>
-            <div class="form-field"><label>Meta mensal (R$)</label><input type="number" step="0.01" min="0" id="new-barber-goal" value="0" /></div>
-          </div>
-          <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size:12.5px; cursor:pointer;">
-            <input type="checkbox" id="new-barber-is-owner" style="width:auto; accent-color:var(--brand);" />
-            Esse barbeiro sou eu (dono) — não precisa de usuário/senha, uso meu próprio login
-          </label>
-          <div class="hint" style="margin-top:6px;" id="new-barber-login-hint">O barbeiro usa esse usuário e senha pra entrar na própria agenda.</div>
-          <div class="form-actions">
-            <button class="btn-primary" id="save-barber-btn">Salvar</button>
-          </div>
-        </div>
+    <div class="settings-section">
+      <div class="settings-section-head">
+        <h2>Gerenciar barbeiros</h2>
+        <p>Adicione, edite ou desative os barbeiros da sua barbearia.</p>
       </div>
-
-      <div class="card panel">
-        <h2>Serviços</h2>
-        <div class="hint">Preço e duração usados pelo chat para calcular horários e valores.</div>
-        <div id="services-manage-list"></div>
-        <span class="add-toggle" id="toggle-add-service">+ Adicionar serviço</span>
-        <div class="inline-form" id="add-service-form">
-          <div class="form-grid">
-            <div class="form-field" style="grid-column: 1 / -1;"><label>Nome<span class="required-mark">*</span></label><input type="text" id="new-service-name" /></div>
-            <div class="form-field"><label>Preço (R$)<span class="required-mark">*</span></label><input type="number" step="0.01" id="new-service-price" /></div>
-            <div class="form-field"><label>Duração (min)<span class="required-mark">*</span></label><input type="number" id="new-service-duration" /></div>
-          </div>
-          <div class="form-actions">
-            <button class="btn-primary" id="save-service-btn">Salvar</button>
-          </div>
+    <div class="card panel">
+      <div class="hint">Desativar mantém o histórico, mas some das novas opções do chat.</div>
+      <div id="barbers-manage-list"></div>
+      <span class="add-toggle" id="toggle-add-barber">+ Adicionar barbeiro</span>
+      <div class="inline-form" id="add-barber-form">
+        <div class="form-grid full">
+          <div class="form-field"><label>Nome</label><input type="text" id="new-barber-name" /></div>
+          <div class="form-field" id="new-barber-username-field"><label>Usuário (login)</label><input type="text" id="new-barber-username" autocomplete="off" /></div>
+          <div class="form-field" id="new-barber-password-field"><label>Senha</label><input type="password" id="new-barber-password" autocomplete="new-password" /></div>
+          <div class="form-field"><label>Comissão de serviço (%)</label><input type="number" step="0.1" min="0" max="100" id="new-barber-service-commission" value="40" /></div>
+          <div class="form-field"><label>Comissão de produto (%)</label><input type="number" step="0.1" min="0" max="100" id="new-barber-product-commission" value="0" /></div>
+          <div class="form-field"><label>Meta mensal (R$)</label><input type="number" step="0.01" min="0" id="new-barber-goal" value="0" /></div>
+        </div>
+        <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size:12.5px; cursor:pointer;">
+          <input type="checkbox" id="new-barber-is-owner" style="width:auto; accent-color:var(--brand);" />
+          Esse barbeiro sou eu (dono) — não precisa de usuário/senha, uso meu próprio login
+        </label>
+        <div class="hint" style="margin-top:6px;" id="new-barber-login-hint">O barbeiro usa esse usuário e senha pra entrar na própria agenda.</div>
+        <div class="form-actions">
+          <button class="btn-primary" id="save-barber-btn">Salvar</button>
         </div>
       </div>
     </div>
+    </div>
 
-    <div id="backup-section">
-      <div class="section-title">Backup do banco de dados</div>
+    <div id="backup-section" class="settings-section">
+      <div class="settings-section-head">
+        <h2>Backup do banco de dados</h2>
+        <p>Cópias de segurança automáticas dos dados da sua barbearia.</p>
+      </div>
       <div class="card panel">
         <div class="hint">Cópia de segurança automática a cada 24h (mantém as últimas 14). Cobre todas as barbearias do sistema.</div>
         <div class="form-actions" style="margin-bottom:14px;">
@@ -1483,10 +1537,6 @@ document.getElementById("my-profile-btn").addEventListener("click", () => {
 initDropdown("notif-btn", "notif-panel");
 initDropdown("help-btn", "help-panel");
 initDropdown("avatar-btn", "avatar-panel");
-initDropdown("period-select-btn", "period-panel");
-document.getElementById("period-option-month").addEventListener("click", () => {
-  document.getElementById("period-panel").classList.remove("is-open");
-});
 
 /* ---------------- Busca global (Ctrl K) ---------------- */
 function renderSearchResults(query) {
@@ -1565,10 +1615,11 @@ const ADMIN_TOUR_STEPS = [
   { selector: "#today-appts-card", title: "Agendamentos de hoje", text: "Veja rapidinho os agendamentos do dia sem precisar entrar na agenda." },
   { selector: "#reviews-card", title: "Avaliações dos clientes", text: "As notas e comentários que os clientes deixam depois do atendimento." },
   { activateSelector: '#page-tabs button[data-page="agenda"]', selector: "#page-agenda", title: "Agenda", text: "Veja e crie agendamentos, filtre por barbeiro e alterne entre visão de semana ou mês." },
+  { activateSelector: '#page-tabs button[data-page="tipos"]', selector: "#page-tipos", title: "Serviços", text: "Cadastre cada serviço com preço e duração — é o que a IA usa no WhatsApp pra calcular horário e valor." },
   { activateSelector: '#page-tabs button[data-page="conversas"]', selector: "#page-conversas", title: "Conversas do WhatsApp", text: "Acompanhe as conversas que a IA está tendo com seus clientes e responda manualmente quando quiser assumir." },
   { activateSelector: '#page-tabs button[data-page="historico"]', selector: "#page-historico", title: "Histórico", text: "Faturamento detalhado por período, participação de cada barbeiro e serviço, e o cadastro completo de clientes." },
   { activateSelector: '#page-tabs button[data-page="estoque"]', selector: "#page-estoque", title: "Estoque", text: "Controle os produtos vendidos no balcão e receba alerta quando o estoque estiver baixo." },
-  { activateSelector: '#page-tabs button[data-page="configuracoes"]', selector: "#page-configuracoes", title: "Configurações", text: "Aqui fica praticamente tudo: WhatsApp, cobrança, planos pros seus clientes, horário de funcionamento, bloqueios, barbeiros, serviços e backup." },
+  { activateSelector: '#page-tabs button[data-page="configuracoes"]', selector: "#page-configuracoes", title: "Configurações", text: "Aqui fica praticamente tudo: WhatsApp, cobrança, planos pros seus clientes, horário de funcionamento, bloqueios, barbeiros e backup." },
   { activateSelector: '#page-tabs button[data-page="auditoria"]', selector: "#page-auditoria", title: "Auditoria", text: "Um histórico de todas as ações feitas no painel — quem fez o quê e quando." },
   { selector: "#help-btn", title: "Pronto!", text: "Quando quiser rever esse tour, abra o menu de ajuda aqui e clique em \"Tour guiado\"." },
 ];
@@ -1781,18 +1832,18 @@ async function loadRevenueChart() {
   const values = data.map((d) => d.revenue);
 
   const ctx = document.getElementById("revenue-chart").getContext("2d");
-  const gold = cssVar("--brand-chart") || "#1e8e3e";
+  const gold = cssVar("--brand-chart") || "#64615c";
   const gridColor = isDark() ? "rgba(255,255,255,0.06)" : "rgba(20,22,28,0.06)";
   const tickColor = cssVar("--text-muted") || "#888";
 
   // Gradiente vertical: verde cheio em cima, esvaece pra base — mesma
   // assinatura visual do fio verde dos KPI cards, só que em forma de barra.
   const gradient = ctx.createLinearGradient(0, 0, 0, 260);
-  gradient.addColorStop(0, isDark() ? "#81c995" : "#1e8e3e");
+  gradient.addColorStop(0, isDark() ? "#d6d4cf" : "#64615c");
   gradient.addColorStop(1, gold);
   const hoverGradient = ctx.createLinearGradient(0, 0, 0, 260);
-  hoverGradient.addColorStop(0, isDark() ? "#a8d9b6" : "#2fa04f");
-  hoverGradient.addColorStop(1, isDark() ? "#81c995" : "#1e8e3e");
+  hoverGradient.addColorStop(0, isDark() ? "#ffffff" : "#1e1d1b");
+  hoverGradient.addColorStop(1, isDark() ? "#d6d4cf" : "#64615c");
 
   if (revenueChart) revenueChart.destroy();
   revenueChart = new Chart(ctx, {
@@ -1913,7 +1964,7 @@ async function loadOccupancyChart() {
   const weekdaysByIndex = data.map((d) => d.weekday);
 
   const ctx = document.getElementById("occupancy-chart").getContext("2d");
-  const gold = cssVar("--brand-chart") || "#1e8e3e";
+  const gold = cssVar("--brand-chart") || "#64615c";
   const gridColor = isDark() ? "rgba(255,255,255,0.06)" : "rgba(20,22,28,0.06)";
   const tickColor = cssVar("--text-muted") || "#888";
 
@@ -2002,17 +2053,17 @@ async function loadOccupancyChart() {
 function renderMiniChart(canvasId, values, labels) {
   const canvas = document.getElementById(canvasId);
   const ctx = canvas.getContext("2d");
-  const gold = cssVar("--brand-chart") || "#1e8e3e";
+  const gold = cssVar("--brand-chart") || "#64615c";
   const h = canvas.height || 60;
 
   // Mesma linguagem visual do gráfico principal (barras com gradiente
   // verde), só que em miniatura — sem eixos, pra caber no KPI card.
   const gradient = ctx.createLinearGradient(0, 0, 0, h);
-  gradient.addColorStop(0, isDark() ? "#81c995" : "#1e8e3e");
+  gradient.addColorStop(0, isDark() ? "#d6d4cf" : "#64615c");
   gradient.addColorStop(1, gold);
   const hoverGradient = ctx.createLinearGradient(0, 0, 0, h);
-  hoverGradient.addColorStop(0, isDark() ? "#a8d9b6" : "#2fa04f");
-  hoverGradient.addColorStop(1, isDark() ? "#81c995" : "#1e8e3e");
+  hoverGradient.addColorStop(0, isDark() ? "#ffffff" : "#1e1d1b");
+  hoverGradient.addColorStop(1, isDark() ? "#d6d4cf" : "#64615c");
 
   if (miniCharts[canvasId]) miniCharts[canvasId].destroy();
   miniCharts[canvasId] = new Chart(ctx, {
@@ -2085,7 +2136,7 @@ async function loadBarberPerformance() {
   const res = await fetch(`/api/dashboard/barbers`);
   const barbers = await res.json();
 
-  const serviceColor = cssVar("--brand-chart") || (isDark() ? "#81c995" : "#1e8e3e");
+  const serviceColor = cssVar("--brand-chart") || (isDark() ? "#d6d4cf" : "#64615c");
   const productColor = cssVar("--blue-chart") || (isDark() ? "#8ab4f8" : "#1a73e8");
 
   const ctx = document.getElementById("barber-chart").getContext("2d");

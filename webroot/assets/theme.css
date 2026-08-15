@@ -1,4 +1,29 @@
 /* ==========================================================================
+   Fonte — Inter (mesma família usada pelo Cal.com), auto-hospedada em vez de
+   linkada no Google Fonts: sem dependência de rede externa em runtime, mais
+   rápido e compatível com o cache offline do service worker. É um arquivo
+   variável só (font-weight: 100 900 num único .woff2 por subset) em vez de
+   um arquivo estático por peso — resultado da própria forma como o Google
+   Fonts empacota a família. Cobre acentuação do português (á, ã, ç, é...)
+   via os subsets "latin" + "latin-ext". */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/assets/fonts/inter-latin-var.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/assets/fonts/inter-latin-ext-var.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* ==========================================================================
    Design system compartilhado — "Google style": superfícies chapadas, bordas
    finas de 1px, sombras discretas de elevação e cor usada com parcimônia.
    Fonte da verdade dos tokens e componentes usados em admin.html, barber.html,
@@ -40,28 +65,39 @@
    Cores cruas em trinca RGB. Mexa AQUI pra trocar a identidade visual.
    ========================================================================== */
 :root {
-  /* Neutros */
+  /* Neutros — quase-branco com leve viés quente (não cinza puro) e
+     quase-preto no outro extremo, no espírito Cal.com. */
   --p-white: 255 255 255;
-  --p-gray-50: 248 249 250;
-  --p-gray-100: 241 243 244;
-  --p-gray-200: 232 234 237;
-  --p-gray-300: 218 220 224;
-  --p-gray-400: 189 193 198;
-  --p-gray-500: 154 160 166;
-  --p-gray-700: 95 99 104;
-  --p-gray-800: 60 64 67;
-  --p-gray-850: 41 42 45;
-  --p-gray-900: 32 33 36;
+  --p-black: 0 0 0;
+  --p-gray-50: 250 249 247;
+  --p-gray-100: 244 243 240;
+  --p-gray-200: 233 231 227;
+  --p-gray-300: 219 216 210;
+  --p-gray-400: 188 184 176;
+  --p-gray-500: 150 146 138;
+  --p-gray-700: 92 89 84;
+  --p-gray-800: 58 56 52;
+  --p-gray-850: 36 35 33;
+  --p-gray-900: 22 22 21;
 
-  /* Marca (verde). -300 é o tom do modo escuro, -500 o de gráfico,
+  /* Marca (preto/branco). O accent é o próprio ink — -300 é o tom "branco"
+     usado como marca no modo escuro, -500 o de gráfico (3:1 basta),
      -700/-800 os de texto e preenchimento sólido no modo claro. */
-  --p-brand-200: 168 217 182;
-  --p-brand-300: 129 201 149;
-  --p-brand-500: 30 142 62;
-  --p-brand-700: 19 115 51;
-  --p-brand-800: 13 101 45;
-  --p-brand-900: 11 83 35;
-  --p-brand-tint: 230 244 234;
+  --p-brand-200: 205 202 197;
+  --p-brand-300: 214 212 207;
+  --p-brand-500: 100 97 92;
+  --p-brand-700: 30 29 27;
+  --p-brand-800: 20 19 18;
+  --p-brand-900: 12 12 11;
+  --p-brand-tint: 238 236 232;
+
+  /* Verde só pra semântica de "positivo" (status confirmado etc.) —
+     independente do accent preto/branco, por isso é uma família própria
+     em vez de reaproveitar --p-brand-*. */
+  --p-green-300: 134 199 155;
+  --p-green-500: 58 150 87;
+  --p-green-700: 27 122 74;
+  --p-green-tint: 231 243 236;
 
   /* Apoio / estados */
   --p-blue-300: 138 180 248;
@@ -86,9 +122,10 @@
   --p-pink-300: 255 139 203;
   --p-pink-500: 208 24 132;
 
-  /* Formas e movimento */
-  --radius: 12px;
-  --radius-sm: 8px;
+  /* Formas e movimento — cantos um pouco mais fechados que o Material
+     original, no espírito Cal.com. */
+  --radius: 10px;
+  --radius-sm: 7px;
   --ease: cubic-bezier(.4, 0, .2, 1);
 }
 
@@ -109,7 +146,7 @@
   --color-ink-muted: var(--p-gray-700);
   --color-primary: var(--p-brand-700);
   --color-primary-hover: var(--p-brand-800);
-  --color-success: var(--p-brand-700);
+  --color-success: var(--p-green-700);
   --color-info: var(--p-blue-700);
 
   /* Superfícies */
@@ -144,9 +181,11 @@
   --brand-grad-text: rgb(var(--p-brand-700));
   --brand-wash: rgb(var(--p-brand-tint));
 
-  /* Estados (tom de TEXTO — escuro o bastante pros fundos *-soft) */
-  --good: rgb(var(--p-brand-700));
-  --good-soft: rgb(var(--p-brand-tint));
+  /* Estados (tom de TEXTO — escuro o bastante pros fundos *-soft).
+     --good usa a família verde dedicada, não o accent preto/branco: status
+     "positivo" precisa continuar lendo como verde mesmo com a marca neutra. */
+  --good: rgb(var(--p-green-700));
+  --good-soft: rgb(var(--p-green-tint));
   --warn: rgb(var(--p-yellow-700));
   --warn-soft: rgb(var(--p-yellow-tint));
   --danger: rgb(var(--p-red-700));
@@ -180,7 +219,7 @@ html[data-theme="dark"] {
      grafite — é a inversão normal do par claro/escuro no Material. */
   --color-primary: var(--p-brand-300);
   --color-primary-hover: var(--p-brand-200);
-  --color-success: var(--p-brand-300);
+  --color-success: var(--p-green-300);
   --color-info: var(--p-blue-300);
 
   --bg-page: rgb(var(--p-gray-900));
@@ -211,8 +250,8 @@ html[data-theme="dark"] {
   --brand-grad-text: rgb(var(--p-brand-300));
   --brand-wash: rgb(var(--p-brand-300) / 0.10);
 
-  --good: rgb(var(--p-brand-300));
-  --good-soft: rgb(var(--p-brand-300) / 0.14);
+  --good: rgb(var(--p-green-300));
+  --good-soft: rgb(var(--p-green-300) / 0.14);
   --warn: rgb(var(--p-yellow-300));
   --warn-soft: rgb(var(--p-yellow-300) / 0.14);
   --danger: rgb(var(--p-red-300));
@@ -226,10 +265,10 @@ html[data-theme="dark"] {
   --coral-chart: rgb(var(--p-red-300));
   --amber-chart: rgb(var(--p-yellow-300));
 
-  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.30), 0 1px 3px 1px rgb(0 0 0 / 0.15);
-  --shadow-hover: 0 1px 3px 0 rgb(0 0 0 / 0.40), 0 4px 8px 3px rgb(0 0 0 / 0.20);
-  --shadow-overlay: 0 4px 8px 3px rgb(0 0 0 / 0.35), 0 1px 3px rgb(0 0 0 / 0.50);
-  --scrim: rgb(0 0 0 / 0.7);
+  --shadow-card: 0 1px 2px 0 rgb(var(--p-black) / 0.30), 0 1px 3px 1px rgb(var(--p-black) / 0.15);
+  --shadow-hover: 0 1px 3px 0 rgb(var(--p-black) / 0.40), 0 4px 8px 3px rgb(var(--p-black) / 0.20);
+  --shadow-overlay: 0 4px 8px 3px rgb(var(--p-black) / 0.35), 0 1px 3px rgb(var(--p-black) / 0.50);
+  --scrim: rgb(var(--p-black) / 0.7);
 }
 
 /* ==========================================================================
@@ -241,7 +280,7 @@ html[data-theme="dark"] {
 html, body {
   margin: 0;
   padding: 0;
-  font-family: "Segoe UI", system-ui, -apple-system, "Inter", sans-serif;
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
   /* "clip" em vez de "hidden": impede scroll horizontal igual, mas não cria
      um contexto de scroll próprio em html/body — "hidden" fazia isso e
      quebrava todo position:sticky da página (Safari é o mais afetado). */
@@ -257,7 +296,7 @@ body {
 a { color: inherit; }
 button, input, select, textarea, option { font-family: inherit; }
 h1, h2, h3 {
-  font-family: "Segoe UI", system-ui, "Inter", sans-serif;
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
