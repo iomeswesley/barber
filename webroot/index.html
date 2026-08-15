@@ -3,93 +3,125 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Painel da Barbearia: Agendamento e atendimento via WhatsApp com IA</title>
+<title>Barbearia Bot — Agendamento e atendimento via WhatsApp com IA para barbearias</title>
 <meta name="description" content="Plataforma SaaS multi-tenant para barbearias: atendimento e agendamento automático via WhatsApp com IA, dashboard de faturamento e clientes, e cobrança recorrente via Stripe." />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%232fa04f'/><stop offset='55%25' stop-color='%231e8e3e'/><stop offset='100%25' stop-color='%230d652d'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><g transform='translate(16.4 16.4) scale(2.8)'><path fill='white' d='M6 6m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0'/><path fill='white' d='M6 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0'/><path fill='white' stroke='white' stroke-width='1.5' d='M20 4L8.12 15.88'/><path fill='white' stroke='white' stroke-width='1.5' d='M14.47 14.48L20 20'/><path fill='white' stroke='white' stroke-width='1.5' d='M8.12 8.12L12 12'/></g></svg>" />
-<meta name="theme-color" content="#f8f9fa" />
+<meta name="theme-color" content="#faf9f7" />
 <script src="/assets/theme-init.js"></script>
 <link rel="stylesheet" href="/assets/theme.css">
 <script src="/assets/icons.js" defer></script>
 <style>
+  /* Redesign seguindo o mesmo handoff "Claude Design" já aplicado no
+     odonto-saas (produto irmão) — página mais enxuta que a versão anterior:
+     header em pill flutuante, hero com mockup de WhatsApp animado (não a
+     janela de desktop), "como funciona" em 3 passos com mockup de celular,
+     3 planos e FAQ de abertura única. Tokens/cores vêm só de
+     webroot/assets/theme.css (a fonte de verdade do produto). */
+
+  /* Paleta do simulador de WhatsApp, igual webroot/chat.html — DE PROPÓSITO
+     fora do design system do painel (mimetiza o app real). Só usada dentro
+     dos mockups de conversa desta página. */
+  :root {
+    --wa-bg: #e5ddd5;
+    --wa-green: #dcf8c6;
+    --wa-white: #ffffff;
+    --wa-teal: #128c7e;
+  }
+
   body { position: relative; z-index: 0; }
 
-  /* ---------- Header ---------- */
+  /* ---------- Header (pill flutuante) ---------- */
   header.topbar {
-    position: sticky; top: 0; z-index: 20;
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 16px;
-    padding: 14px 28px;
-    background: var(--card-bg-solid);
-    border-bottom: 1px solid var(--divider);
-    /* Promove o header pra sua própria camada de composição — sem isso,
-       navegadores mobile (principalmente iOS Safari) recalculam o elemento
-       "sticky" junto com o resto da página a cada frame de scroll, e com uma
-       página longa e pesada isso aparece como o cabeçalho "vibrando"/tremendo
-       enquanto rola. translateZ(0) não desloca nada, só isola o repaint. */
+    position: sticky; top: 0; z-index: 40;
+    padding: 14px 22px;
+    /* Promove pra própria camada de composição — sem isso, navegadores
+       mobile (principalmente iOS Safari) recalculam o "sticky" junto com o
+       resto da página a cada frame de scroll, e numa página longa isso
+       aparece como o cabeçalho "vibrando" enquanto rola. */
     transform: translateZ(0);
     backface-visibility: hidden;
   }
-  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .topbar-inner {
+    max-width: 1160px; margin: 0 auto;
+    padding: 10px 18px;
+    display: flex; align-items: center; gap: 18px;
+    background: var(--card-bg-solid);
+    border: 1px solid var(--card-border);
+    border-radius: 999px;
+    box-shadow: var(--shadow-hover);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; margin-right: auto; flex-shrink: 0; }
   .brand .logo {
-    width: 36px; height: 36px; border-radius: 10px;
-    display: flex; align-items: center; justify-content: center; font-size: 18px;
+    width: 34px; height: 34px; border-radius: 11px;
+    display: flex; align-items: center; justify-content: center;
     background: var(--brand-grad-logo);
+    color: var(--brand-ink);
     flex-shrink: 0;
   }
-  .brand span { font-family: "Segoe UI", sans-serif; font-weight: 800; font-size: 16px; color: var(--text-primary); }
-  nav.main-nav { display: flex; align-items: center; gap: 26px; }
+  .brand span { font-weight: 700; font-size: 14.5px; letter-spacing: -0.01em; color: var(--text-primary); white-space: nowrap; }
+  nav.main-nav { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
   nav.main-nav a {
-    font-size: 13.5px; font-weight: 600; color: var(--text-secondary); text-decoration: none;
+    font-size: 13.5px; font-weight: 600; color: var(--text-secondary); text-decoration: none; white-space: nowrap;
     transition: color .2s ease;
   }
   nav.main-nav a:hover { color: var(--text-primary); }
-  .header-actions { display: flex; align-items: center; gap: 10px; }
+  .header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
   .btn-ghost {
-    font-size: 13px; font-weight: 600; color: var(--text-secondary); text-decoration: none;
-    padding: 9px 14px; border-radius: 10px; transition: color .2s ease, background-color .2s ease;
+    font-size: 12.5px; font-weight: 600; color: var(--text-secondary); text-decoration: none;
+    padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--card-border);
+    transition: color .2s ease, background-color .2s ease, border-color .2s ease;
   }
-  .btn-ghost:hover { color: var(--text-primary); background: var(--surface-raise-2); }
+  .btn-ghost:hover { color: var(--brand); background: var(--brand-soft); border-color: var(--card-border-hover); }
   .btn-primary.link, .btn-secondary.link { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
 
   @media (max-width: 860px) {
     nav.main-nav { display: none; }
   }
 
-  main { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
+  main { max-width: 1160px; margin: 0 auto; padding: 0 22px; }
   section { padding: 96px 0; }
   section.tight { padding: 64px 0; }
-  .eyebrow {
-    display: inline-flex; align-items: center; gap: 8px;
-    font-size: 12.5px; font-weight: 700; color: var(--brand);
-    background: var(--brand-soft); border: 1px solid rgb(var(--color-primary) / 0.25);
-    padding: 6px 14px; border-radius: 999px; margin-bottom: 20px;
+  main > section + section { border-top: 1px solid var(--divider); }
+  @media (max-width: 640px) {
+    section { padding: 56px 0; }
+    section.tight { padding: 40px 0; }
   }
-  h1 { font-size: clamp(36px, 5.5vw, 60px); line-height: 1.06; margin: 0 0 20px; color: var(--text-primary); }
-  h2 { font-size: clamp(26px, 3.4vw, 38px); line-height: 1.15; margin: 0 0 14px; }
-  .section-head { max-width: 640px; margin: 0 auto 48px; text-align: center; }
-  .section-head p { color: var(--text-secondary); font-size: 15.5px; line-height: 1.6; }
-  .brand-text { background: var(--brand-grad-text); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 12px; font-weight: 700; color: var(--brand);
+    background: var(--brand-soft); border: 1px solid var(--card-border);
+    padding: 6px 12px; border-radius: 999px; margin-bottom: 16px;
+  }
+  h1 { font-size: clamp(38px, 4.6vw, 58px); line-height: 1.08; margin: 0 0 16px; letter-spacing: -0.015em; color: var(--text-primary); }
+  h2 { font-size: clamp(26px, 3.4vw, 38px); line-height: 1.15; margin: 0 0 10px; letter-spacing: -0.01em; }
+  .section-head { max-width: 640px; margin: 0 auto 34px; text-align: center; }
+  .section-head p { color: var(--text-secondary); font-size: 15.5px; line-height: 1.6; margin: 0; }
+  .brand-text { color: var(--brand-grad-text); }
 
   /* ---------- Hero ---------- */
   .hero-grid {
-    display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 56px; align-items: center;
-    padding-top: 92px;
+    display: grid; grid-template-columns: 1.3fr 0.9fr; gap: 40px; align-items: center;
+    padding-top: 40px; position: relative;
   }
-  .hero-copy p.lead { font-size: 16.5px; color: var(--text-secondary); line-height: 1.65; margin-bottom: 28px; max-width: 520px; }
-  .hero-features { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 30px; }
+  .hero-copy p.lead { font-size: 16.5px; color: var(--text-secondary); line-height: 1.65; margin: 0 0 22px; max-width: 58ch; }
+  .hero-features { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px; }
   .hero-feature {
-    display: flex; align-items: center; gap: 10px; padding: 11px 14px;
+    display: flex; align-items: center; gap: 9px; padding: 11px 14px;
     background: var(--surface-raise); border: 1px solid var(--card-border); border-radius: 12px;
-    font-size: 12.5px; font-weight: 600; color: var(--text-secondary);
+    font-size: 13px; font-weight: 600; color: var(--text-secondary);
   }
-  .hero-feature .ico { font-size: 15px; flex-shrink: 0; }
-  .hero-cta { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
-  .hero-cta a { font-size: 14.5px; padding: 13px 22px; }
-  .trust-line { font-size: 12.5px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
-  .trust-line .check { color: var(--good); }
+  .hero-feature .ico {
+    width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--brand-soft); color: var(--brand); font-size: 14px;
+  }
+  .hero-cta { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .hero-cta a { font-size: 14px; padding: 12px 22px; }
+  .trust-line { font-size: 12.5px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+  .trust-line .check { color: var(--good); display: flex; }
 
-  /* ---------- Hero mockup (janela de chat) ---------- */
-  .hero-visual { position: relative; }
+  /* ---------- Hero mockup (janela de chat "produto") ---------- */
+  .hero-visual { position: relative; max-width: 460px; width: 100%; margin: 0 auto; }
   .mock-window {
     border-radius: var(--radius); overflow: hidden;
     background: var(--card-bg-solid); border: 1px solid var(--card-border);
@@ -101,64 +133,96 @@
   }
   .mock-dot { width: 9px; height: 9px; border-radius: 50%; }
   .mock-dot.r { background: var(--danger); } .mock-dot.y { background: var(--warn); } .mock-dot.g { background: var(--good); }
-  .mock-title { margin-left: auto; font-size: 11px; color: var(--text-muted); }
+  .mock-title { margin-left: auto; font-size: 11px; color: var(--text-muted); white-space: nowrap; }
   .chat-head {
     display: flex; align-items: center; gap: 10px; padding: 14px 16px;
-    border-bottom: 1px solid var(--card-border);
+    background: var(--wa-teal); color: #fff;
   }
   .chat-avatar {
-    width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
-    background: var(--brand-grad-logo); font-size: 16px; flex-shrink: 0;
+    width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: rgb(255 255 255 / 0.2); flex-shrink: 0;
   }
-  .chat-head .name { font-weight: 700; font-size: 13.5px; }
-  .chat-head .status { font-size: 11px; color: var(--good); display: flex; align-items: center; gap: 5px; }
-  .chat-head .status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--good); }
+  .chat-head .who { flex: 1; min-width: 0; }
+  .chat-head .name { font-weight: 700; font-size: 13px; }
+  .chat-head .status { font-size: 11px; opacity: 0.85; }
   .chat-badge {
-    margin-left: auto; font-size: 10.5px; font-weight: 700; color: var(--brand);
-    background: var(--brand-soft); padding: 3px 9px; border-radius: 999px;
+    font-size: 10px; font-weight: 800; background: rgb(255 255 255 / 0.22);
+    padding: 3px 8px; border-radius: 999px; flex-shrink: 0;
   }
-  .chat-body { padding: 18px 16px; display: flex; flex-direction: column; gap: 12px; min-height: 280px; }
-  .bubble { max-width: 78%; padding: 10px 13px; border-radius: 14px; font-size: 13px; line-height: 1.5; position: relative; }
-  .bubble.in { align-self: flex-start; background: var(--surface-raise-2); border: 1px solid var(--card-border); border-bottom-left-radius: 4px; }
-  .bubble.out {
-    align-self: flex-end; background: var(--brand-grad);
-    color: var(--brand-ink); border-bottom-right-radius: 4px; font-weight: 500;
+  .chat-body {
+    /* Altura FIXA (não auto/min-height): o conteúdo final (4 mensagens)
+       mede ~306px, então 320px sobra um pouco de folga — inclusive pro
+       instante em que o indicador de "digitando" aparece somado às
+       mensagens já reveladas, sem que a caixa cresça/encolha durante a
+       animação (isso fazia o mock "pular" de altura a cada mensagem).
+       overflow:hidden é seguro aqui porque 320px já cobre o pior caso. */
+    background: var(--wa-bg); padding: 14px; display: flex; flex-direction: column;
+    justify-content: flex-end; gap: 8px; height: 320px; overflow: hidden;
   }
-  .bubble time { display: block; font-size: 10px; opacity: 0.65; margin-top: 4px; }
+  .chat-msg {
+    max-width: 82%; border-radius: 8px; padding: 8px 10px 6px; font-size: 13px; line-height: 1.45; color: #111;
+    box-shadow: 0 1px 1px rgb(0 0 0 / 0.10);
+    opacity: 0; transform: translateY(6px); transition: opacity .3s ease, transform .3s ease;
+  }
+  .chat-msg.shown { opacity: 1; transform: translateY(0); }
+  .chat-msg.in { align-self: flex-start; background: var(--wa-white); border-top-left-radius: 2px; }
+  .chat-msg.out { align-self: flex-end; background: var(--wa-green); border-top-right-radius: 2px; }
+  .chat-msg time { display: block; text-align: right; font-size: 10px; color: #667781; margin-top: 2px; }
+  .chat-typing {
+    align-self: flex-start; display: none; gap: 3px; padding: 10px 12px;
+    background: var(--wa-white); border-radius: 8px; border-top-left-radius: 2px;
+    box-shadow: 0 1px 1px rgb(0 0 0 / 0.10);
+  }
+  .chat-typing.out { align-self: flex-end; background: var(--wa-green); border-top-left-radius: 8px; border-top-right-radius: 2px; }
+  .chat-typing.visible { display: flex; }
+  .chat-typing span { width: 6px; height: 6px; border-radius: 50%; background: #8b98a0; animation: chatTypingDot 1s infinite ease-in-out; }
+  .chat-typing span:nth-child(2) { animation-delay: .15s; }
+  .chat-typing span:nth-child(3) { animation-delay: .3s; }
+  @keyframes chatTypingDot { 0%, 60%, 100% { opacity: .3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-2px); } }
+
   .float-toast {
     position: absolute; display: flex; align-items: center; gap: 10px;
     background: var(--card-bg-solid); border: 1px solid var(--card-border); border-radius: 14px;
     padding: 10px 14px; box-shadow: var(--shadow-hover); font-size: 12px; max-width: 230px;
+    opacity: 0; transform: translateY(8px); transition: opacity .5s ease, transform .5s ease;
   }
+  .float-toast.show { opacity: 1; transform: translateY(0); }
   .float-toast .ico { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 15px; }
-  .float-toast.a { top: -18px; left: -30px; animation: floatIn 1s ease-out; }
+  .float-toast.a { top: -18px; left: -30px; }
   .float-toast.a .ico { background: var(--good-soft); color: var(--good); }
-  .float-toast.b { bottom: -34px; right: -34px; animation: floatIn 1.3s ease-out; }
+  .float-toast.b { bottom: -34px; right: -34px; }
   .float-toast.b .ico { background: var(--blue-soft); color: var(--blue); }
   .float-toast b { display: block; font-size: 12px; }
   .float-toast small { color: var(--text-muted); font-size: 11px; }
-  @keyframes floatIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-  /* Nas larguras entre 520px e 860px o mock ainda tem folga nas laterais
-     (fica centralizado com max-width:460px), então os toasts flutuantes
-     cabem com o deslocamento negativo padrão. Só embaixo de 520px eles
-     estourariam a viewport — nesse caso, encolhe e encosta nos cantos do
-     mock em vez de esconder (antes ficavam ocultos em todo mobile). */
   @media (max-width: 520px) {
-    .float-toast { max-width: 170px; padding: 8px 11px; gap: 8px; }
+    /* Embaixo de 520px o deslocamento negativo padrão estoura a viewport —
+       centraliza cada toast fora do mock, um acima e um abaixo, pra nunca
+       sobrepor o conteúdo da conversa. */
+    .float-toast {
+      max-width: 220px; padding: 8px 11px; gap: 8px;
+      left: 0; right: 0; margin: 0 auto; width: max-content;
+    }
     .float-toast .ico { width: 26px; height: 26px; font-size: 13px; }
     .float-toast b { font-size: 11.5px; }
     .float-toast small { font-size: 10px; }
-    .float-toast.a { top: 6px; left: 6px; }
-    .float-toast.b { bottom: 6px; right: 6px; }
+    .float-toast.a { top: -16px; }
+    .float-toast.b { bottom: -16px; }
+  }
+  @media (max-width: 860px) {
+    .hero-grid { grid-template-columns: 1fr; }
   }
 
-  /* ---------- Barra de confiança ---------- */
+  /* ---------- Faixa de recursos/confiança ---------- */
   .trust-bar {
-    display: flex; flex-wrap: wrap; justify-content: center; gap: 28px;
-    padding: 28px 0; border-top: 1px solid var(--divider); border-bottom: 1px solid var(--divider);
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
   }
-  .trust-bar-item { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--text-secondary); }
-  .trust-bar-item .ico { font-size: 15px; flex-shrink: 0; }
+  .trust-bar-item {
+    display: flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 600; color: var(--text-secondary);
+    background: var(--surface-raise); border: 1px solid var(--divider); border-radius: 12px; padding: 12px 14px;
+  }
+  .trust-bar-item .ico { color: var(--brand); display: flex; flex-shrink: 0; }
+  @media (max-width: 900px) { .trust-bar { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 560px) { .trust-bar { grid-template-columns: 1fr; } }
 
   /* ---------- Reveal ao rolar a página ---------- */
   .reveal { opacity: 0; transform: translateY(28px); transition: opacity .7s ease, transform .7s ease; }
@@ -167,230 +231,149 @@
     .reveal { opacity: 1; transform: none; transition: none; }
   }
 
-  /* ---------- Feature tabs ---------- */
-  .tab-bar {
-    display: flex; flex-wrap: nowrap; gap: 8px; margin-bottom: 8px;
-    overflow-x: auto; padding-bottom: 4px;
+  /* ---------- Como funciona (3 passos, mockup de celular) ---------- */
+  .steps-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: stretch; }
+  /* align-items:stretch (padrão do grid) já faz as 3 colunas terem a mesma
+     altura da mais alta — mas sem flex:1 nos filhos, cada coluna só ficava
+     alta por fora (o step-col esticava, a caixa cinza/branca de dentro não).
+     flex:1 no phone-mock/step-card faz a caixa em si preencher toda a
+     coluna esticada, então as 3 caixas de baixo ficam com a mesma altura. */
+  .step-col { display: flex; flex-direction: column; gap: 14px; }
+  .step-head { display: flex; align-items: center; gap: 10px; }
+  .step-num-badge {
+    width: 26px; height: 26px; border-radius: 50%; background: var(--brand); color: var(--brand-ink);
+    font-size: 12.5px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
-  .tab-btn {
-    display: flex; align-items: center; gap: 7px; flex-shrink: 0;
-    padding: 10px 14px; border-radius: 999px; border: 1px solid var(--card-border);
-    background: var(--surface-raise); color: var(--text-secondary);
-    font-size: 12.5px; font-weight: 600; cursor: pointer; transition: all .2s ease;
-    white-space: nowrap;
+  .step-head h4 { font-size: 14.5px; margin: 0; font-weight: 700; }
+  .phone-mock {
+    border-radius: 14px; overflow: hidden; border: 1px solid var(--card-border); box-shadow: var(--shadow-card);
+    background: var(--wa-bg); min-height: 240px; padding: 14px; flex: 1;
+    display: flex; flex-direction: column; gap: 8px; justify-content: flex-end;
   }
-  .tab-btn:hover { border-color: var(--card-border-hover); color: var(--text-primary); }
-  .tab-btn.active {
-    background: var(--brand-grad);
-    color: var(--brand-ink); border-color: transparent;
+  .phone-bubble {
+    max-width: 88%; border-radius: 8px; padding: 8px 10px; font-size: 12.5px; line-height: 1.45; color: #111;
+    box-shadow: 0 1px 1px rgb(0 0 0 / 0.10);
   }
-  .autoplay-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); margin: 14px 0 26px; }
-  .autoplay-row button {
-    width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--card-border);
-    background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 10px;
-    display: flex; align-items: center; justify-content: center;
+  .phone-bubble.in { align-self: flex-start; background: var(--wa-white); border-top-left-radius: 2px; }
+  .phone-bubble.out { align-self: flex-end; background: var(--wa-green); border-top-right-radius: 2px; }
+  .step-card {
+    padding: 16px; min-height: 240px; flex: 1; display: flex; flex-direction: column; gap: 10px;
   }
-  .progress-track { flex: 1; max-width: 160px; height: 3px; border-radius: 3px; background: var(--surface-raise-2); overflow: hidden; }
-  .progress-fill { height: 100%; width: 0%; background: var(--brand-grad-text); transition: width .1s linear; }
-  .tab-counter { font-variant-numeric: tabular-nums; white-space: nowrap; flex-shrink: 0; }
-  @media (max-width: 480px) {
-    .autoplay-row { flex-wrap: wrap; }
-    .progress-track { order: 3; flex-basis: 100%; max-width: none; }
+  .step-card .label {
+    font-size: 11.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;
   }
+  @media (max-width: 860px) { .steps-grid-3 { grid-template-columns: 1fr; } }
 
-  /* min-height calculado em JS (setFeaturePanelsHeight) = altura do painel
-     ATIVO no momento (não do maior entre os 6 — isso deixava um vão vazio
-     enorme embaixo dos painéis mais curtos, principalmente no mobile, onde o
-     texto empilha em 1 coluna e a variação de altura entre os 6 recursos é
-     bem maior). A transição suave no min-height evita o "pulo" abrupto do
-     resto da página ao trocar de aba (manual ou auto-play) sem precisar
-     reservar espaço vazio o tempo todo. */
-  .feature-panels { position: relative; transition: min-height .35s ease; }
-  .feature-panel { display: none; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
-  .feature-panel.active { display: grid; animation: fadeIn .4s ease; }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-  .feature-panel .ico-badge {
-    width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
-    font-size: 20px; background: var(--brand-soft); margin-bottom: 16px;
+  /* ---------- Card de agendamento (ApptRow) ---------- */
+  .appt-row {
+    display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
+    padding: 12px; border-radius: 14px; background: var(--surface-raise); border: 1px solid var(--divider);
   }
-  .feature-panel .kicker { font-size: 12px; font-weight: 700; color: var(--brand); text-transform: uppercase; letter-spacing: 0.04em; }
-  .feature-panel h3 { font-size: 22px; margin: 6px 0 10px; }
-  .feature-panel p.desc { color: var(--text-secondary); font-size: 14.5px; line-height: 1.6; margin-bottom: 18px; }
-  .feature-list { list-style: none; padding: 0; margin: 0 0 20px; display: flex; flex-direction: column; gap: 10px; }
-  .feature-list li { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--text-secondary); }
-  .feature-list li::before { content: "✓"; color: var(--good); font-weight: 700; flex-shrink: 0; }
-  .tip-box {
-    background: var(--surface-raise); border: 1px solid var(--card-border); border-radius: 12px;
-    padding: 12px 14px; font-size: 12.5px; color: var(--text-muted);
+  .appt-row .avatar {
+    width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px; color: rgb(var(--p-white)); flex-shrink: 0;
   }
-  .tip-box b { color: var(--text-primary); }
-  .feature-mock { padding: 22px; min-height: 260px; }
-  @media (max-width: 860px) {
-    .feature-panel.active { grid-template-columns: 1fr; }
-    .feature-mock { order: -1; }
+  .appt-row .avatar.c1 { background: var(--blue); }
+  .appt-row .avatar.c2 { background: var(--brand-deep); }
+  .appt-row .info { min-width: 0; }
+  .appt-row .info .name { font-weight: 700; font-size: 13.5px; }
+  .appt-row .info .proc { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .appt-row .info .prof { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+  .appt-row .meta { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .appt-row .time { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .appt-badge {
+    display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px;
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; white-space: nowrap;
   }
-
-  /* generic mock content blocks */
-  .mock-row {
-    display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    padding: 10px 12px; border-radius: 10px; background: var(--surface-raise);
-    border: 1px solid var(--card-border); margin-bottom: 8px; font-size: 12.5px;
-  }
-  .mock-row .name { font-weight: 700; font-size: 12.5px; }
-  .mock-row .sub { color: var(--text-muted); font-size: 11px; }
-  .mock-pill {
-    font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px;
-  }
-  .mock-pill.good { background: var(--good-soft); color: var(--good); }
-  .mock-pill.warn { background: var(--warn-soft); color: var(--warn); }
-  .mock-pill.brand { background: var(--brand-soft); color: var(--brand); }
-
-  /* ---------- Steps ---------- */
-  .steps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; position: relative; }
-  .steps-grid::before {
-    content: ""; position: absolute; top: 34px; left: 8%; right: 8%; height: 1px;
-    background: linear-gradient(90deg, transparent, var(--card-border) 15%, var(--card-border) 85%, transparent);
-    z-index: 0;
-  }
-  .step-card { padding: 24px 18px; position: relative; z-index: 1; }
-  .step-badge {
-    display: inline-block; font-size: 11px; font-weight: 700; color: var(--brand);
-    background: var(--brand-soft); padding: 4px 10px; border-radius: 999px; margin-bottom: 14px;
-  }
-  .step-card h4 { font-size: 15.5px; margin: 0 0 8px; }
-  .step-card p { font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; margin: 0; }
-  .step-num {
-    position: absolute; bottom: 10px; right: 16px; font-size: 40px; font-weight: 800;
-    color: var(--surface-raise-2); font-family: "Segoe UI", sans-serif;
-  }
-  @media (max-width: 860px) { .steps-grid { grid-template-columns: 1fr 1fr; } .steps-grid::before { display: none; } }
-  @media (max-width: 540px) { .steps-grid { grid-template-columns: 1fr; } }
-
-  /* ---------- Recursos grid (dashboard) ---------- */
-  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-  .mini-card { padding: 22px; }
-  .mini-card .ico-badge {
-    width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
-    font-size: 18px; background: var(--brand-soft); margin-bottom: 14px;
-  }
-  .mini-card h4 { font-size: 14.5px; margin: 0 0 6px; }
-  .mini-card p { font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; margin: 0; }
-  @media (max-width: 900px) { .grid-3 { grid-template-columns: 1fr 1fr; } .grid-4 { grid-template-columns: 1fr 1fr; } }
-  @media (max-width: 560px) { .grid-3, .grid-4 { grid-template-columns: 1fr; } }
-
-  /* ---------- Recursos grid (bento) ---------- */
-  .bento-grid { display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: minmax(150px, auto); gap: 16px; }
-  .bento-tile { padding: 22px; display: flex; flex-direction: column; justify-content: center; }
-  .bento-tile.span-2 { grid-column: span 2; }
-  .bento-tile .ico-badge {
-    width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
-    font-size: 18px; background: var(--brand-soft); margin-bottom: 14px;
-  }
-  .bento-tile h4 { font-size: 14.5px; margin: 0 0 6px; }
-  .bento-tile.span-2 h4 { font-size: 16px; }
-  .bento-tile p { font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; margin: 0; }
-  @media (max-width: 900px) { .bento-grid { grid-template-columns: 1fr 1fr; } }
-  @media (max-width: 560px) { .bento-grid { grid-template-columns: 1fr; } .bento-tile.span-2 { grid-column: span 1; } }
+  .appt-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .appt-badge.confirmado { background: var(--blue-soft); color: var(--blue); }
+  .appt-badge.em_andamento { background: var(--warn-soft); color: var(--warn); }
 
   /* ---------- Pricing ---------- */
-  .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; align-items: stretch; }
+  .pricing-section { background: var(--brand-soft); border-radius: 24px; }
+  @media (min-width: 700px) {
+    /* Sangra a caixa cinza pra fora da largura padrão do <main> (que as
+       outras seções usam) — margem negativa some com o padding equivalente,
+       então os cards de preço por dentro ficam na mesma posição/largura de
+       antes; só o fundo arredondado fica visivelmente mais largo. */
+    section.pricing-section { margin-left: -28px; margin-right: -28px; padding-left: 28px; padding-right: 28px; }
+  }
+  .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; align-items: stretch; }
   .price-card { padding: 30px 26px; display: flex; flex-direction: column; position: relative; }
   .price-card.featured { border-color: rgb(var(--color-primary) / 0.5); }
   .popular-badge {
-    position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
-    background: var(--brand-grad); color: var(--brand-ink);
-    font-size: 11px; font-weight: 800; padding: 5px 14px; border-radius: 999px;
+    position: absolute; top: -11px; left: 50%; transform: translateX(-50%);
+    background: var(--brand); color: var(--brand-ink);
+    font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 4px 12px; border-radius: 999px; white-space: nowrap;
   }
   .plan-tag {
-    display: inline-block; font-size: 11.5px; font-weight: 700; color: var(--text-secondary);
-    background: var(--surface-raise-2); padding: 4px 12px; border-radius: 999px; margin-bottom: 16px;
-    align-self: center;
+    align-self: center; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--brand); background: var(--brand-soft); padding: 4px 10px; border-radius: 999px; margin-bottom: 12px;
   }
   .price-card h3 { text-align: center; font-size: 14px; color: var(--text-secondary); font-weight: 600; margin: 0 0 6px; }
-  .price-amount { text-align: center; font-size: 38px; font-weight: 800; font-family: "Segoe UI", sans-serif; margin-bottom: 4px; }
+  .price-amount { text-align: center; font-size: 38px; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 4px; }
   .price-amount span { font-size: 14px; font-weight: 500; color: var(--text-muted); }
   .price-note { text-align: center; font-size: 12px; color: var(--text-muted); margin-bottom: 24px; }
   .price-list { list-style: none; padding: 0; margin: 0 0 26px; display: flex; flex-direction: column; gap: 11px; flex: 1; }
   .price-list li { display: flex; align-items: flex-start; gap: 9px; font-size: 13px; color: var(--text-secondary); }
-  .price-list li::before { content: "✓"; color: var(--good); font-weight: 700; flex-shrink: 0; }
-  .soon-tag {
-    display: inline-block; font-size: 10px; font-weight: 700; color: var(--brand);
-    border: 1px solid rgb(var(--color-primary) / 0.4); border-radius: 999px;
-    padding: 1px 8px; margin-left: 6px; vertical-align: middle;
-  }
+  .price-list li .ico { color: var(--good); display: flex; flex-shrink: 0; margin-top: 2px; }
   .price-card .btn-cta { text-align: center; text-decoration: none; display: block; width: 100%; padding: 12px; }
   .price-footnote { text-align: center; font-size: 11.5px; color: var(--text-muted); margin-top: 10px; }
   @media (max-width: 900px) { .pricing-grid { grid-template-columns: 1fr; } }
 
   /* ---------- FAQ ---------- */
-  .faq-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .faq-item { padding: 4px 4px; }
+  .faq-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
   .faq-q {
-    display: flex; align-items: center; gap: 12px; padding: 16px 18px; cursor: pointer; user-select: none;
+    display: flex; align-items: center; gap: 10px; padding: 14px 16px; cursor: pointer; user-select: none;
   }
   .faq-q .q-ico {
-    width: 26px; height: 26px; border-radius: 8px; background: var(--brand-soft); color: var(--brand);
-    display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0;
+    width: 20px; height: 20px; border-radius: 50%; background: var(--brand-soft); color: var(--brand);
+    font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
   .faq-q span.txt { font-size: 14px; font-weight: 700; flex: 1; }
-  .faq-q .chev { color: var(--text-muted); transition: transform .25s ease; flex-shrink: 0; }
+  .faq-q .chev { color: var(--text-muted); font-size: 12px; transition: transform .25s ease; flex-shrink: 0; }
   .faq-item.open .chev { transform: rotate(180deg); }
   .faq-a { max-height: 0; overflow: hidden; transition: max-height .3s ease; }
   .faq-item.open .faq-a { max-height: 220px; }
-  .faq-a p { padding: 0 18px 18px 56px; margin: 0; font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+  .faq-a p { padding: 0 16px 14px 46px; margin: 0; font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
   @media (max-width: 860px) { .faq-grid { grid-template-columns: 1fr; } }
 
   /* ---------- CTA final ---------- */
-  .cta-final {
-    text-align: center; padding: 64px 40px; border-radius: var(--radius);
-    background: var(--brand-wash);
-    border: 1px solid rgb(var(--color-primary) / 0.25);
-  }
-  .cta-final h2 { margin-bottom: 12px; }
-  .cta-final p { color: var(--text-secondary); font-size: 14.5px; margin-bottom: 26px; }
-  .cta-final .hero-cta { justify-content: center; }
+  .cta-final-wrap { text-align: center; }
+  .cta-final-wrap p { color: var(--text-secondary); font-size: 14.5px; margin: 0 0 22px; }
 
   /* ---------- Footer ---------- */
-  footer.site-footer {
-    border-top: 1px solid var(--divider); padding: 48px 24px 30px; margin-top: 40px;
+  footer.site-footer { border-top: 1px solid var(--divider); background: var(--card-bg-solid); }
+  .footer-inner {
+    max-width: 1160px; margin: 0 auto; padding: 22px;
+    display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap;
+    font-size: 11.5px; color: var(--text-muted);
   }
-  .footer-grid {
-    max-width: 1160px; margin: 0 auto; display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 30px;
-  }
-  .footer-grid h5 { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 12px; }
-  .footer-grid a { display: block; font-size: 13px; color: var(--text-secondary); text-decoration: none; margin-bottom: 9px; }
-  .footer-grid a:hover { color: var(--brand); }
-  .footer-bottom {
-    max-width: 1160px; margin: 30px auto 0; padding-top: 20px; border-top: 1px solid var(--divider);
-    font-size: 12px; color: var(--text-muted); text-align: center;
-  }
-  @media (max-width: 760px) { .footer-grid { grid-template-columns: 1fr 1fr; } }
-
-  @media (max-width: 860px) {
-    .hero-grid { grid-template-columns: 1fr; }
-    .hero-visual { max-width: 460px; margin: 0 auto; }
-  }
+  .footer-inner a { color: inherit; text-decoration: none; }
+  .footer-inner a:hover { color: var(--brand); }
+  .footer-links { display: flex; gap: 14px; }
 </style>
-<noscript><style>.reveal { opacity: 1 !important; transform: none !important; }</style></noscript>
+<noscript><style>.reveal { opacity: 1 !important; transform: none !important; } .chat-msg { opacity: 1 !important; transform: none !important; } .float-toast { opacity: 1 !important; transform: none !important; }</style></noscript>
 </head>
 <body>
 
-
   <header class="topbar">
-    <a class="brand" href="/">
-      <div class="logo"><svg class="icon"><use href="#icon-brand-razor"></use></svg></div>
-      <span>Painel da Barbearia</span>
-    </a>
-    <nav class="main-nav">
-      <a href="#recursos">Recursos</a>
-      <a href="#como-funciona">Como funciona</a>
-      <a href="#precos">Preços</a>
-      <a href="#faq">FAQ</a>
-    </nav>
-    <div class="header-actions">
-      <a class="btn-ghost" href="/login.html">Entrar</a>
-      <a class="btn-primary link" href="/signup.html">Teste grátis</a>
+    <div class="topbar-inner">
+      <a class="brand" href="/">
+        <div class="logo"><svg class="icon" style="width:17px;height:17px;"><use href="#icon-brand-razor"></use></svg></div>
+        <span>Barbearia Bot</span>
+      </a>
+      <nav class="main-nav">
+        <a href="#recursos">Recursos</a>
+        <a href="#como-funciona">Como funciona</a>
+        <a href="#precos">Preços</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <div class="header-actions">
+        <a class="btn-ghost" href="/login.html">Entrar</a>
+        <a class="btn-primary link" href="/signup.html">Teste grátis</a>
+      </div>
     </div>
   </header>
 
@@ -399,7 +382,7 @@
     <section class="hero-grid">
       <div class="hero-copy">
         <span class="eyebrow"><svg class="icon"><use href="#icon-sparkle"></use></svg> Agendamento e atendimento via WhatsApp com IA</span>
-        <h1>Sua barbearia atendendo e agendando sozinha no <span class="brand-text">WhatsApp</span></h1>
+        <h1>Você atende o cliente, nós agendamos no <span class="brand-text">WhatsApp</span>.</h1>
         <p class="lead">
           Conecte o número da sua barbearia, a IA responde clientes, marca, cancela e
           reagenda horários automaticamente — falando do jeito que a sua equipe já fala,
@@ -407,58 +390,64 @@
           ocupação e histórico de clientes.
         </p>
         <div class="hero-features">
-          <div class="hero-feature"><span class="ico"><svg class="icon"><use href="#icon-bot"></use></svg></span>Agente de IA que agenda de verdade</div>
-          <div class="hero-feature"><span class="ico"><svg class="icon"><use href="#icon-calendar"></use></svg></span>Agenda por barbeiro em tempo real</div>
-          <div class="hero-feature"><span class="ico"><svg class="icon"><use href="#icon-chart"></use></svg></span>Dashboard de faturamento e clientes</div>
-          <div class="hero-feature"><span class="ico"><svg class="icon"><use href="#icon-lock"></use></svg></span>Sessão segura + LGPD</div>
+          <div class="hero-feature"><span class="ico"><svg class="icon" style="width:14px;height:14px;"><use href="#icon-bot"></use></svg></span>Agente de IA que agenda de verdade</div>
+          <div class="hero-feature"><span class="ico"><svg class="icon" style="width:14px;height:14px;"><use href="#icon-calendar"></use></svg></span>Agenda por barbeiro em tempo real</div>
+          <div class="hero-feature"><span class="ico"><svg class="icon" style="width:14px;height:14px;"><use href="#icon-chart"></use></svg></span>Dashboard de faturamento e clientes</div>
+          <div class="hero-feature"><span class="ico"><svg class="icon" style="width:14px;height:14px;"><use href="#icon-lock"></use></svg></span>Sessão segura + LGPD</div>
         </div>
         <div class="hero-cta">
-          <a class="btn-primary link" href="/signup.html">Teste grátis por 7 dias <svg class="icon"><use href="#icon-arrow-right"></use></svg></a>
+          <a class="btn-primary link" href="/signup.html">Teste grátis por 7 dias <svg class="icon" style="width:14px;height:14px;"><use href="#icon-arrow-right"></use></svg></a>
           <a class="btn-secondary link" href="#como-funciona">Ver como funciona</a>
         </div>
-        <div class="trust-line"><span class="check"><svg class="icon"><use href="#icon-check"></use></svg></span> Sem cartão de crédito para começar o teste.</div>
+        <div class="trust-line"><span class="check"><svg class="icon" style="width:14px;height:14px;"><use href="#icon-check"></use></svg></span> Sem cartão de crédito para começar o teste.</div>
       </div>
 
       <div class="hero-visual">
-        <div style="position:relative;">
-          <div class="mock-window">
-            <div class="mock-titlebar">
-              <div class="mock-dot r"></div><div class="mock-dot y"></div><div class="mock-dot g"></div>
-              <div class="mock-title">WhatsApp · Barbearia Vintage</div>
-            </div>
-            <div class="chat-head">
-              <div class="chat-avatar"><svg class="icon"><use href="#icon-brand-razor"></use></svg></div>
-              <div>
-                <div class="name">Assistente da Barbearia</div>
-                <div class="status">Online · IA treinada</div>
-              </div>
-              <div class="chat-badge">IA</div>
-            </div>
-            <div class="chat-body">
-              <div class="bubble in">Oi! Vocês têm horário pra um corte amanhã à noite?<time>19:42</time></div>
-              <div class="bubble out">Temos sim! Encontrei 19:30 com o Carlos ou 20:00 com o Rafael. Qual prefere?<time>19:42</time></div>
-              <div class="bubble in">Pode ser 19:30 com o Carlos<time>19:43</time></div>
-              <div class="bubble out">Perfeito, agendado! Corte com o Carlos, amanhã às 19:30. Te aviso antes 👍<time>19:43</time></div>
-            </div>
+        <div class="mock-window">
+          <div class="mock-titlebar">
+            <div class="mock-dot r"></div><div class="mock-dot y"></div><div class="mock-dot g"></div>
+            <div class="mock-title">WhatsApp · Barbearia Vintage</div>
           </div>
-          <div class="float-toast a">
-            <div class="ico"><svg class="icon"><use href="#icon-calendar"></use></svg></div>
-            <div><b>Agendamento criado</b><small>Corte · Carlos · 19:30</small></div>
+          <div class="chat-head">
+            <div class="chat-avatar"><svg class="icon" style="width:18px;height:18px;"><use href="#icon-brand-razor"></use></svg></div>
+            <div class="who">
+              <div class="name">Assistente da Barbearia</div>
+              <div class="status">Online · IA treinada</div>
+            </div>
+            <div class="chat-badge">IA</div>
           </div>
-          <div class="float-toast b">
-            <div class="ico"><svg class="icon"><use href="#icon-coin"></use></svg></div>
-            <div><b>Faturamento do dia</b><small>R$ 480,00 · 12 atendimentos</small></div>
+          <div class="chat-body" id="hero-chat-body">
+            <div class="chat-msg in" data-time="14:12">Oi! Vocês têm horário pra um corte amanhã à tarde?</div>
+            <div class="chat-msg out" data-time="14:12">Temos sim! Encontrei 14:30 com o Carlos ou 15:00 com o Rafael. Qual prefere?</div>
+            <div class="chat-msg in" data-time="14:13">Pode ser 14:30 com o Carlos</div>
+            <div class="chat-msg out" data-time="14:13">Perfeito, agendado! Corte com o Carlos, amanhã às 14:30. Te aviso antes 👍</div>
+            <!-- Indicador de "digitando" único, reaproveitado pelo JS: ele
+                 se move e troca de lado (in/out) conforme a mensagem que vai
+                 aparecer em seguida, em vez de duas divs fixas com lado
+                 fixo (isso causava o indicador aparecer sempre do mesmo
+                 lado e sem pausa antes das duas últimas mensagens). -->
+            <div class="chat-typing" id="hero-typing"><span></span><span></span><span></span></div>
           </div>
+        </div>
+        <div class="float-toast a" id="hero-toast-a">
+          <div class="ico"><svg class="icon" style="width:15px;height:15px;"><use href="#icon-calendar"></use></svg></div>
+          <div><b>Agendamento criado</b><small>Corte · Carlos · 14:30</small></div>
+        </div>
+        <div class="float-toast b" id="hero-toast-b">
+          <div class="ico"><svg class="icon" style="width:15px;height:15px;"><use href="#icon-coin"></use></svg></div>
+          <div><b>Faturamento do dia</b><small>R$ 480,00 · 12 atendimentos</small></div>
         </div>
       </div>
     </section>
 
-    <!-- CONFIANÇA -->
-    <section class="trust-bar reveal" id="confianca">
-      <div class="trust-bar-item"><span class="ico"><svg class="icon"><use href="#icon-check-circle"></use></svg></span> WhatsApp Cloud API oficial da Meta</div>
-      <div class="trust-bar-item"><span class="ico"><svg class="icon"><use href="#icon-briefcase"></use></svg></span> Multi-barbeiro e multi-barbearia</div>
-      <div class="trust-bar-item"><span class="ico"><svg class="icon"><use href="#icon-document"></use></svg></span> LGPD nativo</div>
-      <div class="trust-bar-item"><span class="ico"><svg class="icon"><use href="#icon-gift"></use></svg></span> Teste grátis de 7 dias, sem cartão</div>
+    <!-- RECURSOS / CONFIANÇA -->
+    <section id="recursos" class="tight reveal">
+      <div class="trust-bar">
+        <div class="trust-bar-item"><span class="ico"><svg class="icon" style="width:15px;height:15px;"><use href="#icon-check-circle"></use></svg></span> WhatsApp Cloud API oficial da Meta</div>
+        <div class="trust-bar-item"><span class="ico"><svg class="icon" style="width:15px;height:15px;"><use href="#icon-users"></use></svg></span> Multi-barbeiro e multi-barbearia</div>
+        <div class="trust-bar-item"><span class="ico"><svg class="icon" style="width:15px;height:15px;"><use href="#icon-document"></use></svg></span> LGPD nativo</div>
+        <div class="trust-bar-item"><span class="ico"><svg class="icon" style="width:15px;height:15px;"><use href="#icon-gift"></use></svg></span> Teste grátis de 7 dias, sem cartão</div>
+      </div>
     </section>
 
     <!-- COMO FUNCIONA -->
@@ -466,275 +455,59 @@
       <div class="section-head">
         <span class="eyebrow"><svg class="icon"><use href="#icon-settings"></use></svg> Fluxo simples</span>
         <h2>Como funciona na prática</h2>
-        <p>Do cadastro ao primeiro atendimento automático, em poucos passos.</p>
+        <p>Do primeiro "oi" no WhatsApp até o agendamento aparecer no painel.</p>
       </div>
-      <div class="steps-grid">
-        <div class="card step-card">
-          <span class="step-badge">Passo 01</span>
-          <h4>Crie sua conta</h4>
-          <p>Cadastre sua barbearia, confirme o e-mail e comece o teste grátis de 7 dias, sem cartão.</p>
-          <span class="step-num">01</span>
+      <div class="steps-grid-3">
+        <div class="step-col">
+          <div class="step-head"><span class="step-num-badge">1</span><h4>O cliente manda mensagem</h4></div>
+          <div class="phone-mock">
+            <div class="phone-bubble in">Oi! Consigo remarcar meu corte pra quinta à tarde?</div>
+          </div>
         </div>
-        <div class="card step-card">
-          <span class="step-badge">Passo 02</span>
-          <h4>Conecte o WhatsApp</h4>
-          <p>Ligue o número da barbearia à WhatsApp Cloud API oficial da Meta, sem número pessoal.</p>
-          <span class="step-num">02</span>
+        <div class="step-col">
+          <div class="step-head"><span class="step-num-badge">2</span><h4>A IA confirma o horário</h4></div>
+          <div class="phone-mock">
+            <div class="phone-bubble in">Oi! Consigo remarcar meu corte pra quinta à tarde?</div>
+            <div class="phone-bubble out">Claro, Marina! Quinta (14/08) tenho 14:00 ou 16:30 com o Diego. Qual fica melhor?</div>
+            <div class="phone-bubble in">16:30 tá ótimo</div>
+            <div class="phone-bubble out">Remarcado para quinta, 14/08 às 16:30 com o Diego. Vou te lembrar um dia antes. 😊</div>
+          </div>
         </div>
-        <div class="card step-card">
-          <span class="step-badge">Passo 03</span>
-          <h4>Cadastre serviços e barbeiros</h4>
-          <p>Defina preços, duração, horário de funcionamento e quem atende o quê.</p>
-          <span class="step-num">03</span>
-        </div>
-        <div class="card step-card">
-          <span class="step-badge">Passo 04</span>
-          <h4>A IA assume o atendimento</h4>
-          <p>Clientes agendam sozinhos pelo WhatsApp e você acompanha tudo pelo painel.</p>
-          <span class="step-num">04</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- RECURSOS (bento) -->
-    <section id="recursos" class="tight reveal">
-      <div class="section-head">
-        <span class="eyebrow"><svg class="icon"><use href="#icon-puzzle"></use></svg> Recursos</span>
-        <h2>Tudo que sua barbearia precisa, num só painel</h2>
-        <p>Da IA que atende de verdade até a segurança que roda por trás, sem aparecer na tela.</p>
-      </div>
-      <div class="bento-grid">
-        <div class="card bento-tile span-2">
-          <div class="ico-badge"><svg class="icon"><use href="#icon-bot"></use></svg></div>
-          <h4>A IA agenda, cancela e reagenda de verdade</h4>
-          <p>Consulta horários livres e cria o agendamento direto no seu banco de dados — não é um robô que só devolve link.</p>
-        </div>
-        <div class="card bento-tile">
-          <div class="ico-badge"><svg class="icon"><use href="#icon-lock"></use></svg></div>
-          <h4>Sessão segura</h4>
-          <p>Login com sessão armazenada no Postgres, headers de segurança (CSP, HSTS) e limite de tentativas.</p>
-        </div>
-        <div class="card bento-tile">
-          <div class="ico-badge"><svg class="icon"><use href="#icon-document"></use></svg></div>
-          <h4>LGPD nativo</h4>
-          <p>Cliente pode solicitar exclusão dos próprios dados direto pelo site, sem abrir chamado.</p>
-        </div>
-        <div class="card bento-tile span-2">
-          <div class="ico-badge"><svg class="icon"><use href="#icon-chart"></use></svg></div>
-          <h4>Faturamento e ocupação em tempo real</h4>
-          <p>Veja quanto entrou hoje, a tendência da semana e os horários mais ocupados, sem precisar abrir planilha.</p>
-        </div>
-        <div class="card bento-tile">
-          <div class="ico-badge"><svg class="icon"><use href="#icon-document"></use></svg></div>
-          <h4>Auditoria</h4>
-          <p>Toda ação sensível do dono fica registrada em log de auditoria, com data e responsável.</p>
-        </div>
-        <div class="card bento-tile">
-          <div class="ico-badge"><svg class="icon"><use href="#icon-save"></use></svg></div>
-          <h4>Backup automático</h4>
-          <p>Backup diário do banco de dados, sem depender de ninguém lembrar de fazer.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- PRODUTO / TABS -->
-    <section id="produto" class="tight reveal">
-      <div class="section-head" style="text-align:left; max-width:none; margin-bottom:36px;">
-        <h2 style="font-size:clamp(22px, 2.5vw, 32px);">Um painel completo pra atendimento, agenda e <span class="brand-text">CRM</span></h2>
-        <p>Tudo o que a sua barbearia precisa pra atender pelo WhatsApp e gerenciar o dia a dia, no mesmo lugar.</p>
-      </div>
-
-      <div class="tab-bar" id="tab-bar">
-        <button class="tab-btn active" data-tab="0"><svg class="icon"><use href="#icon-bot"></use></svg> Atendimento com IA</button>
-        <button class="tab-btn" data-tab="1"><svg class="icon"><use href="#icon-calendar"></use></svg> Agenda e horários</button>
-        <button class="tab-btn" data-tab="2"><svg class="icon"><use href="#icon-chart"></use></svg> Faturamento e ocupação</button>
-        <button class="tab-btn" data-tab="3"><svg class="icon"><use href="#icon-users"></use></svg> CRM de clientes</button>
-        <button class="tab-btn" data-tab="4"><svg class="icon"><use href="#icon-briefcase"></use></svg> Multi-barbeiro</button>
-        <button class="tab-btn" data-tab="5"><svg class="icon"><use href="#icon-bell"></use></svg> Lembretes e avaliações</button>
-      </div>
-      <div class="autoplay-row">
-        <button id="autoplay-toggle" title="Pausar/retomar"><svg class="icon"><use href="#icon-pause"></use></svg></button>
-        <span id="autoplay-label">Auto-play em execução</span>
-        <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
-        <span id="tab-counter" class="tab-counter">1 / 6</span>
-        <button id="tab-next" title="Próximo recurso" aria-label="Próximo recurso"><svg class="icon"><use href="#icon-arrow-right"></use></svg></button>
-      </div>
-
-      <div class="feature-panels" id="feature-panels">
-      <!-- Painel 0: IA -->
-      <div class="feature-panel active" data-panel="0">
-        <div>
-          <div class="ico-badge"><svg class="icon"><use href="#icon-bot"></use></svg></div>
-          <div class="kicker">Produto</div>
-          <h3>A IA agenda, cancela e reagenda de verdade</h3>
-          <p class="desc">Nada de robô que só devolve link. O assistente entende o contexto da conversa,
-            consulta horários livres e cria o agendamento direto no seu banco de dados, e chama um
-            humano quando o assunto sai do escopo dele.</p>
-          <ul class="feature-list">
-            <li>Consulta serviços, barbeiros e horários disponíveis em tempo real</li>
-            <li>Cria, cancela e reagenda direto na conversa do WhatsApp</li>
-            <li>Escala pra um humano quando não sabe responder</li>
-            <li>Aprende o tom de voz da sua barbearia com exemplos reais de mensagens que vocês já mandam</li>
-          </ul>
-          <div class="tip-box"><b>Dica:</b> a IA também roda no widget de chat do seu site, não só no WhatsApp.</div>
-          <div class="tip-box"><b>Sem cara de robô:</b> em Configurações você cola algumas mensagens que sua equipe manda no dia a dia — a IA usa isso como referência e responde do jeito que sua barbearia já fala com o cliente, não com um tom genérico de central de atendimento.</div>
-        </div>
-        <div class="card feature-mock">
-          <div class="mock-row"><div><div class="name">verificar_horarios_disponiveis</div><div class="sub">ferramenta da IA</div></div><span class="mock-pill good">ok</span></div>
-          <div class="mock-row"><div><div class="name">criar_agendamento</div><div class="sub">Corte · Carlos · 19:30</div></div><span class="mock-pill brand">executado</span></div>
-          <div class="mock-row"><div><div class="name">registrar_avaliacao</div><div class="sub">5 estrelas · "Atendimento rápido"</div></div><span class="mock-pill good">ok</span></div>
-          <div class="mock-row"><div><div class="name">escalar_atendimento_humano</div><div class="sub">Cliente pediu desconto especial</div></div><span class="mock-pill warn">escalado</span></div>
-        </div>
-      </div>
-
-      <!-- Painel 1: Agenda -->
-      <div class="feature-panel" data-panel="1">
-        <div>
-          <div class="ico-badge"><svg class="icon"><use href="#icon-calendar"></use></svg></div>
-          <div class="kicker">Produto</div>
-          <h3>Agenda por barbeiro, sem conflito de horário</h3>
-          <p class="desc">Cada barbeiro tem sua própria disponibilidade, bloqueios de horário e histórico de
-            atendimentos. O cliente também pode reagendar ou cancelar sozinho pelo WhatsApp.</p>
-          <ul class="feature-list">
-            <li>Horário comercial e bloqueios configuráveis por barbeiro</li>
-            <li>Cliente cancela e reagenda sem precisar ligar</li>
-            <li>Exportação em .ics pro cliente adicionar no calendário</li>
-          </ul>
-          <div class="tip-box"><b>Dica:</b> lembretes automáticos são enviados por WhatsApp antes de cada horário.</div>
-        </div>
-        <div class="card feature-mock">
-          <div class="mock-row"><div><div class="name">09:00 · Rafael</div><div class="sub">Corte + Barba · João</div></div><span class="mock-pill good">confirmado</span></div>
-          <div class="mock-row"><div><div class="name">10:30 · Carlos</div><div class="sub">Corte · Pedro</div></div><span class="mock-pill brand">em andamento</span></div>
-          <div class="mock-row"><div><div class="name">11:00 · Diego</div><div class="sub">Bloqueado · almoço</div></div><span class="mock-pill warn">bloqueado</span></div>
-          <div class="mock-row"><div><div class="name">14:00 · Rafael</div><div class="sub">Corte · Marcos</div></div><span class="mock-pill good">confirmado</span></div>
-        </div>
-      </div>
-
-      <!-- Painel 2: Faturamento -->
-      <div class="feature-panel" data-panel="2">
-        <div>
-          <div class="ico-badge"><svg class="icon"><use href="#icon-chart"></use></svg></div>
-          <div class="kicker">Produto</div>
-          <h3>Faturamento e ocupação em tempo real</h3>
-          <p class="desc">Veja quanto entrou hoje, a tendência da semana e os horários mais ocupados,
-            sem precisar abrir planilha.</p>
-          <ul class="feature-list">
-            <li>Faturamento do dia, tendência e comparação por período</li>
-            <li>Ocupação por horário pra identificar picos e vazios</li>
-            <li>Controle de produtos e estoque vendido no balcão</li>
-          </ul>
-          <div class="tip-box"><b>Dica:</b> auditoria registra toda ação sensível feita pelo dono no painel.</div>
-        </div>
-        <div class="card feature-mock">
-          <div class="mock-row"><div><div class="name">Faturamento hoje</div><div class="sub">32 atendimentos</div></div><span class="mock-pill good">R$ 1.480</span></div>
-          <div class="mock-row"><div><div class="name">Tendência da semana</div><div class="sub">vs. semana anterior</div></div><span class="mock-pill good">+18%</span></div>
-          <div class="mock-row"><div><div class="name">Pico de ocupação</div><div class="sub">sábado</div></div><span class="mock-pill brand">17h–19h</span></div>
-          <div class="mock-row"><div><div class="name">Produtos vendidos</div><div class="sub">pomada, óleo de barba</div></div><span class="mock-pill good">R$ 210</span></div>
-        </div>
-      </div>
-
-      <!-- Painel 3: CRM -->
-      <div class="feature-panel" data-panel="3">
-        <div>
-          <div class="ico-badge"><svg class="icon"><use href="#icon-users"></use></svg></div>
-          <div class="kicker">Produto</div>
-          <h3>Histórico de cliente identificado pelo telefone</h3>
-          <p class="desc">Cada cliente é reconhecido automaticamente pelo número de WhatsApp, com todo o
-            histórico de visitas, avaliações e aniversário, sem precisar de cadastro manual.</p>
-          <ul class="feature-list">
-            <li>Histórico completo de visitas por cliente</li>
-            <li>Lembrete de aniversário e mensagens de reconquista</li>
-            <li>Avaliações coletadas automaticamente após o atendimento</li>
-          </ul>
-          <div class="tip-box"><b>Dica:</b> clientes podem solicitar exclusão dos próprios dados (LGPD) direto pelo site.</div>
-        </div>
-        <div class="card feature-mock">
-          <div class="mock-row"><div><div class="name">Mariana Lima</div><div class="sub">8 visitas · última há 12 dias</div></div><span class="mock-pill brand"><svg class="icon icon-filled" style="width:0.85em;height:0.85em;"><use href="#icon-star"></use></svg> 5.0</span></div>
-          <div class="mock-row"><div><div class="name">Pedro Alves</div><div class="sub">aniversário em 3 dias</div></div><span class="mock-pill warn">lembrete</span></div>
-          <div class="mock-row"><div><div class="name">João Souza</div><div class="sub">sem visita há 45 dias</div></div><span class="mock-pill warn">reconquista</span></div>
-          <div class="mock-row"><div><div class="name">Marcos Dias</div><div class="sub">12 visitas · cliente fiel</div></div><span class="mock-pill good"><svg class="icon icon-filled" style="width:0.85em;height:0.85em;"><use href="#icon-star"></use></svg> 4.9</span></div>
-        </div>
-      </div>
-
-      <!-- Painel 4: Multi-barbeiro -->
-      <div class="feature-panel" data-panel="4">
-        <div>
-          <div class="ico-badge"><svg class="icon"><use href="#icon-briefcase"></use></svg></div>
-          <div class="kicker">Produto</div>
-          <h3>Uma barbearia, vários barbeiros, um único número</h3>
-          <p class="desc">Cada barbearia é isolada no sistema (multi-tenant): o dono gerencia barbeiros,
-            serviços e horários; cada barbeiro tem seu próprio login e agenda.</p>
-          <ul class="feature-list">
-            <li>Login separado por barbeiro, com permissões próprias</li>
-            <li>Cadastro de serviços com preço e duração</li>
-            <li>Ativar/desativar barbeiro sem perder o histórico</li>
-          </ul>
-          <div class="tip-box"><b>Dica:</b> o plano Starter cobre até 2 barbeiros ativos; o Pro é ilimitado.</div>
-        </div>
-        <div class="card feature-mock">
-          <div class="mock-row"><div><div class="name">Carlos</div><div class="sub">dono · acesso total</div></div><span class="mock-pill good">ativo</span></div>
-          <div class="mock-row"><div><div class="name">Rafael</div><div class="sub">barbeiro</div></div><span class="mock-pill good">ativo</span></div>
-          <div class="mock-row"><div><div class="name">Diego</div><div class="sub">barbeiro</div></div><span class="mock-pill good">ativo</span></div>
-          <div class="mock-row"><div><div class="name">Lucas</div><div class="sub">barbeiro · férias</div></div><span class="mock-pill warn">inativo</span></div>
-        </div>
-      </div>
-
-      <!-- Painel 5: Lembretes -->
-      <div class="feature-panel" data-panel="5">
-        <div>
-          <div class="ico-badge"><svg class="icon"><use href="#icon-bell"></use></svg></div>
-          <div class="kicker">Produto</div>
-          <h3>Lembretes automáticos e notificações push</h3>
-          <p class="desc">Menos "esqueci" e menos falta: o cliente recebe lembrete por WhatsApp e o barbeiro
-            recebe push no navegador quando alguém pede ajuda humana.</p>
-          <ul class="feature-list">
-            <li>Lembrete automático antes de cada atendimento</li>
-            <li>Notificação push pro barbeiro em caso de escalonamento</li>
-            <li>Templates aprovados de mensagem, sem risco de bloqueio no WhatsApp</li>
-          </ul>
-          <div class="tip-box"><b>Dica:</b> tudo roda via WhatsApp Cloud API oficial da Meta, não número pessoal.</div>
-        </div>
-        <div class="card feature-mock">
-          <div class="mock-row"><div><div class="name">Lembrete enviado</div><div class="sub">Mariana · 19:30 hoje</div></div><span class="mock-pill good">entregue</span></div>
-          <div class="mock-row"><div><div class="name">Escalação para humano</div><div class="sub">cliente pediu desconto</div></div><span class="mock-pill warn">push enviado</span></div>
-          <div class="mock-row"><div><div class="name">Avaliação recebida</div><div class="sub">Pedro · <svg class="icon icon-filled" style="width:0.85em;height:0.85em;"><use href="#icon-star"></use></svg> 5.0</div></div><span class="mock-pill good">registrada</span></div>
-          <div class="mock-row"><div><div class="name">Backup diário</div><div class="sub">banco de dados</div></div><span class="mock-pill good">concluído</span></div>
-        </div>
-      </div>
-      </div>
-    </section>
-
-    <!-- SOCIAL PROOF: hoje são destaques de capacidade real do produto, não
-         depoimentos de clientes — a plataforma ainda não tem citações reais
-         coletadas. Quando houver, trocar por cards de citação (avatar + nome
-         + barbearia + depoimento) em vez de inventar nomes/citações falsas. -->
-    <section id="social-proof" class="tight reveal">
-      <div class="section-head">
-        <span class="eyebrow"><svg class="icon"><use href="#icon-handshake"></use></svg> Por que confiar</span>
-        <h2>Feito pra rodar de verdade numa barbearia</h2>
-        <p>Sem letra miúda: é a mesma infraestrutura oficial da Meta, com dados isolados por barbearia.</p>
-      </div>
-      <div class="grid-3">
-        <div class="card mini-card">
-          <div class="ico-badge"><svg class="icon"><use href="#icon-check-circle"></use></svg></div>
-          <h4>WhatsApp Cloud API oficial da Meta</h4>
-          <p>Sem QR Code em celular pessoal, sem risco de bloqueio — número comercial da própria barbearia.</p>
-        </div>
-        <div class="card mini-card">
-          <div class="ico-badge"><svg class="icon"><use href="#icon-briefcase"></use></svg></div>
-          <h4>Multi-barbeiro, multi-barbearia</h4>
-          <p>Cada barbearia isolada no sistema, cada barbeiro com login e agenda próprios.</p>
-        </div>
-        <div class="card mini-card">
-          <div class="ico-badge"><svg class="icon"><use href="#icon-gift"></use></svg></div>
-          <h4>Teste grátis de 7 dias</h4>
-          <p>Acesso completo ao painel e à IA, sem pedir cartão de crédito pra começar.</p>
+        <div class="step-col">
+          <div class="step-head"><span class="step-num-badge">3</span><h4>A agenda do painel atualiza sozinha</h4></div>
+          <div class="card step-card">
+            <div class="label">Agendamentos de hoje</div>
+            <div class="appt-row">
+              <div class="avatar c1">RL</div>
+              <div class="info">
+                <div class="name">Rafael Lima</div>
+                <div class="proc">Corte + Barba</div>
+                <div class="prof">Carlos</div>
+              </div>
+              <div class="meta">
+                <div class="time">15:15</div>
+                <span class="appt-badge em_andamento"><span class="dot"></span>em andamento</span>
+              </div>
+            </div>
+            <div class="appt-row">
+              <div class="avatar c2">MA</div>
+              <div class="info">
+                <div class="name">Marina Alves</div>
+                <div class="proc">Corte</div>
+                <div class="prof">Diego</div>
+              </div>
+              <div class="meta">
+                <div class="time">16:30</div>
+                <span class="appt-badge confirmado"><span class="dot"></span>confirmado</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- PREÇOS -->
-    <section id="precos" class="tight reveal">
+    <section id="precos" class="tight reveal pricing-section">
       <div class="section-head">
         <span class="eyebrow"><svg class="icon"><use href="#icon-credit-card"></use></svg> Planos e valores</span>
         <h2>Preços para cada tamanho de barbearia</h2>
@@ -747,26 +520,26 @@
           <div class="price-amount">R$ 0<span>/7 dias</span></div>
           <div class="price-note">Depois, escolha Starter ou Pro.</div>
           <ul class="price-list">
-            <li>Acesso completo ao painel e à IA</li>
-            <li>Até 2 barbeiros ativos</li>
-            <li>WhatsApp conectado via Cloud API</li>
-            <li>Sem necessidade de cartão</li>
-            <li>Mensagens automáticas (lembrete, reagendamento, reconquista) com uso limitado durante o teste</li>
+            <li><span class="ico"><svg class="icon" style="width:14px;height:14px;"><use href="#icon-check"></use></svg></span>Acesso completo ao painel e à IA</li>
+            <li><span class="ico"><svg class="icon" style="width:14px;height:14px;"><use href="#icon-check"></use></svg></span>Até 2 barbeiros ativos</li>
+            <li><span class="ico"><svg class="icon" style="width:14px;height:14px;"><use href="#icon-check"></use></svg></span>WhatsApp conectado via Cloud API</li>
+            <li><span class="ico"><svg class="icon" style="width:14px;height:14px;"><use href="#icon-check"></use></svg></span>Sem necessidade de cartão</li>
+            <li><span class="ico"><svg class="icon" style="width:14px;height:14px;"><use href="#icon-check"></use></svg></span>Mensagens automáticas (lembrete, reagendamento, reconquista) com uso limitado durante o teste</li>
           </ul>
           <a class="btn-secondary btn-cta link" href="/signup.html">Começar teste grátis</a>
           <div class="price-footnote">Crie sua conta agora.</div>
         </div>
         <div class="card price-card featured">
-          <span class="popular-badge">Mais popular</span>
+          <span class="popular-badge">Mais escolhido</span>
           <span class="plan-tag">Starter</span>
           <h3>Pra barbearias de até 2 barbeiros</h3>
           <div class="price-amount">R$ 99<span>/mês</span></div>
           <div class="price-note">Até 2 barbeiros ativos.</div>
           <ul class="price-list">
-            <li>Atendimento via IA no WhatsApp</li>
-            <li>Dashboard de faturamento e clientes</li>
-            <li>Lembretes automáticos por WhatsApp</li>
-            <li>Backup diário e auditoria</li>
+            <li><span class="ico"><svg class="icon" style="width:14px;height:14px;"><use href="#icon-check"></use></svg></span>Atendimento por IA no WhatsApp</li>
+            <li><span class="ico"><svg class="icon" style="width:14px;height:14px;"><use href="#icon-check"></use></svg></span>Dashboard de faturamento e clientes</li>
+            <li><span class="ico"><svg class="icon" style="width:14px;height:14px;"><use href="#icon-check"></use></svg></span>Lembretes automáticos por WhatsApp</li>
+            <li><span class="ico"><svg class="icon" style="width:14px;height:14px;"><use href="#icon-check"></use></svg></span>Backup diário e auditoria</li>
           </ul>
           <a class="btn-primary btn-cta link" href="/signup.html">Assinar Starter</a>
           <div class="price-footnote">Assine dentro do painel após o cadastro.</div>
@@ -777,10 +550,10 @@
           <div class="price-amount">R$ 149<span>/mês</span></div>
           <div class="price-note">Ideal pra barbearias em crescimento.</div>
           <ul class="price-list">
-            <li>Tudo do Starter, sem limite de barbeiros</li>
-            <li>Planos de assinatura pros seus clientes</li>
-            <li>Prioridade em novos recursos</li>
-            <li>Suporte via portal do cliente Stripe</li>
+            <li><span class="ico"><svg class="icon" style="width:14px;height:14px;"><use href="#icon-check"></use></svg></span>Tudo do Starter, sem limite de barbeiros</li>
+            <li><span class="ico"><svg class="icon" style="width:14px;height:14px;"><use href="#icon-check"></use></svg></span>Planos de assinatura pros seus clientes</li>
+            <li><span class="ico"><svg class="icon" style="width:14px;height:14px;"><use href="#icon-check"></use></svg></span>Prioridade em novos recursos</li>
+            <li><span class="ico"><svg class="icon" style="width:14px;height:14px;"><use href="#icon-check"></use></svg></span>Suporte via portal do cliente Stripe</li>
           </ul>
           <a class="btn-secondary btn-cta link" href="/signup.html">Assinar Pro</a>
           <div class="price-footnote">Cancele quando quiser, sem multa.</div>
@@ -829,147 +602,27 @@
 
     <!-- CTA FINAL -->
     <section class="tight reveal">
-      <div class="cta-final">
+      <div class="cta-final-wrap">
         <span class="eyebrow"><svg class="icon"><use href="#icon-rocket"></use></svg> Pronto para começar?</span>
         <h2>Deixe o WhatsApp da sua barbearia trabalhar sozinho</h2>
         <p>Teste grátis por 7 dias, sem cartão de crédito. Cancele quando quiser.</p>
-        <div class="hero-cta">
-          <a class="btn-primary link" href="/signup.html">Criar minha conta <svg class="icon"><use href="#icon-arrow-right"></use></svg></a>
-          <a class="btn-secondary link" href="/login.html">Já tenho conta</a>
-        </div>
+        <a class="btn-primary link" href="/signup.html">Criar conta da barbearia <svg class="icon" style="width:14px;height:14px;"><use href="#icon-arrow-right"></use></svg></a>
       </div>
     </section>
   </main>
 
   <footer class="site-footer">
-    <div class="footer-grid">
-      <div>
-        <div class="brand" style="margin-bottom:12px;">
-          <div class="logo"><svg class="icon"><use href="#icon-brand-razor"></use></svg></div>
-          <span>Painel da Barbearia</span>
-        </div>
-        <p style="font-size:12.5px; color:var(--text-muted); max-width:280px; line-height:1.6;">
-          Plataforma de agendamento e atendimento via WhatsApp com IA para barbearias.
-        </p>
-      </div>
-      <div>
-        <h5>Produto</h5>
-        <a href="#recursos">Recursos</a>
-        <a href="#como-funciona">Como funciona</a>
-        <a href="#precos">Preços</a>
-      </div>
-      <div>
-        <h5>Conta</h5>
-        <a href="/signup.html">Criar conta</a>
-        <a href="/login.html">Entrar</a>
-        <a href="/esqueci-senha.html">Esqueci minha senha</a>
-      </div>
-      <div>
-        <h5>Legal</h5>
+    <div class="footer-inner">
+      <span>Barbearia Bot · agendamento por WhatsApp com IA</span>
+      <span class="footer-links">
         <a href="/privacidade.html">Privacidade</a>
-        <a href="/termos.html">Termos de uso</a>
-        <a href="/excluir-dados.html">Excluir meus dados</a>
-      </div>
+        <a href="/termos.html">Termos</a>
+      </span>
     </div>
-    <div class="footer-bottom">© <span id="year"></span> Painel da Barbearia. Todos os direitos reservados.</div>
   </footer>
 
   <script>
-    // ---- Tabs de recursos com auto-play ----
-    const tabButtons = document.querySelectorAll('.tab-btn');
-    const panels = document.querySelectorAll('.feature-panel');
-    const featurePanelsWrap = document.getElementById('feature-panels');
-    const progressFill = document.getElementById('progress-fill');
-    const autoplayToggle = document.getElementById('autoplay-toggle');
-    const autoplayLabel = document.getElementById('autoplay-label');
-    const tabCounter = document.getElementById('tab-counter');
-    const tabNext = document.getElementById('tab-next');
-    const TAB_DURATION = 15000;
-    let current = 0;
-    let playing = true;
-    let rafId = null;
-    let segmentStart = null;
-
-    function showTab(index) {
-      current = index;
-      tabButtons.forEach((btn, i) => btn.classList.toggle('active', i === index));
-      panels.forEach((p, i) => p.classList.toggle('active', i === index));
-      tabCounter.textContent = `${index + 1} / ${panels.length}`;
-      setFeaturePanelsHeight();
-      // No mobile a barra de pílulas rola horizontalmente e a ativa pode ficar
-      // fora da tela — sem isso o usuário não teria como saber qual recurso
-      // está selecionado sem arrastar a barra manualmente. Rola só o container
-      // da barra (scrollLeft), nunca a página — scrollIntoView puxava a tela
-      // inteira de volta pra essa seção mesmo com o usuário lendo o rodapé.
-      const btn = tabButtons[index];
-      const bar = btn.parentElement;
-      const target = btn.offsetLeft - (bar.clientWidth - btn.clientWidth) / 2;
-      bar.scrollTo({ left: target, behavior: 'smooth' });
-    }
-
-    function tick(ts) {
-      if (!playing) return;
-      if (segmentStart === null) segmentStart = ts;
-      const elapsed = ts - segmentStart;
-      const pct = Math.min(100, (elapsed / TAB_DURATION) * 100);
-      progressFill.style.width = pct + '%';
-      if (elapsed >= TAB_DURATION) {
-        segmentStart = ts;
-        showTab((current + 1) % panels.length);
-      }
-      rafId = requestAnimationFrame(tick);
-    }
-
-    function startAutoplay() {
-      playing = true;
-      segmentStart = null;
-      autoplayToggle.innerHTML = '<svg class="icon"><use href="#icon-pause"></use></svg>';
-      autoplayLabel.textContent = 'Auto-play em execução';
-      rafId = requestAnimationFrame(tick);
-    }
-    function stopAutoplay() {
-      playing = false;
-      autoplayToggle.innerHTML = '<svg class="icon"><use href="#icon-play"></use></svg>';
-      autoplayLabel.textContent = 'Auto-play pausado';
-      progressFill.style.width = '0%';
-      if (rafId) cancelAnimationFrame(rafId);
-    }
-
-    tabButtons.forEach((btn) => {
-      btn.addEventListener('click', () => {
-        showTab(Number(btn.dataset.tab));
-        stopAutoplay();
-      });
-    });
-    autoplayToggle.addEventListener('click', () => {
-      if (playing) stopAutoplay(); else startAutoplay();
-    });
-    tabNext.addEventListener('click', () => {
-      showTab((current + 1) % panels.length);
-      stopAutoplay();
-    });
-
-    // Ajusta a altura do wrapper na do painel ATIVO (não a do maior entre os
-    // 6 — cada recurso tem texto de tamanho diferente, e reservar sempre o
-    // espaço do mais alto deixava um vão vazio grande embaixo dos painéis
-    // mais curtos, principalmente no mobile). A transição no CSS
-    // (.feature-panels) suaviza a troca, então o resto da página não "pula"
-    // de forma abrupta ao trocar de aba (manual ou automática).
-    // Recalcula no resize (debounced) porque o breakpoint de 860px muda o
-    // layout de 2 colunas pra 1 — a altura do painel ativo muda bastante.
-    function setFeaturePanelsHeight() {
-      featurePanelsWrap.style.minHeight = panels[current].scrollHeight + 'px';
-    }
-    let resizeTimer = null;
-    window.addEventListener('resize', () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(setFeaturePanelsHeight, 150);
-    });
-
-    showTab(0);
-    startAutoplay();
-
-    // ---- FAQ accordion ----
+    // ---- FAQ accordion (abertura única) ----
     document.querySelectorAll('.faq-item').forEach((item) => {
       item.querySelector('.faq-q').addEventListener('click', () => {
         const isOpen = item.classList.contains('open');
@@ -977,8 +630,6 @@
         if (!isOpen) item.classList.add('open');
       });
     });
-
-    document.getElementById('year').textContent = new Date().getFullYear();
 
     // ---- Reveal ao rolar a página ----
     const revealEls = document.querySelectorAll('.reveal');
@@ -1002,6 +653,78 @@
     } else {
       revealEls.forEach((el) => el.classList.add('in-view'));
     }
+
+    // ---- Simulador de chat do hero: revela as mensagens em sequência, com
+    // indicador de "digitando" antes de cada resposta do bot, e só mostra os
+    // toasts flutuantes depois que a última mensagem aparece. ----
+    (function heroChat() {
+      const body = document.getElementById('hero-chat-body');
+      if (!body) return;
+      const msgs = Array.from(body.querySelectorAll('.chat-msg'));
+      const typing = document.getElementById('hero-typing');
+      const toastA = document.getElementById('hero-toast-a');
+      const toastB = document.getElementById('hero-toast-b');
+      if (!msgs.length) return;
+
+      // time="" vira o rótulo de horário dentro do balão (<time> no fim,
+      // alinhado à direita).
+      msgs.forEach((m) => {
+        const t = m.dataset.time;
+        if (t) {
+          const time = document.createElement('time');
+          time.textContent = t;
+          m.appendChild(time);
+        }
+      });
+
+      // Desmonta as mensagens do DOM (ficam só na referência `msgs`) e cada
+      // uma é reinserida (appendChild) só na hora que "chega" — assim a
+      // conversa nasce vazia e cresce de baixo pra cima empurrando as
+      // anteriores pra cima, igual chat de verdade, em vez de só trocar a
+      // opacidade de um espaço que já estava todo reservado desde o início.
+      // Sem JS (noscript), como esse remove() nunca roda, as 4 continuam no
+      // HTML original e aparecem todas de uma vez — fallback aceitável.
+      msgs.forEach((m) => m.remove());
+
+      // Mostra os "3 pontinhos" no MESMO lado da próxima mensagem que vai
+      // aparecer — digitação antes de toda mensagem, não só das respostas
+      // do bot.
+      function showTyping(isOut, cb) {
+        if (!typing) return cb();
+        typing.className = 'chat-typing visible' + (isOut ? ' out' : '');
+        body.appendChild(typing);
+        setTimeout(() => {
+          typing.classList.remove('visible');
+          typing.remove();
+          cb();
+        }, 950);
+      }
+
+      function reveal(i) {
+        if (i >= msgs.length) {
+          if (toastA) toastA.classList.add('show');
+          if (toastB) toastB.classList.add('show');
+          return;
+        }
+        // Mesmo intervalo entre cada mensagem (500ms antes da primeira,
+        // 450ms antes das seguintes) + os 950ms de "digitando" acima —
+        // sem isso as duas últimas apareciam quase juntas.
+        const delay = i === 0 ? 500 : 450;
+        setTimeout(() => {
+          showTyping(msgs[i].classList.contains('out'), () => {
+            body.appendChild(msgs[i]);
+            // Precisa de 2 frames antes de trocar a classe: appendChild +
+            // adicionar 'shown' no mesmo tick faz o navegador pular a
+            // transição (o elemento já nasce no estado final, sem animar).
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+              msgs[i].classList.add('shown');
+            }));
+            reveal(i + 1);
+          });
+        }, delay);
+      }
+      reveal(0);
+    })();
   </script>
 </body>
 </html>
