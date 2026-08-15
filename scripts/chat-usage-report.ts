@@ -24,7 +24,7 @@ async function main() {
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
   const logs = await prisma.chatUsageLog.groupBy({
-    by: ["barbershopId"],
+    by: ["businessId"],
     where: { createdAt: { gte: since } },
     _sum: {
       inputTokens: true,
@@ -40,11 +40,11 @@ async function main() {
     return;
   }
 
-  const barbershops = await prisma.barbershop.findMany({
-    where: { id: { in: logs.map((l) => l.barbershopId) } },
+  const businesses = await prisma.business.findMany({
+    where: { id: { in: logs.map((l) => l.businessId) } },
     select: { id: true, name: true },
   });
-  const nameById = new Map(barbershops.map((b) => [b.id, b.name]));
+  const nameById = new Map(businesses.map((b) => [b.id, b.name]));
 
   console.log(`\nUso do bot de WhatsApp — últimos ${days} dias\n`);
 
@@ -59,7 +59,7 @@ async function main() {
       input * PRICE_INPUT + output * PRICE_OUTPUT + cacheWrite * PRICE_CACHE_WRITE + cacheRead * PRICE_CACHE_READ;
     totalCost += cost;
 
-    const name = nameById.get(log.barbershopId) ?? `#${log.barbershopId}`;
+    const name = nameById.get(log.businessId) ?? `#${log.businessId}`;
     console.log(
       `${name}: ${log._count} chamadas, ${input + cacheWrite + cacheRead} tokens de entrada, ${output} de saída — US$ ${cost.toFixed(4)}`
     );

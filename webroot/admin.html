@@ -2567,7 +2567,7 @@ async function loadReviews() {
   const barberId = document.getElementById("review-barber-filter").value;
   const params = new URLSearchParams();
   if (reviewPeriod !== "all") params.set("period", reviewPeriod);
-  if (barberId) params.set("barberId", barberId);
+  if (barberId) params.set("professionalId", barberId);
   const res = await fetch(`/api/dashboard/reviews?${params.toString()}`);
   const data = await res.json();
 
@@ -3034,7 +3034,7 @@ async function loadTimeBlocks() {
       const res = await fetch(`/api/manage/time-blocks/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type, barberId: barberId || null, recurring, date, startTime, endTime, label }),
+        body: JSON.stringify({ type, professionalId: barberId || null, recurring, date, startTime, endTime, label }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -3126,7 +3126,7 @@ document.getElementById("block-save-btn").addEventListener("click", async () => 
   const res = await fetch("/api/manage/time-blocks", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ type, barberId: barberId || null, recurring, date, startTime, endTime, label }),
+    body: JSON.stringify({ type, professionalId: barberId || null, recurring, date, startTime, endTime, label }),
   });
   if (!res.ok) {
     const err = await res.json();
@@ -3325,7 +3325,7 @@ document.getElementById("new-appt-save-btn").addEventListener("click", async (e)
     const res = await fetch("/api/appointments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clientName, clientPhone, barberId, serviceId, date, startTime }),
+      body: JSON.stringify({ clientName, clientPhone, professionalId: barberId, serviceId, date, startTime }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -3582,7 +3582,7 @@ async function renderAgenda() {
     title.textContent = "Agenda da semana";
     rangeLabel.textContent = `${toDateStr(start)} a ${toDateStr(end)}`;
     const params = new URLSearchParams({ start: toDateStr(start), end: toDateStr(end) });
-    if (agendaBarberId) params.set("barberId", agendaBarberId);
+    if (agendaBarberId) params.set("professionalId", agendaBarberId);
     const appts = await (await fetch(`/api/dashboard/calendar?${params}`)).json();
 
     const days = [];
@@ -3648,7 +3648,7 @@ async function renderAgenda() {
     rangeLabel.textContent = monthStart.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
     const params = new URLSearchParams({ start: toDateStr(gridStart), end: toDateStr(gridEnd) });
-    if (agendaBarberId) params.set("barberId", agendaBarberId);
+    if (agendaBarberId) params.set("professionalId", agendaBarberId);
     const appts = await (await fetch(`/api/dashboard/calendar?${params}`)).json();
 
     const cells = [];
@@ -3771,7 +3771,7 @@ async function loadHistory() {
   } else if (histPeriod !== "all") {
     params.set("period", histPeriod);
   }
-  if (histBarberId) params.set("barberId", histBarberId);
+  if (histBarberId) params.set("professionalId", histBarberId);
   const data = await (await fetch(`/api/dashboard/history?${params}`)).json();
 
   document.getElementById("hist-revenue").textContent = currency(data.totalRevenue);

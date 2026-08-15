@@ -63,13 +63,13 @@ async function findOrCreateClient(name: string, phone: string) {
 }
 
 async function ensureShop() {
-  const existing = await prisma.barbershop.findFirst({ where: { name: SHOP_NAME } });
+  const existing = await prisma.business.findFirst({ where: { name: SHOP_NAME } });
   if (existing) return existing;
 
-  const shop = await prisma.barbershop.create({
+  const shop = await prisma.business.create({
     data: { name: SHOP_NAME, address: "Rua das Palmeiras, 45 - Centro", phone: "(11) 99999-1113" },
   });
-  const barber = await prisma.barber.create({ data: { barbershopId: shop.id, name: BARBER_NAME } });
+  const barber = await prisma.professional.create({ data: { businessId: shop.id, name: BARBER_NAME } });
   await Promise.all(
     [
       ["Corte Masculino", 4000, 45],
@@ -77,36 +77,36 @@ async function ensureShop() {
       ["Corte + Barba", 6000, 60],
       ["Sobrancelha", 1500, 10],
     ].map(([name, price, duration]) =>
-      prisma.service.create({ data: { barbershopId: shop.id, name: name as string, priceCents: price as number, durationMin: duration as number } })
+      prisma.service.create({ data: { businessId: shop.id, name: name as string, priceCents: price as number, durationMin: duration as number } })
     )
   );
   for (let weekday = 0; weekday <= 6; weekday++) {
     await prisma.businessHours.create({
-      data: { barbershopId: shop.id, weekday, opensAt: "09:00", closesAt: "19:00", closed: weekday === 0 },
+      data: { businessId: shop.id, weekday, opensAt: "09:00", closesAt: "19:00", closed: weekday === 0 },
     });
   }
 
   const passwordHash = hashPassword(DEMO_PASSWORD);
   const ownerUsername = `${slugify(shop.name)}.dono`;
   await prisma.user.create({
-    data: { barbershopId: shop.id, role: "owner", username: ownerUsername, passwordHash, name: `Dono(a) da ${shop.name}` },
+    data: { businessId: shop.id, role: "owner", username: ownerUsername, passwordHash, name: `Dono(a) da ${shop.name}` },
   });
   const barberUsername = slugify(barber.name);
   await prisma.user.create({
-    data: { barbershopId: shop.id, barberId: barber.id, role: "barber", username: barberUsername, passwordHash, name: barber.name },
+    data: { businessId: shop.id, professionalId: barber.id, role: "professional", username: barberUsername, passwordHash, name: barber.name },
   });
 
-  console.log(`"${SHOP_NAME}" criada (barbershopId ${shop.id}) com 1 barbeiro.`);
+  console.log(`"${SHOP_NAME}" criada (businessId ${shop.id}) com 1 barbeiro.`);
   console.log(`Login dono:     ${ownerUsername}  ·  senha: ${DEMO_PASSWORD}`);
   console.log(`Login barbeiro: ${barberUsername}  ·  senha: ${DEMO_PASSWORD}`);
   return shop;
 }
 
-async function ensureHistoricalAppointments(barbershopId: number, barberId: number) {
+async function ensureHistoricalAppointments(businessId: number, professionalId: number) {
   const clientPool = await Promise.all(
     CLIENT_NAMES.map((name, i) => findOrCreateClient(name, `1191${(500000 + i).toString()}`))
   );
-  const services = await prisma.service.findMany({ where: { barbershopId, active: true } });
+  const services = await prisma.service.findMany({ where: { businessId, active: true } });
   const DAYS_BACK = 60;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -126,8 +126,8 @@ async function ensureHistoricalAppointments(barbershopId: number, barberId: numb
       const clientRow = clientPool[Math.floor(Math.random() * clientPool.length)]!;
       await prisma.appointment.create({
         data: {
-          barbershopId,
-          barberId,
+          businessId,
+          professionalId,
           serviceId: service.id,
           clientId: clientRow.id,
           date: new Date(`${dateStr}T00:00:00`),
@@ -146,19 +146,19 @@ async function ensureHistoricalAppointments(barbershopId: number, barberId: numb
     const day = new Date(today);
     day.setDate(day.getDate() - offset);
     const dateStr = localDateStr(day);
-    const hours = await prisma.businessHours.findUnique({ where: { barbershopId_weekday: { barbershopId, weekday: day.getDay() } } });
+    const hours = await prisma.businessHours.findUnique({ where: { businessId_weekday: { businessId, weekday: day.getDay() } } });
     if (!hours || hours.closed) continue;
     const openMin = timeToMinutes(hours.opensAt);
     const closeMin = timeToMinutes(hours.closesAt);
 
     const existingCount = await prisma.appointment.count({
-      where: { barbershopId, date: new Date(`${dateStr}T00:00:00`), status: { not: "cancelled" } },
+      where: { businessId, date: new Date(`${dateStr}T00:00:00`), status: { not: "cancelled" } },
     });
     const target = 2 + Math.floor(Math.random() * 4);
     if (existingCount >= target) continue;
 
     const existingRows = await prisma.appointment.findMany({
-      where: { barbershopId, date: new Date(`${dateStr}T00:00:00`), status: { not: "cancelled" } },
+      where: { businessId, date: new Date(`${dateStr}T00:00:00`), status: { not: "cancelled" } },
     });
     let busyDay = existingRows.map((a) => ({ start: timeToMinutes(a.startTime), end: timeToMinutes(a.endTime) }));
     for (let n = existingCount; n < target; n++) busyDay = await scheduleRandom(dateStr, busyDay, openMin, closeMin);
@@ -169,11 +169,11 @@ async function ensureHistoricalAppointments(barbershopId: number, barberId: numb
   const now = new Date();
   const nowMin = now.getHours() * 60 + now.getMinutes();
   const todayStr = localDateStr(today);
-  const todayHours = await prisma.businessHours.findUnique({ where: { barbershopId_weekday: { barbershopId, weekday: today.getDay() } } });
+  const todayHours = await prisma.businessHours.findUnique({ where: { businessId_weekday: { businessId, weekday: today.getDay() } } });
   if (todayHours && !todayHours.closed) {
     const openMin = timeToMinutes(todayHours.opensAt);
     const closeMin = timeToMinutes(todayHours.closesAt);
-    const existingRows = await prisma.appointment.findMany({ where: { barbershopId, date: new Date(`${todayStr}T00:00:00`), status: { not: "cancelled" } } });
+    const existingRows = await prisma.appointment.findMany({ where: { businessId, date: new Date(`${todayStr}T00:00:00`), status: { not: "cancelled" } } });
     let busyToday = existingRows.map((a) => ({ start: timeToMinutes(a.startTime), end: timeToMinutes(a.endTime) }));
 
     if (nowMin > openMin + 30 && existingRows.filter((a) => timeToMinutes(a.endTime) <= nowMin).length < 2) {
@@ -191,19 +191,19 @@ async function ensureHistoricalAppointments(barbershopId: number, barberId: numb
   for (let day = new Date(today); day <= nextMonthEnd; day.setDate(day.getDate() + 1)) {
     if (sameDayAs(day, today)) continue; // hoje já foi tratado acima
     const dateStr = localDateStr(day);
-    const hours = await prisma.businessHours.findUnique({ where: { barbershopId_weekday: { barbershopId, weekday: day.getDay() } } });
+    const hours = await prisma.businessHours.findUnique({ where: { businessId_weekday: { businessId, weekday: day.getDay() } } });
     if (!hours || hours.closed) continue;
     const openMinF = timeToMinutes(hours.opensAt);
     const closeMinF = timeToMinutes(hours.closesAt);
 
     const existingCount = await prisma.appointment.count({
-      where: { barbershopId, date: new Date(`${dateStr}T00:00:00`), status: { not: "cancelled" } },
+      where: { businessId, date: new Date(`${dateStr}T00:00:00`), status: { not: "cancelled" } },
     });
     const target = 2 + Math.floor(Math.random() * 4);
     if (existingCount >= target) continue;
 
     const existingRows = await prisma.appointment.findMany({
-      where: { barbershopId, date: new Date(`${dateStr}T00:00:00`), status: { not: "cancelled" } },
+      where: { businessId, date: new Date(`${dateStr}T00:00:00`), status: { not: "cancelled" } },
     });
     let busyDay = existingRows.map((a) => ({ start: timeToMinutes(a.startTime), end: timeToMinutes(a.endTime) }));
     for (let n = existingCount; n < target; n++) busyDay = await scheduleRandom(dateStr, busyDay, openMinF, closeMinF);
@@ -214,10 +214,10 @@ function sameDayAs(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
-async function ensureReviews(barbershopId: number, barberId: number) {
+async function ensureReviews(businessId: number, professionalId: number) {
   const completedWithoutReview = await prisma.appointment.findMany({
     where: {
-      barbershopId,
+      businessId,
       status: { not: "cancelled" },
       date: { lt: new Date() },
       review: null,
@@ -229,7 +229,7 @@ async function ensureReviews(barbershopId: number, barberId: number) {
     const rating = 4 + Math.floor(Math.random() * 2); // 4 ou 5 — demo positiva
     const comment = REVIEW_COMMENTS[Math.floor(Math.random() * REVIEW_COMMENTS.length)];
     await prisma.review.create({
-      data: { appointmentId: a.id, barbershopId, barberId, clientId: a.clientId, rating, comment: comment ?? null },
+      data: { appointmentId: a.id, businessId, professionalId, clientId: a.clientId, rating, comment: comment ?? null },
     });
   }
   if (completedWithoutReview.length > 0) {
@@ -237,33 +237,33 @@ async function ensureReviews(barbershopId: number, barberId: number) {
   }
 }
 
-async function ensureProducts(barbershopId: number) {
-  const count = await prisma.product.count({ where: { barbershopId } });
+async function ensureProducts(businessId: number) {
+  const count = await prisma.product.count({ where: { businessId } });
   if (count > 0) return;
   await prisma.product.createMany({
     data: [
-      { barbershopId, name: "Pomada modeladora", priceCents: 4500, stockQuantity: 2, lowStockThreshold: 5 },
-      { barbershopId, name: "Óleo de barba", priceCents: 3800, stockQuantity: 12, lowStockThreshold: 4 },
-      { barbershopId, name: "Shampoo anticaspa", priceCents: 2500, stockQuantity: 30, lowStockThreshold: 10 },
+      { businessId, name: "Pomada modeladora", priceCents: 4500, stockQuantity: 2, lowStockThreshold: 5 },
+      { businessId, name: "Óleo de barba", priceCents: 3800, stockQuantity: 12, lowStockThreshold: 4 },
+      { businessId, name: "Shampoo anticaspa", priceCents: 2500, stockQuantity: 30, lowStockThreshold: 10 },
     ],
   });
   console.log("3 produtos criados (1 com estoque baixo de propósito).");
 }
 
-async function ensureEscalation(barbershopId: number) {
-  const count = await prisma.escalation.count({ where: { barbershopId, resolved: false } });
+async function ensureEscalation(businessId: number) {
+  const count = await prisma.escalation.count({ where: { businessId, resolved: false } });
   if (count > 0) return;
   const client = await prisma.client.findFirst({ where: { phone: "1191500002" } });
   if (!client) return;
   await prisma.escalation.create({
-    data: { barbershopId, clientId: client.id, clientPhone: client.phone, reason: "Cliente pediu pra falar com um humano sobre um caso urgente." },
+    data: { businessId, clientId: client.id, clientPhone: client.phone, reason: "Cliente pediu pra falar com um humano sobre um caso urgente." },
   });
   console.log("1 escalonamento pendente criado.");
 }
 
 async function main() {
   const shop = await ensureShop();
-  const barber = await prisma.barber.findFirstOrThrow({ where: { barbershopId: shop.id } });
+  const barber = await prisma.professional.findFirstOrThrow({ where: { businessId: shop.id } });
 
   await ensureHistoricalAppointments(shop.id, barber.id);
   await ensureReviews(shop.id, barber.id);

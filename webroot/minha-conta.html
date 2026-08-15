@@ -179,7 +179,7 @@ document.getElementById("send-code-btn").addEventListener("click", async (e) => 
   const res = await fetch("/api/public/client-plans/verify/start", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone, barbershopId: shopId }),
+    body: JSON.stringify({ phone, businessId: shopId }),
   });
   btn.disabled = false;
   btn.textContent = "Enviar código por WhatsApp";
@@ -292,8 +292,8 @@ function wireApptCard(id) {
     if (!date) { showError("Escolha uma data."); return; }
     hideError();
     const params = new URLSearchParams({
-      barbershopId: currentShopId,
-      barberId: btn.dataset.barber,
+      businessId: currentShopId,
+      professionalId: btn.dataset.barber,
       serviceId: btn.dataset.service,
       date,
     });
@@ -361,8 +361,8 @@ function wireHistoryCard(a) {
     if (!date) { showError("Escolha uma data."); return; }
     hideError();
     const params = new URLSearchParams({
-      barbershopId: currentShopId,
-      barberId: openBtn.dataset.barber,
+      businessId: currentShopId,
+      professionalId: openBtn.dataset.barber,
       serviceId: openBtn.dataset.service,
       date,
     });
@@ -391,9 +391,9 @@ function wireHistoryCard(a) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        barbershopId: currentShopId,
+        businessId: currentShopId,
         phone: currentPhone,
-        barberId: openBtn.dataset.barber,
+        professionalId: openBtn.dataset.barber,
         serviceId: openBtn.dataset.service,
         date,
         startTime: selected.dataset.slot,
@@ -416,7 +416,7 @@ async function lookupAppointments() {
     showError("Escolha a barbearia e informe seu telefone.");
     return;
   }
-  const params = new URLSearchParams({ barbershopId: currentShopId, phone: currentPhone });
+  const params = new URLSearchParams({ businessId: currentShopId, phone: currentPhone });
   const [apptsRes, historyRes] = await Promise.all([
     fetch(`/api/public/appointments?${params}`),
     fetch(`/api/public/appointment-history?${params}`),

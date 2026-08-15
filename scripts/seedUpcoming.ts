@@ -47,9 +47,9 @@ async function main() {
 
   let totalCreated = 0;
 
-  for (const shop of await prisma.barbershop.findMany({ orderBy: { id: "asc" } })) {
-    const barbers = await prisma.barber.findMany({ where: { barbershopId: shop.id, active: true } });
-    const services = await prisma.service.findMany({ where: { barbershopId: shop.id, active: true } });
+  for (const shop of await prisma.business.findMany({ orderBy: { id: "asc" } })) {
+    const barbers = await prisma.professional.findMany({ where: { businessId: shop.id, active: true } });
+    const services = await prisma.service.findMany({ where: { businessId: shop.id, active: true } });
     if (barbers.length === 0 || services.length === 0) {
       console.log(`(pulando ${shop.name}: sem barbeiros/serviços ativos)`);
       continue;
@@ -62,7 +62,7 @@ async function main() {
       const isToday = offset === 0;
 
       const hours = await prisma.businessHours.findUnique({
-        where: { barbershopId_weekday: { barbershopId: shop.id, weekday: day.getDay() } },
+        where: { businessId_weekday: { businessId: shop.id, weekday: day.getDay() } },
       });
       if (!hours || hours.closed) continue;
 
@@ -77,13 +77,13 @@ async function main() {
       // agendamentos que já foram criados antes (pelo seed original ou por
       // uma rodada anterior deste script).
       const existing = await prisma.appointment.findMany({
-        where: { barbershopId: shop.id, date: new Date(`${dateStr}T00:00:00`), status: { not: "cancelled" } },
+        where: { businessId: shop.id, date: new Date(`${dateStr}T00:00:00`), status: { not: "cancelled" } },
       });
       const busy: Record<number, { start: number; end: number }[]> = {};
       for (const a of existing) {
-        const list = busy[a.barberId] || [];
+        const list = busy[a.professionalId] || [];
         list.push({ start: timeToMinutes(a.startTime), end: timeToMinutes(a.endTime) });
-        busy[a.barberId] = list;
+        busy[a.professionalId] = list;
       }
 
       const apptCount = 4 + Math.floor(Math.random() * 5); // 4 a 8 por dia
@@ -106,8 +106,8 @@ async function main() {
           const clientRow = clientPool[Math.floor(Math.random() * clientPool.length)]!;
           await prisma.appointment.create({
             data: {
-              barbershopId: shop.id,
-              barberId: barber.id,
+              businessId: shop.id,
+              professionalId: barber.id,
               serviceId: service.id,
               clientId: clientRow.id,
               date: new Date(`${dateStr}T00:00:00`),

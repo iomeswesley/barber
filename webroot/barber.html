@@ -429,7 +429,7 @@ const STATUS_LABEL = { confirmado: "Agendado", em_andamento: "Em andamento", con
 let allServicesCache = [];
 async function ensureServicesCache() {
   if (allServicesCache.length === 0) {
-    allServicesCache = await (await fetch("/api/barbershops/" + meCache.barbershopId + "/services")).json();
+    allServicesCache = await (await fetch("/api/barbershops/" + meCache.businessId + "/services")).json();
   }
 }
 

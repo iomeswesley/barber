@@ -31,7 +31,7 @@
   tr:last-child td { border-bottom: none; }
   .role-tag { font-size: 11px; padding: 3px 8px; border-radius: 999px; font-weight: 600; }
   .role-owner { background: var(--good-soft); color: var(--good); }
-  .role-barber { background: var(--surface-raise-2); color: var(--text-muted); }
+  .role-professional { background: var(--surface-raise-2); color: var(--text-muted); }
   .inactive-tag { font-size: 11px; padding: 3px 8px; border-radius: 999px; font-weight: 600; background: var(--danger-soft); color: var(--danger); }
   .no-email { color: var(--text-muted); font-style: italic; font-size: 12px; }
   .reset-btn, .save-btn { background: var(--surface-raise); border: 1px solid var(--card-border); color: var(--text-primary); padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; white-space: nowrap; }
@@ -404,7 +404,7 @@ async function loadShopConfig(shopId) {
       + (sub.trialEndsAt ? ` · trial até ${new Date(sub.trialEndsAt).toLocaleDateString("pt-BR")}` : "")
       + (sub.status === "active" && sub.currentPeriodEnd ? ` · ativo até ${new Date(sub.currentPeriodEnd).toLocaleDateString("pt-BR")}` : "")
     : "Sem assinatura registrada";
-  const whatsappLine = whatsappTagHtml(data.barbershop.whatsappConnectionStatus);
+  const whatsappLine = whatsappTagHtml(data.business.whatsappConnectionStatus);
   const stripeLine = sub?.stripeCustomerId
     ? `<a class="stripe-link" href="https://dashboard.stripe.com/customers/${encodeURIComponent(sub.stripeCustomerId)}" target="_blank" rel="noopener">Ver cliente no Stripe <svg class="icon"><use href="#icon-arrow-right"></use></svg></a>`
     : "";

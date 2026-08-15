@@ -337,7 +337,7 @@ document.getElementById("reset-btn").addEventListener("click", async () => {
   await fetch("/api/chat/reset", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sessionId, barbershopId: shopSelect.value }),
+    body: JSON.stringify({ sessionId, businessId: shopSelect.value }),
   });
   messagesEl.innerHTML = "";
   addBubble("Conversa reiniciada. Como posso ajudar?", "bot");
@@ -354,7 +354,7 @@ async function sendMessage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        barbershopId: Number(shopSelect.value),
+        businessId: Number(shopSelect.value),
         sessionId,
         message: text,
         customerPhone: waPhoneInput.value.trim(),

@@ -85,9 +85,9 @@ function showError(msg) {
 
 document.getElementById("submit-btn").addEventListener("click", async () => {
   document.getElementById("error-box").style.display = "none";
-  const barbershopId = document.getElementById("shop-select").value;
+  const businessId = document.getElementById("shop-select").value;
   const phone = document.getElementById("phone-input").value;
-  if (!barbershopId || !phone.trim()) {
+  if (!businessId || !phone.trim()) {
     showError("Escolha a barbearia e informe seu telefone.");
     return;
   }
@@ -105,7 +105,7 @@ document.getElementById("submit-btn").addEventListener("click", async () => {
     const res = await fetch("/api/public/clients/data-deletion", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ barbershopId, phone }),
+      body: JSON.stringify({ businessId, phone }),
     });
     const data = await res.json();
     if (!res.ok) {
