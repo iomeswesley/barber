@@ -11,18 +11,18 @@ export const clientsRouter = Router();
 // confiança das outras rotas públicas: o telefone é a identidade.
 clientsRouter.post("/api/public/clients/data-deletion", selfServiceRateLimiter, async (req, res, next) => {
   try {
-    const { barbershopId, phone } = req.body || {};
+    const { businessId, phone } = req.body || {};
     const normalizedPhone = normalizePhone(phone);
-    if (!barbershopId || !normalizedPhone) {
-      throw new AppError("barbershopId e phone são obrigatórios");
+    if (!businessId || !normalizedPhone) {
+      throw new AppError("businessId e phone são obrigatórios");
     }
     const client = await getClientByPhone(normalizedPhone);
-    if (!client || !(await clientBelongsToShop(client.id, Number(barbershopId)))) {
+    if (!client || !(await clientBelongsToShop(client.id, Number(businessId)))) {
       throw new AppError("Nenhum cadastro encontrado para esse telefone nessa barbearia", 404);
     }
     await anonymizeClient(client.id);
     await logAudit(
-      Number(barbershopId),
+      Number(businessId),
       "Cliente (autoatendimento)",
       "Solicitou exclusão de dados (LGPD)",
       `Cadastro do cliente #${client.id} anonimizado a pedido do titular`

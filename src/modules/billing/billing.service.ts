@@ -1,15 +1,15 @@
 import { prisma } from "@/lib/prisma.js";
 import { AppError } from "@/middleware/errorHandler.js";
-import { env } from "@/config/env.js";
+import { env, vertical } from "@/config/env.js";
 import { stripe, stripeConfigured, priceIdForPlan, planForPriceId, PLAN_LIMITS, PLAN_PRICE_CENTS, type PlanId } from "@/lib/stripe.js";
 import { getOwnerUserForBarbershop } from "@/modules/auth/users.repository.js";
-import { getBarbershop, getBarbershops } from "@/modules/barbershops/barbershops.repository.js";
-import { getBarbers } from "@/modules/barbers/barbers.repository.js";
+import { getBarbershop, getBarbershops } from "@/modules/businesses/businesses.repository.js";
+import { getBarbers } from "@/modules/professionals/professionals.repository.js";
 import { captureError } from "@/lib/errorReporting.js";
 import type Stripe from "stripe";
 
-export function getSubscription(barbershopId: number) {
-  return prisma.subscription.findUnique({ where: { barbershopId } });
+export function getSubscription(businessId: number) {
+  return prisma.subscription.findUnique({ where: { businessId } });
 }
 
 // Visão de conjunto pro painel de superadmin — parte de TODAS as barbearias
@@ -18,7 +18,7 @@ export function getSubscription(barbershopId: number) {
 // deve simplesmente sumir da lista.
 export async function getBillingOverview() {
   const [shops, subs] = await Promise.all([getBarbershops(), prisma.subscription.findMany()]);
-  const subByShop = new Map(subs.map((s) => [s.barbershopId, s]));
+  const subByShop = new Map(subs.map((s) => [s.businessId, s]));
   const now = new Date();
   const soon = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
 
@@ -68,11 +68,11 @@ export async function getBillingOverview() {
 // que tinha antes (status/plano/prazo), sem tocar no Stripe (não cria
 // customer/checkout nenhum). Se a barbearia converter num plano de verdade
 // depois, o webhook do Stripe sobrescreve isso normalmente.
-export function grantTrial(barbershopId: number, plan: PlanId, trialEndsAt: Date) {
+export function grantTrial(businessId: number, plan: PlanId, trialEndsAt: Date) {
   return prisma.subscription.upsert({
-    where: { barbershopId },
+    where: { businessId },
     update: { status: "trialing", plan, trialEndsAt },
-    create: { barbershopId, status: "trialing", plan, trialEndsAt },
+    create: { businessId, status: "trialing", plan, trialEndsAt },
   });
 }
 
@@ -96,45 +96,45 @@ const DEFAULT_TEMPLATE_WEIGHT = 1;
 // as respostas do chat ao cliente nem o código de verificação de plano, que
 // são o próprio produto funcionando e não fazem sentido travar no meio do trial.
 export async function tryConsumeWhatsappTrialBudget(
-  barbershopId: number,
+  businessId: number,
   usingSharedToken: boolean,
   templateName: string
 ): Promise<boolean> {
   if (!usingSharedToken) return true;
-  const sub = await getSubscription(barbershopId);
+  const sub = await getSubscription(businessId);
   if (!sub || sub.status !== "trialing") return true;
 
   const weight = WHATSAPP_TEMPLATE_WEIGHTS[templateName] ?? DEFAULT_TEMPLATE_WEIGHT;
   if (sub.whatsappTrialUsagePoints + weight > env.WHATSAPP_TRIAL_USAGE_LIMIT) return false;
 
   await prisma.subscription.update({
-    where: { barbershopId },
+    where: { businessId },
     data: { whatsappTrialUsagePoints: { increment: weight } },
   });
   return true;
 }
 
-async function getOrCreateStripeCustomer(barbershopId: number): Promise<string> {
+async function getOrCreateStripeCustomer(businessId: number): Promise<string> {
   if (!stripe) throw new AppError("Cobrança não configurada no servidor.", 503);
-  const sub = await getSubscription(barbershopId);
+  const sub = await getSubscription(businessId);
   if (sub?.stripeCustomerId) return sub.stripeCustomerId;
 
-  const [shop, owner] = await Promise.all([getBarbershop(barbershopId), getOwnerUserForBarbershop(barbershopId)]);
+  const [shop, owner] = await Promise.all([getBarbershop(businessId), getOwnerUserForBarbershop(businessId)]);
   const customer = await stripe.customers.create({
-    name: shop?.name || `Barbearia #${barbershopId}`,
+    name: shop?.name || `Barbearia #${businessId}`,
     email: owner?.email || undefined,
-    metadata: { barbershopId: String(barbershopId) },
+    metadata: { businessId: String(businessId) },
   });
   await prisma.subscription.upsert({
-    where: { barbershopId },
+    where: { businessId },
     update: { stripeCustomerId: customer.id },
-    create: { barbershopId, stripeCustomerId: customer.id },
+    create: { businessId, stripeCustomerId: customer.id },
   });
   return customer.id;
 }
 
 export async function createCheckoutSession(
-  barbershopId: number,
+  businessId: number,
   plan: PlanId,
   successUrl: string,
   cancelUrl: string
@@ -143,15 +143,15 @@ export async function createCheckoutSession(
   const priceId = priceIdForPlan(plan);
   if (!priceId) throw new AppError(`Plano "${plan}" não está configurado no servidor.`, 503);
 
-  const customerId = await getOrCreateStripeCustomer(barbershopId);
+  const customerId = await getOrCreateStripeCustomer(businessId);
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     mode: "subscription",
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: successUrl,
     cancel_url: cancelUrl,
-    metadata: { barbershopId: String(barbershopId), plan },
-    subscription_data: { metadata: { barbershopId: String(barbershopId), plan } },
+    metadata: { businessId: String(businessId), plan },
+    subscription_data: { metadata: { businessId: String(businessId), plan } },
   });
   if (!session.url) throw new AppError("Erro ao criar sessão de checkout.", 502);
   return session.url;
@@ -162,9 +162,9 @@ export async function createCheckoutSession(
 // sessão nova e criaria uma SEGUNDA assinatura se usado aqui. O webhook
 // customer.subscription.updated confirma a troca depois, mas atualizamos o
 // plano local na hora também pra a UI não esperar o round-trip do webhook.
-export async function changePlan(barbershopId: number, newPlan: PlanId): Promise<void> {
+export async function changePlan(businessId: number, newPlan: PlanId): Promise<void> {
   if (!stripe) throw new AppError("Cobrança não configurada no servidor.", 503);
-  const sub = await getSubscription(barbershopId);
+  const sub = await getSubscription(businessId);
   if (!sub?.stripeSubscriptionId) throw new AppError("Essa barbearia não tem uma assinatura ativa pra migrar.", 400);
   if (sub.plan === newPlan) throw new AppError(`Essa barbearia já está no plano ${newPlan}.`, 400);
 
@@ -176,10 +176,10 @@ export async function changePlan(barbershopId: number, newPlan: PlanId): Promise
   // não consegue mais operar direito.
   if (newPlan === "starter") {
     const limit = PLAN_LIMITS.starter!;
-    const activeCount = (await getBarbers(barbershopId)).length;
+    const activeCount = (await getBarbers(businessId)).length;
     if (activeCount > limit) {
       throw new AppError(
-        `Você tem ${activeCount} barbeiros ativos — o plano Starter permite até ${limit}. Desative alguns barbeiros antes de migrar.`,
+        `Você tem ${activeCount} ${vertical.professionalPlural} ativos — o plano Starter permite até ${limit}. Desative alguns ${vertical.professionalPlural} antes de migrar.`,
         400
       );
     }
@@ -199,7 +199,7 @@ export async function changePlan(barbershopId: number, newPlan: PlanId): Promise
       items: [{ id: itemId, price: newPriceId }],
       proration_behavior: "always_invoice",
       payment_behavior: "error_if_incomplete",
-      metadata: { barbershopId: String(barbershopId), plan: newPlan },
+      metadata: { businessId: String(businessId), plan: newPlan },
     });
   } catch (err) {
     if (err instanceof AppError) throw err;
@@ -215,12 +215,12 @@ export async function changePlan(barbershopId: number, newPlan: PlanId): Promise
     throw new AppError(`Erro do Stripe ao migrar de plano: ${stripeErr.message || "erro desconhecido"}`, 502);
   }
 
-  await prisma.subscription.update({ where: { barbershopId }, data: { plan: newPlan } });
+  await prisma.subscription.update({ where: { businessId }, data: { plan: newPlan } });
 }
 
-export async function createPortalSession(barbershopId: number, returnUrl: string): Promise<string> {
+export async function createPortalSession(businessId: number, returnUrl: string): Promise<string> {
   if (!stripe) throw new AppError("Cobrança não configurada no servidor.", 503);
-  const sub = await getSubscription(barbershopId);
+  const sub = await getSubscription(businessId);
   if (!sub?.stripeCustomerId) {
     throw new AppError("Essa barbearia ainda não tem uma assinatura — assine um plano primeiro.", 400);
   }
@@ -234,15 +234,15 @@ export async function createPortalSession(barbershopId: number, returnUrl: strin
 // Trava opcional na criação/reativação de barbeiro: só entra em vigor com
 // assinatura "active" (paga de verdade) no plano Starter — durante o
 // trial, deixa testar sem limite pra não capar a avaliação do produto.
-export async function assertBarberLimitNotExceeded(barbershopId: number): Promise<void> {
-  const sub = await getSubscription(barbershopId);
+export async function assertBarberLimitNotExceeded(businessId: number): Promise<void> {
+  const sub = await getSubscription(businessId);
   if (!sub || sub.status !== "active") return;
   const limit = PLAN_LIMITS[sub.plan as PlanId];
   if (limit === null || limit === undefined) return;
-  const activeCount = (await getBarbers(barbershopId)).length;
+  const activeCount = (await getBarbers(businessId)).length;
   if (activeCount >= limit) {
     throw new AppError(
-      `Seu plano ${sub.plan} permite até ${limit} barbeiro(s) ativo(s). Faça upgrade pra Pro pra adicionar mais.`,
+      `Seu plano ${sub.plan} permite até ${limit} ${vertical.professional}(s) ativo(s). Faça upgrade pra Pro pra adicionar mais.`,
       403
     );
   }
@@ -251,8 +251,8 @@ export async function assertBarberLimitNotExceeded(barbershopId: number): Promis
 // Gate de feature restrita ao plano Pro (ex: planos de assinatura pros
 // clientes finais via Stripe Connect) — mesmo padrão imperativo de
 // assertBarberLimitNotExceeded, chamado no topo dos route handlers.
-export async function assertProPlan(barbershopId: number): Promise<void> {
-  const sub = await getSubscription(barbershopId);
+export async function assertProPlan(businessId: number): Promise<void> {
+  const sub = await getSubscription(businessId);
   if (!sub || sub.status !== "active" || sub.plan !== "pro") {
     throw new AppError("Esse recurso está disponível apenas no plano Pro.", 403);
   }
@@ -269,15 +269,15 @@ export function mapStripeStatus(status: Stripe.Subscription.Status): "trialing" 
 // HMAC conferida na rota) e sincroniza o Subscription local com o estado
 // real no Stripe.
 export async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promise<void> {
-  const barbershopId = Number(session.metadata?.barbershopId);
-  if (!barbershopId || !session.subscription) {
+  const businessId = Number(session.metadata?.businessId);
+  if (!businessId || !session.subscription) {
     // Não devia acontecer no fluxo normal (createCheckoutSession sempre seta
     // esse metadata) — mas se acontecer, um pagamento real fica sem sincronizar
     // e sem deixar rastro nenhum além disso. Reporta pro Sentry em vez de
     // simplesmente sumir.
     captureError(
       new Error(
-        `checkout.session.completed sem barbershopId/subscription válido (session=${session.id}, metadata=${JSON.stringify(session.metadata)})`
+        `checkout.session.completed sem businessId/subscription válido (session=${session.id}, metadata=${JSON.stringify(session.metadata)})`
       )
     );
     return;
@@ -288,19 +288,19 @@ export async function handleCheckoutCompleted(session: Stripe.Checkout.Session):
   // checkout normalmente, mas se por qualquer motivo ela não existir (linha
   // apagada manualmente, corrida entre requisições), update() lançaria
   // "record not found" e um pagamento real ficaria sem sincronizar — mesma
-  // categoria do incidente Barber King (2026-07-26): o pagamento existia no
+  // categoria do incidente Professional King (2026-07-26): o pagamento existia no
   // Stripe, mas nada no nosso banco confirmava isso.
   await prisma.subscription.upsert({
-    where: { barbershopId },
+    where: { businessId },
     update: { status: "active", plan, stripeSubscriptionId: subscriptionId },
-    create: { barbershopId, status: "active", plan, stripeSubscriptionId: subscriptionId },
+    create: { businessId, status: "active", plan, stripeSubscriptionId: subscriptionId },
   });
 }
 
 export async function handleSubscriptionUpdated(subscription: Stripe.Subscription): Promise<void> {
-  const barbershopId = Number(subscription.metadata?.barbershopId);
-  if (!barbershopId) {
-    captureError(new Error(`customer.subscription.updated sem barbershopId no metadata (subscription=${subscription.id})`));
+  const businessId = Number(subscription.metadata?.businessId);
+  if (!businessId) {
+    captureError(new Error(`customer.subscription.updated sem businessId no metadata (subscription=${subscription.id})`));
     return;
   }
   const priceId = subscription.items.data[0]?.price?.id;
@@ -315,22 +315,22 @@ export async function handleSubscriptionUpdated(subscription: Stripe.Subscriptio
   // fallback nunca deveria ser exercido na prática (subscription sempre
   // nasce com um price válido), mas evita um upsert inválido se acontecer.
   await prisma.subscription.upsert({
-    where: { barbershopId },
+    where: { businessId },
     update: { status, ...(plan ? { plan } : {}), stripeSubscriptionId: subscription.id, currentPeriodEnd },
-    create: { barbershopId, status, plan: plan || "starter", stripeSubscriptionId: subscription.id, currentPeriodEnd },
+    create: { businessId, status, plan: plan || "starter", stripeSubscriptionId: subscription.id, currentPeriodEnd },
   });
 }
 
 export async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Promise<void> {
-  const barbershopId = Number(subscription.metadata?.barbershopId);
-  if (!barbershopId) {
-    captureError(new Error(`customer.subscription.deleted sem barbershopId no metadata (subscription=${subscription.id})`));
+  const businessId = Number(subscription.metadata?.businessId);
+  if (!businessId) {
+    captureError(new Error(`customer.subscription.deleted sem businessId no metadata (subscription=${subscription.id})`));
     return;
   }
   await prisma.subscription.upsert({
-    where: { barbershopId },
+    where: { businessId },
     update: { status: "canceled" },
-    create: { barbershopId, status: "canceled" },
+    create: { businessId, status: "canceled" },
   });
 }
 

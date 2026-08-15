@@ -4,13 +4,14 @@ import { hashPassword, generateRandomPassword } from "@/lib/auth.js";
 import { sendAdminGeneratedPasswordEmail } from "@/lib/email.js";
 import { requireSuperAdmin } from "@/middleware/auth.js";
 import { AppError } from "@/middleware/errorHandler.js";
-import { getBarbershops, getBarbershop } from "@/modules/barbershops/barbershops.repository.js";
-import { getBarbers, getBarber, updateBarber, setBarberActive } from "@/modules/barbers/barbers.repository.js";
+import { getBarbershops, getBarbershop } from "@/modules/businesses/businesses.repository.js";
+import { getBarbers, getBarber, updateBarber, setBarberActive } from "@/modules/professionals/professionals.repository.js";
 import { getServices, getService, updateService, setServiceActive } from "@/modules/services/services.repository.js";
 import { getProducts, getProduct, updateProduct, setProductActive } from "@/modules/products/products.repository.js";
 import { getSubscription, grantTrial, getBillingOverview } from "@/modules/billing/billing.service.js";
 import { serverlessBackupConfigured, runServerlessBackup, listServerlessBackups } from "@/jobs/serverlessBackup.js";
 import type { PlanId } from "@/lib/stripe.js";
+import { vertical } from "@/config/env.js";
 
 const VALID_PLANS: PlanId[] = ["starter", "pro"];
 
@@ -33,8 +34,8 @@ superAdminRouter.get("/api/superadmin/me", requireSuperAdmin, (_req, res) => {
 superAdminRouter.get("/api/superadmin/users", requireSuperAdmin, async (_req, res, next) => {
   try {
     const users = await prisma.user.findMany({
-      include: { barbershop: { select: { name: true } } },
-      orderBy: [{ barbershop: { name: "asc" } }, { role: "asc" }],
+      include: { business: { select: { name: true } } },
+      orderBy: [{ business: { name: "asc" } }, { role: "asc" }],
     });
     res.json(
       users.map((u) => ({
@@ -43,7 +44,7 @@ superAdminRouter.get("/api/superadmin/users", requireSuperAdmin, async (_req, re
         username: u.username,
         email: u.email,
         role: u.role,
-        barbershopName: u.barbershop.name,
+        barbershopName: u.business.name,
         emailVerified: !!u.emailVerifiedAt,
         createdAt: u.createdAt,
       }))
@@ -100,19 +101,19 @@ superAdminRouter.get("/api/superadmin/barbershops/overview", requireSuperAdmin, 
 
 superAdminRouter.get("/api/superadmin/barbershops/:id", requireSuperAdmin, async (req, res, next) => {
   try {
-    const barbershopId = Number(req.params.id);
-    const shop = await getBarbershop(barbershopId);
+    const businessId = Number(req.params.id);
+    const shop = await getBarbershop(businessId);
     if (!shop) throw new AppError("Barbearia não encontrada", 404);
 
     const [barbers, services, products, subscription] = await Promise.all([
-      getBarbers(barbershopId, { includeInactive: true }),
-      getServices(barbershopId, { includeInactive: true }),
-      getProducts(barbershopId, { includeInactive: true }),
-      getSubscription(barbershopId),
+      getBarbers(businessId, { includeInactive: true }),
+      getServices(businessId, { includeInactive: true }),
+      getProducts(businessId, { includeInactive: true }),
+      getSubscription(businessId),
     ]);
 
     res.json({
-      barbershop: {
+      business: {
         id: shop.id,
         name: shop.name,
         address: shop.address,
@@ -143,30 +144,30 @@ superAdminRouter.get("/api/superadmin/barbershops/:id", requireSuperAdmin, async
 // Confere que o recurso realmente pertence à barbearia da URL antes de deixar
 // editar — evita que um bug de UI (ou uma chamada manual à API) altere o
 // recurso errado ao trocar só o id na URL.
-function assertBelongsToShop(resource: { barbershopId: number } | null, barbershopId: number, label: string) {
-  if (!resource || resource.barbershopId !== barbershopId) {
-    throw new AppError(`${label} não encontrado nessa barbearia`, 404);
+function assertBelongsToShop(resource: { businessId: number } | null, businessId: number, label: string) {
+  if (!resource || resource.businessId !== businessId) {
+    throw new AppError(`${label} não encontrado nessa ${vertical.business}`, 404);
   }
 }
 
-superAdminRouter.put("/api/superadmin/barbershops/:id/barbers/:barberId", requireSuperAdmin, async (req, res, next) => {
+superAdminRouter.put("/api/superadmin/barbershops/:id/barbers/:professionalId", requireSuperAdmin, async (req, res, next) => {
   try {
-    const barbershopId = Number(req.params.id);
-    const barberId = Number(req.params.barberId);
-    const barber = await getBarber(barberId);
-    assertBelongsToShop(barber, barbershopId, "Barbeiro");
+    const businessId = Number(req.params.id);
+    const professionalId = Number(req.params.professionalId);
+    const professional = await getBarber(professionalId);
+    assertBelongsToShop(professional, businessId, vertical.professional.charAt(0).toUpperCase() + vertical.professional.slice(1));
 
     const { name, serviceCommissionPercent, productCommissionPercent, monthlyGoalCents, active } = req.body || {};
     if (!name || !String(name).trim()) throw new AppError("Nome é obrigatório");
 
-    await updateBarber(barberId, String(name).trim(), {
+    await updateBarber(professionalId, String(name).trim(), {
       serviceCommissionPercent: serviceCommissionPercent !== undefined ? Number(serviceCommissionPercent) : undefined,
       productCommissionPercent: productCommissionPercent !== undefined ? Number(productCommissionPercent) : undefined,
       monthlyGoalCents: monthlyGoalCents !== undefined ? Number(monthlyGoalCents) : undefined,
     });
-    if (active !== undefined) await setBarberActive(barberId, !!active);
+    if (active !== undefined) await setBarberActive(professionalId, !!active);
 
-    res.json(await getBarber(barberId));
+    res.json(await getBarber(professionalId));
   } catch (err) {
     next(err);
   }
@@ -174,10 +175,10 @@ superAdminRouter.put("/api/superadmin/barbershops/:id/barbers/:barberId", requir
 
 superAdminRouter.put("/api/superadmin/barbershops/:id/services/:serviceId", requireSuperAdmin, async (req, res, next) => {
   try {
-    const barbershopId = Number(req.params.id);
+    const businessId = Number(req.params.id);
     const serviceId = Number(req.params.serviceId);
     const service = await getService(serviceId);
-    assertBelongsToShop(service, barbershopId, "Serviço");
+    assertBelongsToShop(service, businessId, "Serviço");
 
     const { name, priceCents, durationMin, active } = req.body || {};
     if (!name || !String(name).trim()) throw new AppError("Nome é obrigatório");
@@ -195,10 +196,10 @@ superAdminRouter.put("/api/superadmin/barbershops/:id/services/:serviceId", requ
 
 superAdminRouter.put("/api/superadmin/barbershops/:id/products/:productId", requireSuperAdmin, async (req, res, next) => {
   try {
-    const barbershopId = Number(req.params.id);
+    const businessId = Number(req.params.id);
     const productId = Number(req.params.productId);
     const product = await getProduct(productId);
-    assertBelongsToShop(product, barbershopId, "Produto");
+    assertBelongsToShop(product, businessId, "Produto");
 
     const { name, priceCents, stockQuantity, lowStockThreshold, active } = req.body || {};
     if (!name || !String(name).trim()) throw new AppError("Nome é obrigatório");
@@ -224,8 +225,8 @@ superAdminRouter.put("/api/superadmin/barbershops/:id/products/:productId", requ
 // parceria, compensação por bug) direto pelo painel, sem mexer no banco na mão.
 superAdminRouter.post("/api/superadmin/barbershops/:id/grant-trial", requireSuperAdmin, async (req, res, next) => {
   try {
-    const barbershopId = Number(req.params.id);
-    const shop = await getBarbershop(barbershopId);
+    const businessId = Number(req.params.id);
+    const shop = await getBarbershop(businessId);
     if (!shop) throw new AppError("Barbearia não encontrada", 404);
 
     const { plan, days } = req.body || {};
@@ -235,7 +236,7 @@ superAdminRouter.post("/api/superadmin/barbershops/:id/grant-trial", requireSupe
 
     const trialEndsAt = new Date();
     trialEndsAt.setDate(trialEndsAt.getDate() + daysNum);
-    await grantTrial(barbershopId, plan, trialEndsAt);
+    await grantTrial(businessId, plan, trialEndsAt);
 
     res.json({ ok: true, plan, trialEndsAt });
   } catch (err) {

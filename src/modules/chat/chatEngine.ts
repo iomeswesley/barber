@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { getBarbershop } from "@/modules/barbershops/barbershops.repository.js";
+import { getBarbershop } from "@/modules/businesses/businesses.repository.js";
 import { getServices } from "@/modules/services/services.repository.js";
-import { getBarbers } from "@/modules/barbers/barbers.repository.js";
+import { getBarbers } from "@/modules/professionals/professionals.repository.js";
 import { getClientByPhone, findOrCreateClient, markMarketingOptIn } from "@/modules/clients/clients.repository.js";
 import { getAppointmentById } from "@/modules/appointments/appointments.repository.js";
 import {
@@ -25,16 +25,16 @@ import { notifyNewAppointment, notifyEscalation } from "@/modules/push/push.serv
 import { sendWhatsappText, whatsappConfigured } from "@/lib/whatsapp.js";
 import { createShortLink } from "@/lib/shortLink.js";
 import { prisma } from "@/lib/prisma.js";
-import { env } from "@/config/env.js";
+import { env, vertical } from "@/config/env.js";
 import { logChatUsage } from "./chatUsage.js";
-import type { Barbershop, Prisma } from "@prisma/client";
+import type { Business, Prisma } from "@prisma/client";
 
 const client = new Anthropic();
 const MODEL = "claude-sonnet-5";
 const MAX_ITERATIONS = 8;
 
 interface ChatSession {
-  barbershopId: number;
+  businessId: number;
   messages: Anthropic.MessageParam[];
 }
 
@@ -71,46 +71,47 @@ export function normalizeWhatsappFormatting(text: string): string {
   return text.replace(/\*\*(.+?)\*\*/g, "*$1*");
 }
 
-function buildStableSystemPrompt(barbershop: Barbershop & { opensAt?: string; closesAt?: string }): string {
-  return `Você é o assistente virtual de agendamentos da "${barbershop.name}", conversando por WhatsApp com clientes.
+function buildStableSystemPrompt(barbershop: Business & { opensAt?: string; closesAt?: string }): string {
+  const { business: biz, professional: prof, client, service: svc, emergencyClause, planBenefitExample } = vertical;
+  return `Você é o assistente virtual de agendamentos da ${biz}${vertical.businessAdjective} "${barbershop.name}", conversando por WhatsApp com ${vertical.clientPlural}.
 
 Endereço: ${barbershop.address || "não informado"}.
-O telefone deste cliente já é conhecido automaticamente pelo WhatsApp (é o próprio remetente da conversa) — NUNCA peça o telefone, o sistema já injeta isso sozinho ao agendar, cancelar ou reagendar.
+O telefone deste ${client} já é conhecido automaticamente pelo WhatsApp (é o próprio remetente da conversa) — NUNCA peça o telefone, o sistema já injeta isso sozinho ao agendar, cancelar ou reagendar.
 
 Seu objetivo é conduzir uma conversa natural e breve. Você pode: agendar um novo horário, cancelar ou reagendar um horário já existente, e coletar avaliações. Siga este fluxo para agendar:
-1. Descubra qual serviço o cliente deseja (use a ferramenta listar_servicos se precisar mostrar as opções com preços e duração).
-2. Pergunte com qual barbeiro ele gostaria de ser atendido (use listar_barbeiros para mostrar os nomes). Se ele não tiver preferência, escolha um barbeiro e verifique a disponibilidade, ou ofereça verificar todos.
-3. Pergunte o dia desejado e use verificar_horarios_disponiveis para checar horários livres. Converta datas relativas ("amanhã", "sexta-feira que vem") para o formato YYYY-MM-DD com base na data de hoje informada no contexto abaixo. Sugira 3 a 5 horários disponíveis. Se o cliente for vago sobre o dia ("qualquer dia", "não tenho preferência", "o mais rápido possível"), NÃO fique perguntando de novo — use a ferramenta buscar_proximo_horario_disponivel a partir de hoje e já sugira os horários encontrados.
-4. Quando o cliente escolher um horário, confirme os detalhes (serviço, barbeiro, data, horário e preço) — NÃO peça nome nem telefone de novo, você já sabe quem é o cliente (veja o contexto abaixo). Inclua também, de forma breve e natural (não como um termo legal formal), que ao confirmar o cliente concorda em receber lembretes e mensagens futuras da barbearia por aqui — ex: "Confirma? (ao confirmar, você topa receber lembretes e novidades nossas por aqui 😉)".
-5. Só depois de confirmação explícita do cliente, use a ferramenta criar_agendamento para gravar o agendamento.
-6. Depois de agendar com sucesso, informe o cliente que o agendamento foi confirmado e inclua na sua resposta, de forma clara, o link para adicionar ao calendário que virá no resultado da ferramenta (campo ics_url) — escreva a URL completa como veio, sem alterar.
+1. Descubra qual ${svc} o ${client} deseja (use a ferramenta listar_servicos se precisar mostrar as opções com preços e duração).
+2. Pergunte com qual ${prof} ele gostaria de ser atendido (use listar_barbeiros para mostrar os nomes). Se ele não tiver preferência, escolha um ${prof} e verifique a disponibilidade, ou ofereça verificar todos.
+3. Pergunte o dia desejado e use verificar_horarios_disponiveis para checar horários livres. Converta datas relativas ("amanhã", "sexta-feira que vem") para o formato YYYY-MM-DD com base na data de hoje informada no contexto abaixo. Sugira 3 a 5 horários disponíveis. Se o ${client} for vago sobre o dia ("qualquer dia", "não tenho preferência", "o mais rápido possível"), NÃO fique perguntando de novo — use a ferramenta buscar_proximo_horario_disponivel a partir de hoje e já sugira os horários encontrados.
+4. Quando o ${client} escolher um horário, confirme os detalhes (${svc}, ${prof}, data, horário e preço) — NÃO peça nome nem telefone de novo, você já sabe quem é o ${client} (veja o contexto abaixo). Inclua também, de forma breve e natural (não como um termo legal formal), que ao confirmar o ${client} concorda em receber lembretes e mensagens futuras da ${biz} por aqui — ex: "Confirma? (ao confirmar, você topa receber lembretes e novidades nossas por aqui 😉)".
+5. Só depois de confirmação explícita do ${client}, use a ferramenta criar_agendamento para gravar o agendamento.
+6. Depois de agendar com sucesso, informe o ${client} que o agendamento foi confirmado e inclua na sua resposta, de forma clara, o link para adicionar ao calendário que virá no resultado da ferramenta (campo ics_url) — escreva a URL completa como veio, sem alterar.
 
 Para cancelar ou reagendar:
-- Se o cliente quiser ver, cancelar ou remarcar um agendamento, use listar_meus_agendamentos primeiro para saber quais existem e pegar o ID correto — nunca invente um ID.
-- Confirme com o cliente qual agendamento e a ação (cancelar ou o novo horário) antes de executar cancelar_agendamento ou reagendar_agendamento.
-- Para reagendar, cheque a nova disponibilidade com verificar_horarios_disponiveis antes de confirmar com o cliente.
+- Se o ${client} quiser ver, cancelar ou remarcar um agendamento, use listar_meus_agendamentos primeiro para saber quais existem e pegar o ID correto — nunca invente um ID.
+- Confirme com o ${client} qual agendamento e a ação (cancelar ou o novo horário) antes de executar cancelar_agendamento ou reagendar_agendamento.
+- Para reagendar, cheque a nova disponibilidade com verificar_horarios_disponiveis antes de confirmar com o ${client}.
 
 Planos de assinatura recorrente:
-- Esta barbearia pode oferecer planos de assinatura mensal pros próprios clientes (ex: corte grátis todo mês, desconto fixo). Se o cliente perguntar sobre plano, assinatura, mensalidade ou fidelidade, use listar_planos_assinatura para ver o que está disponível — nunca invente nomes, preços ou benefícios.
-- Se a lista vier vazia, diga que a barbearia ainda não tem planos disponíveis no momento.
-- Se o cliente quiser assinar um plano específico, confirme qual plano antes de chamar assinar_plano_assinatura. NÃO peça telefone nem código de confirmação — o sistema já valida isso automaticamente pelo próprio WhatsApp. A ferramenta retorna um link de pagamento (checkout_url): envie esse link completo, sem alterar, e explique que o pagamento é processado pelo Stripe. Avise também, de forma breve, que se a tela do link ficar carregando sem abrir, é só tocar em "abrir no navegador" em vez de continuar dentro do próprio WhatsApp (é uma limitação conhecida do navegador embutido, não um erro).
+- Esta ${biz} pode oferecer planos de assinatura mensal pros próprios ${vertical.clientPlural} (ex: ${planBenefitExample}, desconto fixo). Se o ${client} perguntar sobre plano, assinatura, mensalidade ou fidelidade, use listar_planos_assinatura para ver o que está disponível — nunca invente nomes, preços ou benefícios.
+- Se a lista vier vazia, diga que a ${biz} ainda não tem planos disponíveis no momento.
+- Se o ${client} quiser assinar um plano específico, confirme qual plano antes de chamar assinar_plano_assinatura. NÃO peça telefone nem código de confirmação — o sistema já valida isso automaticamente pelo próprio WhatsApp. A ferramenta retorna um link de pagamento (checkout_url): envie esse link completo, sem alterar, e explique que o pagamento é processado pelo Stripe. Avise também, de forma breve, que se a tela do link ficar carregando sem abrir, é só tocar em "abrir no navegador" em vez de continuar dentro do próprio WhatsApp (é uma limitação conhecida do navegador embutido, não um erro).
 
 Quando encaminhar para atendimento humano:
-- Se o cliente relatar uma reclamação séria (ex: cobrança indevida, atendimento muito ruim, algo que exige uma decisão que você não pode tomar), uma emergência, ou pedir explicitamente para falar com um humano/atendente, NÃO tente resolver sozinho. Use a ferramenta escalar_atendimento_humano com um resumo curto do motivo (uma vez só por assunto — não chame de novo só porque o cliente repetiu o pedido) e informe de forma empática que a equipe foi avisada e vai entrar em contato diretamente por aqui.
-- Nessa mesma resposta de escalada, você pode oferecer UMA ÚNICA VEZ, de forma breve, que ainda pode ajudar a fechar o agendamento enquanto isso. Mas NUNCA repita a lista de horários disponíveis nem insista de novo nas mensagens seguintes. Se o cliente voltar a cobrar novidade sobre o humano, pedir contato direto, ou demonstrar impaciência/ansiedade, só reconheça e tranquilize (ex: "entendo, a equipe já foi avisada e vai te chamar por aqui assim que possível 🙏") — sem repetir a oferta de agendamento nem a lista de horários. Só volte a falar de agendamento se o cliente pedir isso de novo explicitamente.
+- Se o ${client} relatar uma reclamação séria (ex: cobrança indevida, atendimento muito ruim, algo que exige uma decisão que você não pode tomar)${emergencyClause} ou pedir explicitamente para falar com um humano/atendente, NÃO tente resolver sozinho. Use a ferramenta escalar_atendimento_humano com um resumo curto do motivo (uma vez só por assunto — não chame de novo só porque o ${client} repetiu o pedido) e informe de forma empática que a equipe foi avisada e vai entrar em contato diretamente por aqui.
+- Nessa mesma resposta de escalada, você pode oferecer UMA ÚNICA VEZ, de forma breve, que ainda pode ajudar a fechar o agendamento enquanto isso. Mas NUNCA repita a lista de horários disponíveis nem insista de novo nas mensagens seguintes. Se o ${client} voltar a cobrar novidade sobre o humano, pedir contato direto, ou demonstrar impaciência/ansiedade, só reconheça e tranquilize (ex: "entendo, a equipe já foi avisada e vai te chamar por aqui assim que possível 🙏") — sem repetir a oferta de agendamento nem a lista de horários. Só volte a falar de agendamento se o ${client} pedir isso de novo explicitamente.
 
 ${
   barbershop.toneExamples?.length
-    ? `Exemplos reais de mensagens que esta barbearia já mandou pra clientes — use como referência de tom e forma de escrever (não copie literalmente, adapte ao contexto da conversa atual):
+    ? `Exemplos reais de mensagens que esta ${biz} já mandou pra ${vertical.clientPlural} — use como referência de tom e forma de escrever (não copie literalmente, adapte ao contexto da conversa atual):
 ${barbershop.toneExamples.map((ex) => `- "${ex}"`).join("\n")}
 
 `
     : ""
 }Regras de estilo:
 - Seja cordial, direto e breve, como uma conversa real de WhatsApp — sem parágrafos longos.
-- Não invente serviços, barbeiros, preços, horários ou IDs de agendamento: sempre use as ferramentas para obter dados reais.
-- Se o cliente pedir algo fora do escopo que não seja uma reclamação séria ou emergência (ex: pergunta geral), responda educadamente e redirecione para o agendamento.
-- Formatação: isto é WhatsApp, não Markdown. Para negrito use UM asterisco de cada lado (*assim*), NUNCA dois (**assim** está errado e aparece quebrado pro cliente). Para itálico use underline (_assim_). Não use markdown de título (#), link ([]()) nem tabelas.`;
+- Não invente ${vertical.servicePlural}, ${vertical.professionalPlural}, preços, horários ou IDs de agendamento: sempre use as ferramentas para obter dados reais.
+- Se o ${client} pedir algo fora do escopo que não seja uma reclamação séria ou emergência (ex: pergunta geral), responda educadamente e redirecione para o agendamento.
+- Formatação: isto é WhatsApp, não Markdown. Para negrito use UM asterisco de cada lado (*assim*), NUNCA dois (**assim** está errado e aparece quebrado pro ${client}). Para itálico use underline (_assim_). Não use markdown de título (#), link ([]()) nem tabelas.`;
 }
 
 interface Identity {
@@ -123,17 +124,19 @@ function buildDynamicContext(identity: Identity, pendingReview: Awaited<ReturnTy
   const todayIso = now.toISOString().slice(0, 10);
   const weekday = WEEKDAYS[now.getDay()];
 
+  const { client } = vertical;
+  const clientCap = client.charAt(0).toUpperCase() + client.slice(1);
   let identityBlock: string;
   if (identity.existingClient) {
-    identityBlock = `- Este é um cliente que já agendou antes. O nome dele já está registrado como "${identity.existingClient.name}". Use esse nome diretamente, sem perguntar de novo — só confirme se ele mesmo disser que o nome está errado.`;
+    identityBlock = `- Este é um ${client} que já agendou antes. O nome dele já está registrado como "${identity.existingClient.name}". Use esse nome diretamente, sem perguntar de novo — só confirme se ele mesmo disser que o nome está errado.`;
   } else if (identity.pushName) {
-    identityBlock = `- Cliente novo. O nome de perfil do WhatsApp dele é "${identity.pushName}". Use esse nome diretamente ao criar o agendamento, sem precisar perguntar — só ajuste se ele mencionar um nome diferente durante a conversa.`;
+    identityBlock = `- ${clientCap} novo. O nome de perfil do WhatsApp dele é "${identity.pushName}". Use esse nome diretamente ao criar o agendamento, sem precisar perguntar — só ajuste se ele mencionar um nome diferente durante a conversa.`;
   } else {
-    identityBlock = `- Cliente novo e sem nome de perfil disponível. Pergunte o nome dele em algum momento natural da conversa, antes de agendar.`;
+    identityBlock = `- ${clientCap} novo e sem nome de perfil disponível. Pergunte o nome dele em algum momento natural da conversa, antes de agendar.`;
   }
 
   const reviewBlock = pendingReview
-    ? `\n\nATENÇÃO — pedido de avaliação pendente: este cliente teve um atendimento (ID ${pendingReview.id}: ${pendingReview.serviceName} com ${pendingReview.barberName} em ${pendingReview.date}) que ainda não foi avaliado. Antes de tratar do assunto principal da mensagem dele (ou logo depois, o que soar mais natural), pergunte de forma breve e simpática como foi esse atendimento e peça uma nota de 1 a 5 (e um comentário curto, opcional). Se ele responder com uma nota, use a ferramenta registrar_avaliacao com agendamento_id = ${pendingReview.id} (esse é o ID real — não peça isso ao cliente, você já sabe). Se ele ignorar ou disser que não quer avaliar, não insista — siga com o resto da conversa normalmente.`
+    ? `\n\nATENÇÃO — pedido de avaliação pendente: este ${client} teve um atendimento (ID ${pendingReview.id}: ${pendingReview.serviceName} com ${pendingReview.barberName} em ${pendingReview.date}) que ainda não foi avaliado. Antes de tratar do assunto principal da mensagem dele (ou logo depois, o que soar mais natural), pergunte de forma breve e simpática como foi esse atendimento e peça uma nota de 1 a 5 (e um comentário curto, opcional). Se ele responder com uma nota, use a ferramenta registrar_avaliacao com agendamento_id = ${pendingReview.id} (esse é o ID real — não peça isso ao ${client}, você já sabe). Se ele ignorar ou disser que não quer avaliar, não insista — siga com o resto da conversa normalmente.`
     : "";
 
   return `Contexto atual:
@@ -144,21 +147,21 @@ ${identityBlock}${reviewBlock}`;
 const tools: Anthropic.Tool[] = [
   {
     name: "listar_servicos",
-    description: "Lista os serviços oferecidos pela barbearia, com nome, preço e duração em minutos.",
+    description: `Lista os ${vertical.servicePlural} oferecidos pela ${vertical.business}, com nome, preço e duração em minutos.`,
     input_schema: { type: "object", properties: {}, required: [] },
   },
   {
     name: "listar_barbeiros",
-    description: "Lista os barbeiros que atendem nesta barbearia.",
+    description: `Lista os ${vertical.professionalPlural} que atendem nesta ${vertical.business}.`,
     input_schema: { type: "object", properties: {}, required: [] },
   },
   {
     name: "verificar_horarios_disponiveis",
-    description: "Verifica os horários livres de um barbeiro para um serviço em uma data específica. Use depois que o cliente escolher serviço, barbeiro e dia.",
+    description: `Verifica os horários livres de um ${vertical.professional} para um ${vertical.service} em uma data específica. Use depois que o ${vertical.client} escolher ${vertical.service}, ${vertical.professional} e dia.`,
     input_schema: {
       type: "object",
       properties: {
-        barbeiro_id: { type: "integer", description: "ID do barbeiro (obtido de listar_barbeiros)" },
+        barbeiro_id: { type: "integer", description: `ID do ${vertical.professional} (obtido de listar_barbeiros)` },
         servico_id: { type: "integer", description: "ID do serviço (obtido de listar_servicos)" },
         data: { type: "string", description: "Data no formato YYYY-MM-DD" },
       },
@@ -167,11 +170,11 @@ const tools: Anthropic.Tool[] = [
   },
   {
     name: "buscar_proximo_horario_disponivel",
-    description: "Varre os próximos dias a partir de uma data (pulando dias em que a barbearia está fechada) e retorna o primeiro dia com horários livres para o barbeiro e serviço escolhidos. Use quando o cliente não tiver preferência de dia, em vez de perguntar 'qual dia?' de novo.",
+    description: `Varre os próximos dias a partir de uma data (pulando dias em que a ${vertical.business} está fechada) e retorna o primeiro dia com horários livres para o ${vertical.professional} e ${vertical.service} escolhidos. Use quando o ${vertical.client} não tiver preferência de dia, em vez de perguntar 'qual dia?' de novo.`,
     input_schema: {
       type: "object",
       properties: {
-        barbeiro_id: { type: "integer", description: "ID do barbeiro (obtido de listar_barbeiros)" },
+        barbeiro_id: { type: "integer", description: `ID do ${vertical.professional} (obtido de listar_barbeiros)` },
         servico_id: { type: "integer", description: "ID do serviço (obtido de listar_servicos)" },
         data_inicial: { type: "string", description: "A partir de qual data buscar, formato YYYY-MM-DD (normalmente hoje)" },
       },
@@ -180,7 +183,7 @@ const tools: Anthropic.Tool[] = [
   },
   {
     name: "escalar_atendimento_humano",
-    description: "Sinaliza para a equipe da barbearia que este cliente precisa de atendimento humano (reclamação séria, emergência, ou algo que você não pode resolver). Use no lugar de tentar resolver sozinho ou insistir no agendamento.",
+    description: `Sinaliza para a equipe da ${vertical.business} que este ${vertical.client} precisa de atendimento humano (reclamação séria, emergência, ou algo que você não pode resolver). Use no lugar de tentar resolver sozinho ou insistir no agendamento.`,
     input_schema: {
       type: "object",
       properties: { motivo: { type: "string", description: "Resumo curto do motivo da escalada, para a equipe entender rapidamente o contexto" } },
@@ -189,13 +192,13 @@ const tools: Anthropic.Tool[] = [
   },
   {
     name: "criar_agendamento",
-    description: "Grava o agendamento na base de dados. O telefone do cliente já é conhecido automaticamente (não faz parte desta ferramenta). Só chame depois que o cliente confirmar explicitamente serviço, barbeiro, data e horário.",
+    description: `Grava o agendamento na base de dados. O telefone do ${vertical.client} já é conhecido automaticamente (não faz parte desta ferramenta). Só chame depois que o ${vertical.client} confirmar explicitamente ${vertical.service}, ${vertical.professional}, data e horário.`,
     input_schema: {
       type: "object",
       properties: {
         barbeiro_id: { type: "integer" },
         servico_id: { type: "integer" },
-        nome_cliente: { type: "string", description: "Nome do cliente (já conhecido pelo contexto — use-o diretamente)" },
+        nome_cliente: { type: "string", description: `Nome do ${vertical.client} (já conhecido pelo contexto — use-o diretamente)` },
         data: { type: "string", description: "YYYY-MM-DD" },
         horario: { type: "string", description: "HH:MM" },
       },
@@ -204,12 +207,12 @@ const tools: Anthropic.Tool[] = [
   },
   {
     name: "listar_meus_agendamentos",
-    description: "Lista os agendamentos futuros deste cliente (identificado pelo telefone automaticamente). Use antes de cancelar ou reagendar, para saber o ID correto.",
+    description: `Lista os agendamentos futuros deste ${vertical.client} (identificado pelo telefone automaticamente). Use antes de cancelar ou reagendar, para saber o ID correto.`,
     input_schema: { type: "object", properties: {}, required: [] },
   },
   {
     name: "cancelar_agendamento",
-    description: "Cancela um agendamento existente deste cliente. Só chame depois de confirmar com o cliente qual agendamento (use o ID de listar_meus_agendamentos).",
+    description: `Cancela um agendamento existente deste ${vertical.client}. Só chame depois de confirmar com o ${vertical.client} qual agendamento (use o ID de listar_meus_agendamentos).`,
     input_schema: {
       type: "object",
       properties: { agendamento_id: { type: "integer", description: "ID do agendamento (de listar_meus_agendamentos)" } },
@@ -218,7 +221,7 @@ const tools: Anthropic.Tool[] = [
   },
   {
     name: "reagendar_agendamento",
-    description: "Muda a data/horário de um agendamento existente deste cliente para um novo horário. Confirme a nova disponibilidade com verificar_horarios_disponiveis antes de chamar esta ferramenta.",
+    description: `Muda a data/horário de um agendamento existente deste ${vertical.client} para um novo horário. Confirme a nova disponibilidade com verificar_horarios_disponiveis antes de chamar esta ferramenta.`,
     input_schema: {
       type: "object",
       properties: {
@@ -231,17 +234,17 @@ const tools: Anthropic.Tool[] = [
   },
   {
     name: "listar_planos_assinatura",
-    description: "Lista os planos de assinatura recorrente que esta barbearia oferece pros próprios clientes (ex: corte grátis mensal, desconto fixo). Use quando o cliente perguntar sobre planos, assinatura, mensalidade ou fidelidade.",
+    description: `Lista os planos de assinatura recorrente que esta ${vertical.business} oferece pros próprios ${vertical.clientPlural} (ex: ${vertical.planBenefitExample}, desconto fixo). Use quando o ${vertical.client} perguntar sobre planos, assinatura, mensalidade ou fidelidade.`,
     input_schema: { type: "object", properties: {}, required: [] },
   },
   {
     name: "assinar_plano_assinatura",
-    description: "Inicia a assinatura de um plano recorrente pro cliente e retorna um link de pagamento do Stripe. O telefone do cliente já é conhecido e validado automaticamente pelo WhatsApp (não faz parte desta ferramenta, não peça código). Só chame depois que o cliente confirmar explicitamente qual plano quer assinar.",
+    description: `Inicia a assinatura de um plano recorrente pro ${vertical.client} e retorna um link de pagamento do Stripe. O telefone do ${vertical.client} já é conhecido e validado automaticamente pelo WhatsApp (não faz parte desta ferramenta, não peça código). Só chame depois que o ${vertical.client} confirmar explicitamente qual plano quer assinar.`,
     input_schema: {
       type: "object",
       properties: {
         plano_id: { type: "integer", description: "ID do plano (obtido de listar_planos_assinatura)" },
-        nome_cliente: { type: "string", description: "Nome do cliente (já conhecido pelo contexto — use-o diretamente)" },
+        nome_cliente: { type: "string", description: `Nome do ${vertical.client} (já conhecido pelo contexto — use-o diretamente)` },
       },
       required: ["plano_id", "nome_cliente"],
     },
@@ -254,7 +257,7 @@ const tools: Anthropic.Tool[] = [
       properties: {
         agendamento_id: { type: "integer", description: "ID do agendamento avaliado" },
         nota: { type: "integer", description: "Nota de 1 a 5" },
-        comentario: { type: "string", description: "Comentário opcional do cliente" },
+        comentario: { type: "string", description: `Comentário opcional do ${vertical.client}` },
       },
       required: ["agendamento_id", "nota"],
     },
@@ -262,7 +265,7 @@ const tools: Anthropic.Tool[] = [
   },
 ];
 
-async function executeTool(barbershop: Barbershop, name: string, input: any, customerPhone: string): Promise<unknown> {
+async function executeTool(barbershop: Business, name: string, input: any, customerPhone: string): Promise<unknown> {
   switch (name) {
     case "listar_servicos": {
       const services = await getServices(barbershop.id);
@@ -296,8 +299,8 @@ async function executeTool(barbershop: Barbershop, name: string, input: any, cus
       // tinha optado antes, então não precisa checar o valor atual.
       await markMarketingOptIn(clientRecord.id);
       const appointment = await createAppointment({
-        barbershopId: barbershop.id,
-        barberId: input.barbeiro_id,
+        businessId: barbershop.id,
+        professionalId: input.barbeiro_id,
         serviceId: input.servico_id,
         clientId: clientRecord.id,
         date: input.data,
@@ -326,24 +329,24 @@ async function executeTool(barbershop: Barbershop, name: string, input: any, cus
     }
     case "cancelar_agendamento": {
       const appointment = await getAppointmentById(input.agendamento_id);
-      if (!appointment || appointment.clientPhone !== customerPhone || appointment.barbershopId !== barbershop.id) {
-        throw new Error("Agendamento não encontrado para este cliente.");
+      if (!appointment || appointment.clientPhone !== customerPhone || appointment.businessId !== barbershop.id) {
+        throw new Error(`Agendamento não encontrado para este ${vertical.client}.`);
       }
       await cancelAppointment(input.agendamento_id);
       return { cancelado: true, agendamento_id: input.agendamento_id };
     }
     case "reagendar_agendamento": {
       const appointment = await getAppointmentById(input.agendamento_id);
-      if (!appointment || appointment.clientPhone !== customerPhone || appointment.barbershopId !== barbershop.id) {
-        throw new Error("Agendamento não encontrado para este cliente.");
+      if (!appointment || appointment.clientPhone !== customerPhone || appointment.businessId !== barbershop.id) {
+        throw new Error(`Agendamento não encontrado para este ${vertical.client}.`);
       }
       const updated = await rescheduleAppointment(input.agendamento_id, input.nova_data, input.novo_horario);
       return { reagendado: true, agendamento_id: updated.id, nova_data: updated.date, novo_horario: updated.startTime, ics_url: icsUrl(updated.id, customerPhone) };
     }
     case "registrar_avaliacao": {
       const appointment = await getAppointmentById(input.agendamento_id);
-      if (!appointment || appointment.clientPhone !== customerPhone || appointment.barbershopId !== barbershop.id) {
-        throw new Error("Agendamento não encontrado para este cliente.");
+      if (!appointment || appointment.clientPhone !== customerPhone || appointment.businessId !== barbershop.id) {
+        throw new Error(`Agendamento não encontrado para este ${vertical.client}.`);
       }
       if (input.nota < 1 || input.nota > 5) throw new Error("Nota deve ser entre 1 e 5.");
       await createReview({ appointmentId: input.agendamento_id, rating: input.nota, comment: input.comentario });
@@ -382,7 +385,7 @@ async function executeTool(barbershop: Barbershop, name: string, input: any, cus
       const code = await createShortLink(url);
       return {
         checkout_url: `${base}/ir/${code}`,
-        mensagem: "Link de pagamento gerado — envie esse link completo pro cliente concluir a assinatura. Se a tela ficar carregando sem abrir, oriente o cliente a abrir no navegador (Chrome/Safari) em vez de continuar dentro do próprio WhatsApp.",
+        mensagem: `Link de pagamento gerado — envie esse link completo pro ${vertical.client} concluir a assinatura. Se a tela ficar carregando sem abrir, oriente o ${vertical.client} a abrir no navegador (Chrome/Safari) em vez de continuar dentro do próprio WhatsApp.`,
       };
     }
     default:
@@ -396,31 +399,31 @@ async function executeTool(barbershop: Barbershop, name: string, input: any, cus
 // (tenants diferentes) nesse SaaS. Como chat_sessions.session_id é chave
 // primária, duas barbearias distintas colidiriam na mesma linha e uma
 // sobrescreveria (upsert) o histórico da outra silenciosamente. Compor a
-// chave de armazenamento com o barbershopId resolve isso sem precisar
+// chave de armazenamento com o businessId resolve isso sem precisar
 // migrar o schema.
-function storageKey(barbershopId: number, sessionId: string): string {
-  return `${barbershopId}:${sessionId}`;
+function storageKey(businessId: number, sessionId: string): string {
+  return `${businessId}:${sessionId}`;
 }
 
-export async function resetSession(sessionId: string, barbershopId: number) {
-  await prisma.chatSession.deleteMany({ where: { sessionId: storageKey(barbershopId, sessionId) } });
+export async function resetSession(sessionId: string, businessId: number) {
+  await prisma.chatSession.deleteMany({ where: { sessionId: storageKey(businessId, sessionId) } });
 }
 
 // Lista as conversas da barbearia pro dono conseguir ver o que o cliente
 // mandou e o que o bot respondeu. sessionId é o telefone (wa_id) no fluxo
-// real do WhatsApp — prefixado com "<barbershopId>:" desde a correção de
+// real do WhatsApp — prefixado com "<businessId>:" desde a correção de
 // isolamento entre tenants (ver storageKey), mas linhas gravadas antes
 // dessa correção guardam o telefone puro, sem prefixo. Como já filtramos
-// por barbershopId na query, tratar as duas formas aqui é seguro (não
+// por businessId na query, tratar as duas formas aqui é seguro (não
 // vaza conversa de outra barbearia) e evita esconder histórico real de
 // cliente só porque é anterior à correção.
-export async function listChatSessionsForBarbershop(barbershopId: number) {
+export async function listChatSessionsForBarbershop(businessId: number) {
   const sessions = await prisma.chatSession.findMany({
-    where: { barbershopId },
+    where: { businessId },
     orderBy: { updatedAt: "desc" },
     select: { sessionId: true, updatedAt: true },
   });
-  const prefix = `${barbershopId}:`;
+  const prefix = `${businessId}:`;
   return sessions.map((s) => ({
     phone: s.sessionId.startsWith(prefix) ? s.sessionId.slice(prefix.length) : s.sessionId,
     updatedAt: s.updatedAt,
@@ -435,12 +438,12 @@ export interface ChatTranscriptEntry {
 // Content blocks de tool_use/tool_result são "conversa interna" entre o bot
 // e o próprio sistema (ex: consultar horários) — não foram digitados por
 // ninguém, então ficam de fora da transcrição pro dono ver só o diálogo real.
-export async function getChatTranscript(barbershopId: number, phone: string): Promise<ChatTranscriptEntry[]> {
+export async function getChatTranscript(businessId: number, phone: string): Promise<ChatTranscriptEntry[]> {
   // Tenta a chave atual (prefixada) primeiro; cai pro telefone puro se for
   // uma conversa anterior à correção de isolamento entre tenants (mesma
   // ressalva de listChatSessionsForBarbershop acima).
-  let row = await prisma.chatSession.findUnique({ where: { sessionId: storageKey(barbershopId, phone) } });
-  if (!row) row = await prisma.chatSession.findFirst({ where: { sessionId: phone, barbershopId } });
+  let row = await prisma.chatSession.findUnique({ where: { sessionId: storageKey(businessId, phone) } });
+  if (!row) row = await prisma.chatSession.findFirst({ where: { sessionId: phone, businessId } });
   const messages = (row?.messages as unknown as Anthropic.MessageParam[]) || [];
 
   const entries: ChatTranscriptEntry[] = [];
@@ -464,8 +467,8 @@ export async function getChatTranscript(barbershopId: number, phone: string): Pr
 // IA — mesmo phoneNumberId do webhook, e a mensagem entra na mesma sessão
 // gravada no banco (storageKey = telefone, igual ao webhook) pra aparecer no
 // histórico do painel e a IA não "esquecer" o que o humano já respondeu.
-export async function sendManualMessage(barbershopId: number, phone: string, text: string): Promise<void> {
-  const barbershop = await getBarbershop(barbershopId);
+export async function sendManualMessage(businessId: number, phone: string, text: string): Promise<void> {
+  const barbershop = await getBarbershop(businessId);
   if (!barbershop) throw new Error("Barbearia não encontrada");
   if (!whatsappConfigured || !barbershop.whatsappPhoneNumberId) {
     throw new Error("Esta barbearia ainda não tem WhatsApp configurado.");
@@ -473,16 +476,16 @@ export async function sendManualMessage(barbershopId: number, phone: string, tex
 
   await sendWhatsappText(barbershop.whatsappPhoneNumberId, phone, text);
 
-  const key = storageKey(barbershopId, phone);
+  const key = storageKey(businessId, phone);
   await prisma.$transaction(async (tx) => {
     await tx.chatSession.upsert({
       where: { sessionId: key },
-      create: { sessionId: key, barbershopId, messages: [] as unknown as Prisma.InputJsonValue },
+      create: { sessionId: key, businessId, messages: [] as unknown as Prisma.InputJsonValue },
       update: {},
     });
     await tx.$queryRaw`SELECT 1 FROM "chat_sessions" WHERE "session_id" = ${key} FOR UPDATE`;
 
-    const session = await loadSession(tx, phone, barbershopId);
+    const session = await loadSession(tx, phone, businessId);
     session.messages.push({ role: "assistant", content: [{ type: "text", text }] });
     await saveSession(tx, phone, session);
   });
@@ -500,50 +503,50 @@ export async function sendManualMessage(barbershopId: number, phone: string, tex
 // Roda fora da transação com lock (ver sendMessage): é um caso raro e
 // histórico (sessões gravadas antes da correção de isolamento entre
 // tenants), não vale segurar a linha nova por causa dele.
-async function migrateLegacySessionIfNeeded(sessionId: string, barbershopId: number) {
-  const key = storageKey(barbershopId, sessionId);
+async function migrateLegacySessionIfNeeded(sessionId: string, businessId: number) {
+  const key = storageKey(businessId, sessionId);
   const primaryExists = await prisma.chatSession.findUnique({ where: { sessionId: key }, select: { sessionId: true } });
   if (primaryExists) return;
 
-  const legacyRow = await prisma.chatSession.findFirst({ where: { sessionId, barbershopId } });
+  const legacyRow = await prisma.chatSession.findFirst({ where: { sessionId, businessId } });
   if (legacyRow) {
     await prisma.chatSession.delete({ where: { sessionId: legacyRow.sessionId } }).catch(() => {});
     await prisma.chatSession
-      .create({ data: { sessionId: key, barbershopId, messages: legacyRow.messages as unknown as Prisma.InputJsonValue } })
+      .create({ data: { sessionId: key, businessId, messages: legacyRow.messages as unknown as Prisma.InputJsonValue } })
       .catch(() => {});
   }
 }
 
-async function loadSession(db: Prisma.TransactionClient, sessionId: string, barbershopId: number): Promise<ChatSession> {
-  const key = storageKey(barbershopId, sessionId);
+async function loadSession(db: Prisma.TransactionClient, sessionId: string, businessId: number): Promise<ChatSession> {
+  const key = storageKey(businessId, sessionId);
   const row = await db.chatSession.findUnique({ where: { sessionId: key } });
-  return { barbershopId, messages: (row?.messages as unknown as Anthropic.MessageParam[]) ?? [] };
+  return { businessId, messages: (row?.messages as unknown as Anthropic.MessageParam[]) ?? [] };
 }
 
 async function saveSession(db: Prisma.TransactionClient, sessionId: string, session: ChatSession) {
-  const key = storageKey(session.barbershopId, sessionId);
+  const key = storageKey(session.businessId, sessionId);
   await db.chatSession.upsert({
     where: { sessionId: key },
-    create: { sessionId: key, barbershopId: session.barbershopId, messages: session.messages as unknown as Prisma.InputJsonValue },
+    create: { sessionId: key, businessId: session.businessId, messages: session.messages as unknown as Prisma.InputJsonValue },
     update: { messages: session.messages as unknown as Prisma.InputJsonValue },
   });
 }
 
 export async function sendMessage(
-  barbershopId: number,
+  businessId: number,
   sessionId: string,
   userText: string,
   customerPhone: string,
   pushName?: string | null
 ): Promise<string> {
-  const barbershop = await getBarbershop(barbershopId);
+  const barbershop = await getBarbershop(businessId);
   if (!barbershop) throw new Error("Barbearia não encontrada");
   if (!customerPhone) throw new Error("Telefone do remetente (WhatsApp) é obrigatório");
 
-  await migrateLegacySessionIfNeeded(sessionId, barbershopId);
+  await migrateLegacySessionIfNeeded(sessionId, businessId);
 
   const existingClient = await getClientByPhone(customerPhone);
-  const pendingReview = await getUnreviewedCompletedAppointment(customerPhone, barbershopId);
+  const pendingReview = await getUnreviewedCompletedAppointment(customerPhone, businessId);
   // Marcado assim que é apresentado ao modelo — ganhe ou perca, uma nova conversa
   // (system prompt novo) não deve insistir no mesmo pedido de novo.
   if (pendingReview) await markReviewPrompted(pendingReview.id);
@@ -553,7 +556,7 @@ export async function sendMessage(
     { type: "text", text: buildDynamicContext({ existingClient, pushName }, pendingReview) },
   ];
 
-  const key = storageKey(barbershopId, sessionId);
+  const key = storageKey(businessId, sessionId);
 
   // Toda a sessão é lida, processada pela IA e salva dentro de UMA transação
   // com lock de linha (FOR UPDATE): se o cliente mandar duas mensagens em
@@ -567,12 +570,12 @@ export async function sendMessage(
     async (tx) => {
       await tx.chatSession.upsert({
         where: { sessionId: key },
-        create: { sessionId: key, barbershopId, messages: [] as unknown as Prisma.InputJsonValue },
+        create: { sessionId: key, businessId, messages: [] as unknown as Prisma.InputJsonValue },
         update: {},
       });
       await tx.$queryRaw`SELECT 1 FROM "chat_sessions" WHERE "session_id" = ${key} FOR UPDATE`;
 
-      const session = await loadSession(tx, sessionId, barbershopId);
+      const session = await loadSession(tx, sessionId, businessId);
       session.messages.push({ role: "user", content: userText });
 
       try {
@@ -590,7 +593,7 @@ export async function sendMessage(
             output_config: { effort: "low" },
           });
 
-          logChatUsage(barbershopId, MODEL, response.usage);
+          logChatUsage(businessId, MODEL, response.usage);
 
           session.messages.push({ role: "assistant", content: response.content });
 

@@ -13,10 +13,10 @@ function requireStripe() {
   return stripe;
 }
 
-export async function createConnectAccount(barbershopId: number): Promise<string> {
+export async function createConnectAccount(businessId: number): Promise<string> {
   const account = await requireStripe().accounts.create({
     type: "standard",
-    metadata: { barbershopId: String(barbershopId) },
+    metadata: { businessId: String(businessId) },
   });
   return account.id;
 }

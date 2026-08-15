@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { env } from "@/config/env.js";
+import { env, vertical } from "@/config/env.js";
 
 // Opcional: sem STRIPE_SECRET_KEY, a aba de cobrança fica visível (mostra
 // status do trial) mas os botões de assinar/gerenciar ficam desabilitados
@@ -18,8 +18,8 @@ export const PLAN_LIMITS: Record<PlanId, number | null> = {
 };
 
 export const PLAN_LABELS: Record<PlanId, string> = {
-  starter: "Starter — R$ 99/mês (até 2 barbeiros)",
-  pro: "Pro — R$ 149/mês (barbeiros ilimitados)",
+  starter: `Starter — R$ 99/mês (até 2 ${vertical.professionalPlural})`,
+  pro: `Pro — R$ 149/mês (${vertical.professionalPlural} ilimitados)`,
 };
 
 // Usado só pra estimar MRR no painel de superadmin — não é o valor real

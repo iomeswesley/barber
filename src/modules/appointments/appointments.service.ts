@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma.js";
 import { AppError } from "@/middleware/errorHandler.js";
 import { timeToMinutes, minutesToTime, localDateStr, normalizePhone } from "@/lib/time.js";
-import { getBarbershop, getBusinessHoursForDate } from "@/modules/barbershops/barbershops.repository.js";
+import { getBarbershop, getBusinessHoursForDate } from "@/modules/businesses/businesses.repository.js";
 import { getService } from "@/modules/services/services.repository.js";
-import { getBarber } from "@/modules/barbers/barbers.repository.js";
+import { getBarber } from "@/modules/professionals/professionals.repository.js";
 import { getBlocksFor } from "@/modules/timeBlocks/timeBlocks.repository.js";
 import { getClientByPhone } from "@/modules/clients/clients.repository.js";
 import { resolveChargedPrice } from "@/modules/clientPlans/clientPlans.service.js";
@@ -20,16 +20,16 @@ import {
 import { appointmentInclude, toAppointmentDTO, type AppointmentDTO, type AppointmentWithRelations } from "./appointments.types.js";
 
 export async function getAvailableSlots(
-  barbershopId: number,
-  barberId: number,
+  businessId: number,
+  professionalId: number,
   serviceId: number,
   date: string
 ): Promise<string[]> {
-  const [shop, service, barber] = await Promise.all([getBarbershop(barbershopId), getService(serviceId), getBarber(barberId)]);
-  if (!shop || !service || service.barbershopId !== barbershopId) return [];
-  if (!barber || barber.barbershopId !== barbershopId) return [];
+  const [shop, service, barber] = await Promise.all([getBarbershop(businessId), getService(serviceId), getBarber(professionalId)]);
+  if (!shop || !service || service.businessId !== businessId) return [];
+  if (!barber || barber.businessId !== businessId) return [];
 
-  const hours = await getBusinessHoursForDate(barbershopId, date);
+  const hours = await getBusinessHoursForDate(businessId, date);
   if (!hours || hours.closed) return [];
 
   const openMin = timeToMinutes(hours.opensAt);
@@ -37,11 +37,11 @@ export async function getAvailableSlots(
   const duration = service.durationMin;
 
   const existing = await prisma.appointment.findMany({
-    where: { barberId, date: new Date(`${date}T00:00:00`), status: { not: "cancelled" } },
+    where: { professionalId, date: new Date(`${date}T00:00:00`), status: { not: "cancelled" } },
     select: { startTime: true, endTime: true },
   });
   const busy = existing.map((a) => ({ start: timeToMinutes(a.startTime), end: timeToMinutes(a.endTime) }));
-  busy.push(...(await getBlocksFor(barbershopId, barberId, date)));
+  busy.push(...(await getBlocksFor(businessId, professionalId, date)));
 
   const now = new Date();
   const isToday = date === now.toISOString().slice(0, 10);
@@ -61,8 +61,8 @@ export async function getAvailableSlots(
 // próxima data com horários livres — evita o modelo de IA ficar chutando uma
 // data por vez e queimando uma tool call por tentativa.
 export async function findNextAvailableDay(
-  barbershopId: number,
-  barberId: number,
+  businessId: number,
+  professionalId: number,
   serviceId: number,
   fromDateStr: string,
   maxDays = 14
@@ -72,33 +72,33 @@ export async function findNextAvailableDay(
     const day = new Date(start);
     day.setDate(day.getDate() + offset);
     const dateStr = localDateStr(day);
-    const slots = await getAvailableSlots(barbershopId, barberId, serviceId, dateStr);
+    const slots = await getAvailableSlots(businessId, professionalId, serviceId, dateStr);
     if (slots.length > 0) return { date: dateStr, horarios_disponiveis: slots };
   }
   return null;
 }
 
 export async function createAppointment(input: {
-  barbershopId: number;
-  barberId: number;
+  businessId: number;
+  professionalId: number;
   serviceId: number;
   clientId: number;
   date: string;
   startTime: string;
 }): Promise<AppointmentDTO> {
-  const [service, barber] = await Promise.all([getService(input.serviceId), getBarber(input.barberId)]);
-  if (!service || service.barbershopId !== input.barbershopId) throw new AppError("Serviço não encontrado", 404);
-  if (!barber || barber.barbershopId !== input.barbershopId) throw new AppError("Barbeiro não encontrado", 404);
+  const [service, barber] = await Promise.all([getService(input.serviceId), getBarber(input.professionalId)]);
+  if (!service || service.businessId !== input.businessId) throw new AppError("Serviço não encontrado", 404);
+  if (!barber || barber.businessId !== input.businessId) throw new AppError("Barbeiro não encontrado", 404);
   const endTime = minutesToTime(timeToMinutes(input.startTime) + service.durationMin);
 
-  const conflict = await findConflict(input.barberId, input.date, input.startTime, endTime);
+  const conflict = await findConflict(input.professionalId, input.date, input.startTime, endTime);
   if (conflict) {
     throw new AppError("Esse horário acabou de ser ocupado. Escolha outro horário.");
   }
 
   const startMin = timeToMinutes(input.startTime);
   const endMin = timeToMinutes(endTime);
-  const blocks = await getBlocksFor(input.barbershopId, input.barberId, input.date);
+  const blocks = await getBlocksFor(input.businessId, input.professionalId, input.date);
   const blocked = blocks.some((b) => startMin < b.end && endMin > b.start);
   if (blocked) {
     throw new AppError("Esse horário está bloqueado (folga, feriado ou intervalo). Escolha outro horário.");
@@ -108,7 +108,7 @@ export async function createAppointment(input: {
   // aplica a esse serviço, o preço cobrado reflete o benefício (desconto ou
   // grátis) — vale pros três canais de agendamento (WhatsApp, autoatendimento
   // público e manual do dono/barbeiro), já que todos passam por aqui.
-  const charge = await resolveChargedPrice(input.clientId, input.barbershopId, input.serviceId, service.priceCents);
+  const charge = await resolveChargedPrice(input.clientId, input.businessId, input.serviceId, service.priceCents);
 
   return insertAppointment({
     ...input,
@@ -132,12 +132,12 @@ export async function rescheduleAppointment(id: number, newDate: string, newStar
   if (!service) throw new AppError("Serviço não encontrado", 404);
   const newEndTime = minutesToTime(timeToMinutes(newStartTime) + service.durationMin);
 
-  const conflict = await findConflict(appointment.barberId, newDate, newStartTime, newEndTime, id);
+  const conflict = await findConflict(appointment.professionalId, newDate, newStartTime, newEndTime, id);
   if (conflict) throw new AppError("Esse novo horário já está ocupado. Escolha outro.");
 
   const startMin = timeToMinutes(newStartTime);
   const endMin = timeToMinutes(newEndTime);
-  const blocks = await getBlocksFor(appointment.barbershopId, appointment.barberId, newDate);
+  const blocks = await getBlocksFor(appointment.businessId, appointment.professionalId, newDate);
   const blocked = blocks.some((b) => startMin < b.end && endMin > b.start);
   if (blocked) throw new AppError("Esse novo horário está bloqueado (folga, feriado ou intervalo). Escolha outro.");
 
@@ -161,14 +161,14 @@ export async function cancelAppointment(id: number): Promise<AppointmentDTO> {
 // Usado quando um bloqueio de última hora é criado, pra achar agendamentos já
 // feitos que passam a cair dentro da janela bloqueada, pra avisar os clientes.
 export async function getAffectedAppointments(
-  barbershopId: number,
-  barberId: number | null,
+  businessId: number,
+  professionalId: number | null,
   date: string,
   startTime: string,
   endTime: string
 ): Promise<AppointmentDTO[]> {
   const now = new Date();
-  const all = await getAppointments({ barbershopId, barberId: barberId || undefined, date });
+  const all = await getAppointments({ businessId, professionalId: professionalId || undefined, date });
   const endMin = timeToMinutes(endTime);
   const startMin = timeToMinutes(startTime);
   return all
@@ -190,7 +190,7 @@ export async function updateAppointmentDetails(
 
   if (serviceId && Number(serviceId) !== appointment.serviceId) {
     const service = await getService(Number(serviceId));
-    if (!service || service.barbershopId !== appointment.barbershopId) throw new AppError("Serviço não encontrado");
+    if (!service || service.businessId !== appointment.businessId) throw new AppError("Serviço não encontrado");
     const newEndTime = minutesToTime(timeToMinutes(appointment.startTime) + service.durationMin);
     await updateAppointmentFields(id, { serviceId: Number(serviceId), endTime: newEndTime });
   }
@@ -210,7 +210,7 @@ export async function updateAppointmentDetails(
 
 export async function getAppointmentsByClientPhone(
   clientPhone: string,
-  barbershopId: number,
+  businessId: number,
   { upcomingOnly = true } = {}
 ): Promise<AppointmentDTO[]> {
   const client = await getClientByPhone(clientPhone);
@@ -220,7 +220,7 @@ export async function getAppointmentsByClientPhone(
     where: {
       status: { not: "cancelled" },
       clientId: client.id,
-      barbershopId,
+      businessId,
       ...(upcomingOnly
         ? {
             OR: [
@@ -243,7 +243,7 @@ export async function getAppointmentsByClientPhone(
 // cliente — distinto de getAppointmentsByClientPhone(upcomingOnly:true), que só olha pra frente.
 export async function getClientAppointmentHistory(
   clientPhone: string,
-  barbershopId: number,
+  businessId: number,
   limit = 20
 ): Promise<AppointmentDTO[]> {
   const client = await getClientByPhone(clientPhone);
@@ -255,7 +255,7 @@ export async function getClientAppointmentHistory(
   const appointments = await prisma.appointment.findMany({
     where: {
       clientId: client.id,
-      barbershopId,
+      businessId,
       status: { not: "cancelled" },
       OR: [{ date: { lt: todayDate } }, { date: todayDate, endTime: { lte: nowTimeStr } }],
     },
@@ -266,14 +266,14 @@ export async function getClientAppointmentHistory(
   return appointments.map((a) => toAppointmentDTO(a as AppointmentWithRelations));
 }
 
-export async function getClientLastAppointment(clientId: number, barbershopId: number): Promise<AppointmentDTO | null> {
+export async function getClientLastAppointment(clientId: number, businessId: number): Promise<AppointmentDTO | null> {
   const now = new Date();
   const todayDate = new Date(`${localDateStr(now)}T00:00:00`);
   const nowTimeStr = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
   const appointment = await prisma.appointment.findFirst({
     where: {
       clientId,
-      barbershopId,
+      businessId,
       status: "confirmed",
       OR: [{ date: { lt: todayDate } }, { date: todayDate, endTime: { lte: nowTimeStr } }],
     },
@@ -318,7 +318,7 @@ export async function getTodaysAppointmentsForReminder(): Promise<AppointmentDTO
   return appointments.map((a) => toAppointmentDTO(a as AppointmentWithRelations));
 }
 
-export async function getUnreviewedCompletedAppointment(clientPhone: string, barbershopId: number): Promise<AppointmentDTO | null> {
+export async function getUnreviewedCompletedAppointment(clientPhone: string, businessId: number): Promise<AppointmentDTO | null> {
   const client = await getClientByPhone(normalizePhone(clientPhone) ? clientPhone : clientPhone);
   if (!client) return null;
   const now = new Date();
@@ -327,7 +327,7 @@ export async function getUnreviewedCompletedAppointment(clientPhone: string, bar
   const appointment = await prisma.appointment.findFirst({
     where: {
       clientId: client.id,
-      barbershopId,
+      businessId,
       status: { not: "cancelled" },
       review: null,
       reviewPromptedAt: null,

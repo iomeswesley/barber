@@ -6,6 +6,6 @@ import { listAuditLog } from "./auditLog.repository.js";
 export const auditLogRouter = Router();
 
 auditLogRouter.get("/api/manage/audit-log", requireAuth, requireOwner, async (req, res) => {
-  const logs = await listAuditLog(req.session.user!.barbershopId);
+  const logs = await listAuditLog(req.session.user!.businessId);
   res.json(logs.map(toApiAuditLog));
 });

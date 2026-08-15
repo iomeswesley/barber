@@ -3,7 +3,7 @@ import { chatRateLimiter } from "@/middleware/rateLimiter.js";
 import { requireAuth, requireOwner } from "@/middleware/auth.js";
 import { AppError } from "@/middleware/errorHandler.js";
 import { normalizePhone } from "@/lib/time.js";
-import { getBarbershop } from "@/modules/barbershops/barbershops.repository.js";
+import { getBarbershop } from "@/modules/businesses/businesses.repository.js";
 import { getClientByPhone } from "@/modules/clients/clients.repository.js";
 import { sendMessage, resetSession, listChatSessionsForBarbershop, getChatTranscript, sendManualMessage } from "./chatEngine.js";
 
@@ -11,11 +11,11 @@ export const chatRouter = Router();
 
 chatRouter.post("/api/chat", chatRateLimiter, async (req, res, next) => {
   try {
-    const { barbershopId, sessionId, message, customerPhone, pushName } = req.body || {};
-    if (!barbershopId || !sessionId || !message || !customerPhone) {
-      throw new AppError("barbershopId, sessionId, message e customerPhone são obrigatórios");
+    const { businessId, sessionId, message, customerPhone, pushName } = req.body || {};
+    if (!businessId || !sessionId || !message || !customerPhone) {
+      throw new AppError("businessId, sessionId, message e customerPhone são obrigatórios");
     }
-    const shop = await getBarbershop(Number(barbershopId));
+    const shop = await getBarbershop(Number(businessId));
     if (!shop) throw new AppError("Barbearia não encontrada", 404);
 
     // Numa integração real de WhatsApp, o telefone chega já normalizado (wa_id).
@@ -23,7 +23,7 @@ chatRouter.post("/api/chat", chatRateLimiter, async (req, res, next) => {
     const normalizedPhone = normalizePhone(customerPhone);
     if (!normalizedPhone) throw new AppError("customerPhone inválido");
 
-    const reply = await sendMessage(Number(barbershopId), sessionId, message, normalizedPhone, pushName);
+    const reply = await sendMessage(Number(businessId), sessionId, message, normalizedPhone, pushName);
     res.json({ reply });
   } catch (err) {
     next(err);
@@ -32,8 +32,8 @@ chatRouter.post("/api/chat", chatRateLimiter, async (req, res, next) => {
 
 chatRouter.post("/api/chat/reset", async (req, res, next) => {
   try {
-    const { sessionId, barbershopId } = req.body || {};
-    if (sessionId && barbershopId) await resetSession(sessionId, Number(barbershopId));
+    const { sessionId, businessId } = req.body || {};
+    if (sessionId && businessId) await resetSession(sessionId, Number(businessId));
     res.json({ ok: true });
   } catch (err) {
     next(err);
@@ -44,7 +44,7 @@ chatRouter.post("/api/chat/reset", async (req, res, next) => {
 
 chatRouter.get("/api/manage/chat-sessions", requireAuth, requireOwner, async (req, res, next) => {
   try {
-    const sessions = await listChatSessionsForBarbershop(req.session.user!.barbershopId);
+    const sessions = await listChatSessionsForBarbershop(req.session.user!.businessId);
     const withNames = await Promise.all(
       sessions.map(async (s) => {
         const client = await getClientByPhone(s.phone);
@@ -61,7 +61,7 @@ chatRouter.get("/api/manage/chat-sessions/:phone", requireAuth, requireOwner, as
   try {
     const phone = req.params.phone;
     if (!phone) throw new AppError("Telefone é obrigatório");
-    const transcript = await getChatTranscript(req.session.user!.barbershopId, phone);
+    const transcript = await getChatTranscript(req.session.user!.businessId, phone);
     res.json(transcript);
   } catch (err) {
     next(err);
@@ -75,7 +75,7 @@ chatRouter.post("/api/manage/chat-sessions/:phone/send", requireAuth, requireOwn
     if (!phone) throw new AppError("Telefone é obrigatório");
     if (!message) throw new AppError("Mensagem é obrigatória");
     try {
-      await sendManualMessage(req.session.user!.barbershopId, phone, message);
+      await sendManualMessage(req.session.user!.businessId, phone, message);
     } catch (err) {
       // Falha de envio (WhatsApp não configurado, fora da janela de 24h da
       // Meta, etc.) é uma condição esperada e acionável pelo dono — não um

@@ -26,8 +26,8 @@ whatsappConnectRouter.get("/api/manage/whatsapp/connect/config", requireAuth, re
 
 whatsappConnectRouter.get("/api/manage/whatsapp/connect/status", requireAuth, requireOwner, async (req, res, next) => {
   try {
-    const barbershopId = req.session.user!.barbershopId;
-    const connection = await getWhatsappConnection(barbershopId);
+    const businessId = req.session.user!.businessId;
+    const connection = await getWhatsappConnection(businessId);
     res.json({
       status: connection?.whatsappConnectionStatus || "not_connected",
       display_phone: connection?.whatsappDisplayPhone || null,
@@ -39,7 +39,7 @@ whatsappConnectRouter.get("/api/manage/whatsapp/connect/status", requireAuth, re
 
 whatsappConnectRouter.post("/api/manage/whatsapp/connect/callback", requireAuth, requireOwner, async (req, res, next) => {
   try {
-    const barbershopId = req.session.user!.barbershopId;
+    const businessId = req.session.user!.businessId;
     const { code, waba_id: wabaId, phone_number_id: phoneNumberId } = req.body as {
       code?: string;
       waba_id?: string;
@@ -55,7 +55,7 @@ whatsappConnectRouter.post("/api/manage/whatsapp/connect/callback", requireAuth,
     await subscribeAppToWaba(wabaId, accessToken);
     const displayPhone = await getDisplayPhoneNumber(phoneNumberId, accessToken);
 
-    await saveWhatsappConnection(barbershopId, {
+    await saveWhatsappConnection(businessId, {
       wabaId,
       phoneNumberId,
       accessTokenEnc: encryptSecret(accessToken),
@@ -78,8 +78,8 @@ whatsappConnectRouter.post("/api/manage/whatsapp/connect/callback", requireAuth,
 
 whatsappConnectRouter.post("/api/manage/whatsapp/connect/disconnect", requireAuth, requireOwner, async (req, res, next) => {
   try {
-    const barbershopId = req.session.user!.barbershopId;
-    await clearWhatsappConnection(barbershopId);
+    const businessId = req.session.user!.businessId;
+    await clearWhatsappConnection(businessId);
     res.json({ status: "not_connected" });
   } catch (err) {
     next(err);

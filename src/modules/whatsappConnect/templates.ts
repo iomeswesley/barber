@@ -1,3 +1,5 @@
+import { vertical } from "@/config/env.js";
+
 // Templates recriados automaticamente na WABA de cada barbearia recém-conectada,
 // pra reminders/reagendamento/reconquista/OTP funcionarem sem depender de o dono
 // submeter isso manualmente no Business Manager. O texto aqui precisa ficar
@@ -17,7 +19,7 @@ export const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
     name: "appointment_reminder",
     category: "UTILITY",
     bodyText:
-      "Olá, {{1}}! 👋 Passando pra lembrar do seu horário hoje:\n\n✂️ {{2}} com {{3}}\n🕐 {{4}}\n\nTe esperamos! Se precisar remarcar, é só responder aqui.",
+      `Olá, {{1}}! 👋 Passando pra lembrar do seu horário hoje:\n\n${vertical.brandEmoji} {{2}} com {{3}}\n🕐 {{4}}\n\nTe esperamos! Se precisar remarcar, é só responder aqui.`,
     paramCount: 4,
   },
   {

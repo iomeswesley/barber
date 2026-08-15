@@ -14,8 +14,8 @@ import { serverlessBackupConfigured, runServerlessBackup } from "@/jobs/serverle
 import { captureError } from "@/lib/errorReporting.js";
 
 import { authRouter } from "@/modules/auth/auth.routes.js";
-import { barbershopsRouter } from "@/modules/barbershops/barbershops.routes.js";
-import { barbersRouter } from "@/modules/barbers/barbers.routes.js";
+import { businessesRouter } from "@/modules/businesses/businesses.routes.js";
+import { professionalsRouter } from "@/modules/professionals/professionals.routes.js";
 import { servicesRouter } from "@/modules/services/services.routes.js";
 import { timeBlocksRouter } from "@/modules/timeBlocks/timeBlocks.routes.js";
 import { appointmentsRouter } from "@/modules/appointments/appointments.routes.js";
@@ -123,7 +123,7 @@ export function createApp() {
 
   app.get("/", (req, res, next) => {
     if (req.session?.user?.role === "owner") return res.redirect("/admin.html");
-    if (req.session?.user?.role === "barber") return res.redirect("/barber.html");
+    if (req.session?.user?.role === "professional") return res.redirect("/barber.html");
     return next(); // visitante sem sessão: cai no index.html estático (landing page)
   });
 
@@ -133,7 +133,7 @@ export function createApp() {
   });
 
   app.get("/barber.html", (req, res, next) => {
-    if (req.session?.user?.role === "barber") return next();
+    if (req.session?.user?.role === "professional") return next();
     return res.redirect("/login.html");
   });
 
@@ -200,8 +200,8 @@ export function createApp() {
   /* ---------------- Rotas da API ---------------- */
 
   app.use(authRouter);
-  app.use(barbershopsRouter);
-  app.use(barbersRouter);
+  app.use(businessesRouter);
+  app.use(professionalsRouter);
   app.use(servicesRouter);
   app.use(timeBlocksRouter);
   app.use(appointmentsRouter);

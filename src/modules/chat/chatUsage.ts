@@ -3,11 +3,11 @@ import type Anthropic from "@anthropic-ai/sdk";
 
 // Fire-and-forget: telemetria de custo não deve atrasar nem quebrar a
 // resposta ao cliente se o insert falhar.
-export function logChatUsage(barbershopId: number, model: string, usage: Anthropic.Usage): void {
+export function logChatUsage(businessId: number, model: string, usage: Anthropic.Usage): void {
   prisma.chatUsageLog
     .create({
       data: {
-        barbershopId,
+        businessId,
         model,
         inputTokens: usage.input_tokens,
         outputTokens: usage.output_tokens,

@@ -19,11 +19,11 @@ export async function findOrCreateClient(name: string, phone: string) {
   return prisma.client.create({ data: { name, phone } });
 }
 
-// Clients não têm barbershopId (identidade global pelo telefone, igual ao WhatsApp),
+// Clients não têm businessId (identidade global pelo telefone, igual ao WhatsApp),
 // então o vínculo com uma barbearia é checado pela existência de algum agendamento.
-export async function clientBelongsToShop(clientId: number, barbershopId: number): Promise<boolean> {
+export async function clientBelongsToShop(clientId: number, businessId: number): Promise<boolean> {
   const appointment = await prisma.appointment.findFirst({
-    where: { clientId, barbershopId },
+    where: { clientId, businessId },
     select: { id: true },
   });
   return !!appointment;

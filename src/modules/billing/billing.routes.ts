@@ -13,7 +13,7 @@ import {
   handleSubscriptionUpdated,
   handleSubscriptionDeleted,
 } from "./billing.service.js";
-import { getBarbershop } from "@/modules/barbershops/barbershops.repository.js";
+import { getBarbershop } from "@/modules/businesses/businesses.repository.js";
 import type Stripe from "stripe";
 
 export const billingRouter = Router();
@@ -22,8 +22,8 @@ const VALID_PLANS: PlanId[] = ["starter", "pro"];
 
 billingRouter.get("/api/billing/status", requireAuth, requireOwner, async (req, res) => {
   const [sub, shop] = await Promise.all([
-    getSubscription(req.session.user!.barbershopId),
-    getBarbershop(req.session.user!.barbershopId),
+    getSubscription(req.session.user!.businessId),
+    getBarbershop(req.session.user!.businessId),
   ]);
   res.json({
     configured: stripeConfigured,
@@ -48,7 +48,7 @@ billingRouter.post("/api/billing/checkout", requireAuth, requireOwner, async (re
     if (!VALID_PLANS.includes(plan as PlanId)) throw new AppError("Plano inválido");
     const base = env.PUBLIC_BASE_URL || `${req.protocol}://${req.get("host")}`;
     const url = await createCheckoutSession(
-      req.session.user!.barbershopId,
+      req.session.user!.businessId,
       plan as PlanId,
       `${base}/admin.html?billing=success`,
       `${base}/admin.html?billing=cancel`
@@ -63,7 +63,7 @@ billingRouter.post("/api/billing/change-plan", requireAuth, requireOwner, async 
   try {
     const plan = String(req.body?.plan || "");
     if (!VALID_PLANS.includes(plan as PlanId)) throw new AppError("Plano inválido");
-    await changePlan(req.session.user!.barbershopId, plan as PlanId);
+    await changePlan(req.session.user!.businessId, plan as PlanId);
     res.json({ ok: true, plan });
   } catch (err) {
     next(err);
@@ -73,7 +73,7 @@ billingRouter.post("/api/billing/change-plan", requireAuth, requireOwner, async 
 billingRouter.post("/api/billing/portal", requireAuth, requireOwner, async (req, res, next) => {
   try {
     const base = env.PUBLIC_BASE_URL || `${req.protocol}://${req.get("host")}`;
-    const url = await createPortalSession(req.session.user!.barbershopId, `${base}/admin.html`);
+    const url = await createPortalSession(req.session.user!.businessId, `${base}/admin.html`);
     res.json({ url });
   } catch (err) {
     next(err);
@@ -94,7 +94,7 @@ billingRouter.post("/api/webhooks/stripe", async (req, res) => {
     // Reportado pro Sentry: uma falha de assinatura persistente (secret
     // desatualizado no Vercel, endpoint duplicado no Stripe) passava batido
     // — só um console.error que ninguém olha, enquanto pagamentos reais
-    // nunca sincronizavam com o Subscription local (ver incidente Barber
+    // nunca sincronizavam com o Subscription local (ver incidente Professional
     // King, 2026-07-26).
     captureError(err);
     return res.sendStatus(400);

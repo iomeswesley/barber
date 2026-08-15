@@ -5,8 +5,8 @@ import type { UserRole } from "@prisma/client";
 export interface SessionUser {
   id: number;
   role: UserRole;
-  barbershopId: number;
-  barberId: number | null;
+  businessId: number;
+  professionalId: number | null;
   name: string;
 }
 
@@ -15,7 +15,7 @@ declare module "express-session" {
     user?: SessionUser;
     // Sessão do painel de administração da plataforma — não tem relação
     // com nenhuma barbearia, então fica em campo separado de `user`
-    // (que sempre carrega um barbershopId).
+    // (que sempre carrega um businessId).
     superAdmin?: boolean;
   }
 }

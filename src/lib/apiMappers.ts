@@ -10,14 +10,14 @@
 // então cada mapeador espelha o shape exato observado no server.js/db.js originais.
 
 import type { AppointmentDTO } from "@/modules/appointments/appointments.types.js";
-import type { Barber, Service, Product, TimeBlock, Escalation, AuditLog, BusinessHours, Barbershop, ClientPlan } from "@prisma/client";
+import type { Professional, Service, Product, TimeBlock, Escalation, AuditLog, BusinessHours, Business, ClientPlan } from "@prisma/client";
 import type { ClientStatsRow } from "@/modules/dashboard/clientStats.service.js";
 import { localDateStr } from "@/lib/time.js";
 
 // Usado só na rota pública /api/barbershops (tela de reserva sem login) —
 // omite whatsapp_phone_number_id e created_at, que não têm por que sair pra
 // quem não está autenticado.
-export function toApiBarbershopPublic(b: Barbershop) {
+export function toApiBarbershopPublic(b: Business) {
   return {
     id: b.id,
     name: b.name,
@@ -29,8 +29,8 @@ export function toApiBarbershopPublic(b: Barbershop) {
 export function toApiAppointment(a: AppointmentDTO & { computedStatus?: string }) {
   return {
     id: a.id,
-    barbershop_id: a.barbershopId,
-    barber_id: a.barberId,
+    barbershop_id: a.businessId,
+    barber_id: a.professionalId,
     service_id: a.serviceId,
     client_id: a.clientId,
     date: a.date,
@@ -52,10 +52,10 @@ export function toApiAppointment(a: AppointmentDTO & { computedStatus?: string }
   };
 }
 
-export function toApiBarber(b: Barber) {
+export function toApiBarber(b: Professional) {
   return {
     id: b.id,
-    barbershop_id: b.barbershopId,
+    barbershop_id: b.businessId,
     name: b.name,
     active: b.active,
     service_commission_percent: Number(b.serviceCommissionPercent),
@@ -67,7 +67,7 @@ export function toApiBarber(b: Barber) {
 export function toApiService(s: Service) {
   return {
     id: s.id,
-    barbershop_id: s.barbershopId,
+    barbershop_id: s.businessId,
     name: s.name,
     price_cents: s.priceCents,
     duration_min: s.durationMin,
@@ -78,7 +78,7 @@ export function toApiService(s: Service) {
 export function toApiClientPlan(p: ClientPlan) {
   return {
     id: p.id,
-    barbershop_id: p.barbershopId,
+    barbershop_id: p.businessId,
     name: p.name,
     price_cents: p.priceCents,
     benefit_type: p.benefitType,
@@ -91,7 +91,7 @@ export function toApiClientPlan(p: ClientPlan) {
 export function toApiProduct(p: Product) {
   return {
     id: p.id,
-    barbershop_id: p.barbershopId,
+    barbershop_id: p.businessId,
     name: p.name,
     price_cents: p.priceCents,
     active: p.active,
@@ -104,10 +104,10 @@ export function toApiStockOverviewItem(p: Product & { lowStock: boolean }) {
   return { ...toApiProduct(p), lowStock: p.lowStock };
 }
 
-export function toApiProductSale(s: { id: number; barbershopId: number; clientId: number; productId: number; quantity: number; date: Date; appointmentId: number | null; createdAt: Date; productName: string; priceCents: number }) {
+export function toApiProductSale(s: { id: number; businessId: number; clientId: number; productId: number; quantity: number; date: Date; appointmentId: number | null; createdAt: Date; productName: string; priceCents: number }) {
   return {
     id: s.id,
-    barbershop_id: s.barbershopId,
+    barbershop_id: s.businessId,
     client_id: s.clientId,
     product_id: s.productId,
     quantity: s.quantity,
@@ -119,11 +119,11 @@ export function toApiProductSale(s: { id: number; barbershopId: number; clientId
   };
 }
 
-export function toApiTimeBlock(tb: TimeBlock & { barber?: { name: string } | null }) {
+export function toApiTimeBlock(tb: TimeBlock & { professional?: { name: string } | null }) {
   return {
     id: tb.id,
-    barbershop_id: tb.barbershopId,
-    barber_id: tb.barberId,
+    barbershop_id: tb.businessId,
+    barber_id: tb.professionalId,
     type: tb.type,
     label: tb.label,
     date: tb.date,
@@ -131,14 +131,14 @@ export function toApiTimeBlock(tb: TimeBlock & { barber?: { name: string } | nul
     end_time: tb.endTime,
     recurring: tb.recurring,
     created_at: tb.createdAt,
-    barber_name: tb.barber?.name ?? null,
+    barber_name: tb.professional?.name ?? null,
   };
 }
 
 export function toApiEscalation(e: Escalation & { client?: { name: string } | null }) {
   return {
     id: e.id,
-    barbershop_id: e.barbershopId,
+    barbershop_id: e.businessId,
     client_id: e.clientId,
     client_phone: e.clientPhone,
     reason: e.reason,
@@ -151,7 +151,7 @@ export function toApiEscalation(e: Escalation & { client?: { name: string } | nu
 export function toApiAuditLog(a: AuditLog) {
   return {
     id: a.id,
-    barbershop_id: a.barbershopId,
+    barbershop_id: a.businessId,
     user_name: a.userName,
     action: a.action,
     details: a.details,
@@ -162,7 +162,7 @@ export function toApiAuditLog(a: AuditLog) {
 export function toApiBusinessHours(h: BusinessHours) {
   return {
     id: h.id,
-    barbershop_id: h.barbershopId,
+    barbershop_id: h.businessId,
     weekday: h.weekday,
     opens_at: h.opensAt,
     closes_at: h.closesAt,
@@ -173,27 +173,27 @@ export function toApiBusinessHours(h: BusinessHours) {
 export function toApiReview(r: {
   id: number;
   appointmentId: number;
-  barbershopId: number;
-  barberId: number;
+  businessId: number;
+  professionalId: number;
   clientId: number;
   rating: number;
   comment: string | null;
   createdAt: Date;
   client: { name: string };
-  barber: { name: string };
+  professional: { name: string };
   appointment: { service: { name: string } };
 }) {
   return {
     id: r.id,
     appointment_id: r.appointmentId,
-    barbershop_id: r.barbershopId,
-    barber_id: r.barberId,
+    barbershop_id: r.businessId,
+    barber_id: r.professionalId,
     client_id: r.clientId,
     rating: r.rating,
     comment: r.comment,
     created_at: r.createdAt,
     client_name: r.client.name,
-    barber_name: r.barber.name,
+    barber_name: r.professional.name,
     service_name: r.appointment.service.name,
   };
 }
@@ -219,7 +219,7 @@ export function toApiClientVisit(a: {
   status: string;
   notes: string | null;
   service: { name: string; priceCents: number };
-  barber: { name: string };
+  professional: { name: string };
   productSales: { quantity: number; product: { name: string; priceCents: number } }[];
 }) {
   return {
@@ -229,7 +229,7 @@ export function toApiClientVisit(a: {
     status: a.status,
     notes: a.notes,
     service_name: a.service.name,
-    barber_name: a.barber.name,
+    barber_name: a.professional.name,
     price_cents: a.service.priceCents,
     products: a.productSales.map((ps) => ({
       name: ps.product.name,

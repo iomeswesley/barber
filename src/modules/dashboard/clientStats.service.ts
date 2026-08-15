@@ -16,12 +16,12 @@ export interface ClientStatsRow {
 // Calculado em JS (em vez de uma única query SQL agregada) pra manter a lógica de
 // negócio (frequência média, status "atrasado") legível e fácil de auditar —
 // o volume de agendamentos por barbearia é pequeno o bastante pra isso não pesar.
-export async function getClientStats(barbershopId: number): Promise<ClientStatsRow[]> {
+export async function getClientStats(businessId: number): Promise<ClientStatsRow[]> {
   const now = new Date();
   const nowStr = `${localDateStr(now)} ${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
 
   const appointments = await prisma.appointment.findMany({
-    where: { barbershopId, status: { not: "cancelled" } },
+    where: { businessId, status: { not: "cancelled" } },
     include: { client: true, service: { select: { priceCents: true } } },
   });
 
@@ -35,7 +35,7 @@ export async function getClientStats(barbershopId: number): Promise<ClientStatsR
 
   const productRevenueByClient = new Map<number, number>();
   const sales = await prisma.productSale.findMany({
-    where: { barbershopId },
+    where: { businessId },
     include: { product: { select: { priceCents: true } } },
   });
   for (const s of sales) {
@@ -83,14 +83,14 @@ export async function getClientStats(barbershopId: number): Promise<ClientStatsR
   return result.sort((a, b) => (b.lastVisitDate || "").localeCompare(a.lastVisitDate || ""));
 }
 
-export async function getClientVisitHistory(clientId: number, barbershopId: number, limit = 5) {
+export async function getClientVisitHistory(clientId: number, businessId: number, limit = 5) {
   return prisma.appointment.findMany({
-    where: { clientId, barbershopId, status: { not: "cancelled" } },
+    where: { clientId, businessId, status: { not: "cancelled" } },
     orderBy: [{ date: "desc" }, { startTime: "desc" }],
     take: limit,
     include: {
       service: { select: { name: true, priceCents: true } },
-      barber: { select: { name: true } },
+      professional: { select: { name: true } },
       productSales: { include: { product: { select: { name: true, priceCents: true } } } },
     },
   });

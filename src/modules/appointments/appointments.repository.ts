@@ -10,20 +10,20 @@ export async function getAppointmentById(id: number): Promise<AppointmentDTO | n
 }
 
 export interface GetAppointmentsFilter {
-  barbershopId?: number;
-  barberId?: number;
+  businessId?: number;
+  professionalId?: number;
   date?: string;
   dateFrom?: string;
   dateTo?: string;
 }
 
 export async function getAppointments(filter: GetAppointmentsFilter = {}): Promise<AppointmentDTO[]> {
-  const { barbershopId, barberId, date, dateFrom, dateTo } = filter;
+  const { businessId, professionalId, date, dateFrom, dateTo } = filter;
   const appointments = await prisma.appointment.findMany({
     where: {
       status: { not: "cancelled" },
-      ...(barbershopId ? { barbershopId } : {}),
-      ...(barberId ? { barberId } : {}),
+      ...(businessId ? { businessId } : {}),
+      ...(professionalId ? { professionalId } : {}),
       ...(date ? { date: new Date(`${date}T00:00:00`) } : {}),
       ...(dateFrom || dateTo
         ? {
@@ -41,8 +41,8 @@ export async function getAppointments(filter: GetAppointmentsFilter = {}): Promi
 }
 
 export async function insertAppointment(data: {
-  barbershopId: number;
-  barberId: number;
+  businessId: number;
+  professionalId: number;
   serviceId: number;
   clientId: number;
   date: string;
@@ -54,8 +54,8 @@ export async function insertAppointment(data: {
 }): Promise<AppointmentDTO> {
   const created = await prisma.appointment.create({
     data: {
-      barbershopId: data.barbershopId,
-      barberId: data.barberId,
+      businessId: data.businessId,
+      professionalId: data.professionalId,
       serviceId: data.serviceId,
       clientId: data.clientId,
       date: new Date(`${data.date}T00:00:00`),
@@ -71,7 +71,7 @@ export async function insertAppointment(data: {
 }
 
 export async function findConflict(
-  barberId: number,
+  professionalId: number,
   date: string,
   startTime: string,
   endTime: string,
@@ -79,7 +79,7 @@ export async function findConflict(
 ) {
   return prisma.appointment.findFirst({
     where: {
-      barberId,
+      professionalId,
       date: new Date(`${date}T00:00:00`),
       status: { not: "cancelled" },
       startTime: { lt: endTime },

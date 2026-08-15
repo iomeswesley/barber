@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { env } from "@/config/env.js";
 import { prisma } from "@/lib/prisma.js";
 import { verifyWebhookSignature, sendWhatsappText, whatsappConfigured, resolveBarbershopAccessToken } from "@/lib/whatsapp.js";
-import { getBarbershopByWhatsappPhoneNumberId } from "@/modules/barbershops/barbershops.repository.js";
+import { getBarbershopByWhatsappPhoneNumberId } from "@/modules/businesses/businesses.repository.js";
 import { sendMessage } from "@/modules/chat/chatEngine.js";
 import { setWhatsappConnectionStatusByWabaId } from "@/modules/whatsappConnect/whatsappConnect.repository.js";
 

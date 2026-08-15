@@ -5,8 +5,8 @@ import type { Appointment, AppointmentStatus } from "@prisma/client";
 // o consumo (dashboard, chat, frontend) o mais parecido possível.
 export interface AppointmentDTO {
   id: number;
-  barbershopId: number;
-  barberId: number;
+  businessId: number;
+  professionalId: number;
   serviceId: number;
   clientId: number;
   date: string; // YYYY-MM-DD
@@ -28,17 +28,17 @@ export interface AppointmentDTO {
 }
 
 export const appointmentInclude = {
-  barber: true,
+  professional: true,
   service: true,
   client: true,
-  barbershop: true,
+  business: true,
 } as const;
 
 export type AppointmentWithRelations = Appointment & {
-  barber: { name: string; serviceCommissionPercent: unknown };
+  professional: { name: string; serviceCommissionPercent: unknown };
   service: { name: string; durationMin: number; priceCents: number };
   client: { name: string; phone: string };
-  barbershop: { name: string };
+  business: { name: string };
 };
 
 function dateToStr(d: Date): string {
@@ -48,8 +48,8 @@ function dateToStr(d: Date): string {
 export function toAppointmentDTO(a: AppointmentWithRelations): AppointmentDTO {
   return {
     id: a.id,
-    barbershopId: a.barbershopId,
-    barberId: a.barberId,
+    businessId: a.businessId,
+    professionalId: a.professionalId,
     serviceId: a.serviceId,
     clientId: a.clientId,
     date: dateToStr(a.date),
@@ -59,8 +59,8 @@ export function toAppointmentDTO(a: AppointmentWithRelations): AppointmentDTO {
     reminderSentAt: a.reminderSentAt,
     reviewPromptedAt: a.reviewPromptedAt,
     createdAt: a.createdAt,
-    barberName: a.barber.name,
-    barberCommissionPercent: Number(a.barber.serviceCommissionPercent),
+    barberName: a.professional.name,
+    barberCommissionPercent: Number(a.professional.serviceCommissionPercent),
     serviceName: a.service.name,
     durationMin: a.service.durationMin,
     // priceChargedCents é sempre gravado no momento da criação (createAppointment)
@@ -72,7 +72,7 @@ export function toAppointmentDTO(a: AppointmentWithRelations): AppointmentDTO {
     priceCents: a.priceChargedCents ?? a.service.priceCents,
     clientName: a.client.name,
     clientPhone: a.client.phone,
-    barbershopName: a.barbershop.name,
+    barbershopName: a.business.name,
     notes: a.notes,
   };
 }

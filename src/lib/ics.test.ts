@@ -5,8 +5,8 @@ import type { AppointmentDTO } from "@/modules/appointments/appointments.types.j
 function makeAppointment(overrides: Partial<AppointmentDTO> = {}): AppointmentDTO {
   return {
     id: 42,
-    barbershopId: 1,
-    barberId: 1,
+    businessId: 1,
+    professionalId: 1,
     serviceId: 1,
     clientId: 1,
     date: "2026-07-20",

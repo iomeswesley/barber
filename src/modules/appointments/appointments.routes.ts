@@ -8,6 +8,7 @@ import { logAudit } from "@/modules/auditLog/auditLog.repository.js";
 import { getClientByPhone, findOrCreateClient } from "@/modules/clients/clients.repository.js";
 import { getProduct, getProductSalesForAppointment, replaceAppointmentProductSales } from "@/modules/products/products.repository.js";
 import { toApiAppointment, toApiProductSale } from "@/lib/apiMappers.js";
+import { vertical } from "@/config/env.js";
 import { getAppointments, getAppointmentById as getAppointmentByIdRaw } from "./appointments.repository.js";
 import {
   getAvailableSlots,
@@ -27,10 +28,10 @@ export const appointmentsRouter = Router();
 
 appointmentsRouter.get("/api/public/appointments", selfServiceRateLimiter, async (req, res, next) => {
   try {
-    const { barbershopId, phone } = req.query;
+    const { businessId, phone } = req.query;
     const normalizedPhone = normalizePhone(phone);
-    if (!barbershopId || !normalizedPhone) throw new AppError("barbershopId e phone são obrigatórios");
-    const appointments = await getAppointmentsByClientPhone(normalizedPhone, Number(barbershopId), { upcomingOnly: true });
+    if (!businessId || !normalizedPhone) throw new AppError("businessId e phone são obrigatórios");
+    const appointments = await getAppointmentsByClientPhone(normalizedPhone, Number(businessId), { upcomingOnly: true });
     res.json(appointments.map(toApiAppointment));
   } catch (err) {
     next(err);
@@ -39,10 +40,10 @@ appointmentsRouter.get("/api/public/appointments", selfServiceRateLimiter, async
 
 appointmentsRouter.get("/api/public/appointment-history", selfServiceRateLimiter, async (req, res, next) => {
   try {
-    const { barbershopId, phone } = req.query;
+    const { businessId, phone } = req.query;
     const normalizedPhone = normalizePhone(phone);
-    if (!barbershopId || !normalizedPhone) throw new AppError("barbershopId e phone são obrigatórios");
-    const appointments = await getClientAppointmentHistory(normalizedPhone, Number(barbershopId));
+    if (!businessId || !normalizedPhone) throw new AppError("businessId e phone são obrigatórios");
+    const appointments = await getClientAppointmentHistory(normalizedPhone, Number(businessId));
     res.json(appointments.map(toApiAppointment));
   } catch (err) {
     next(err);
@@ -54,16 +55,16 @@ appointmentsRouter.get("/api/public/appointment-history", selfServiceRateLimiter
 // /reschedule, que move um agendamento existente em vez de criar um novo.
 appointmentsRouter.post("/api/public/appointments", selfServiceRateLimiter, async (req, res, next) => {
   try {
-    const { barbershopId, phone, barberId, serviceId, date, startTime } = req.body || {};
+    const { businessId, phone, professionalId, serviceId, date, startTime } = req.body || {};
     const normalizedPhone = normalizePhone(phone);
-    if (!barbershopId || !normalizedPhone || !barberId || !serviceId || !date || !startTime) {
-      throw new AppError("barbershopId, phone, barberId, serviceId, date e startTime são obrigatórios");
+    if (!businessId || !normalizedPhone || !professionalId || !serviceId || !date || !startTime) {
+      throw new AppError("businessId, phone, professionalId, serviceId, date e startTime são obrigatórios");
     }
     const client = await getClientByPhone(normalizedPhone);
     if (!client) throw new AppError("Cliente não encontrado", 404);
     const appointment = await createAppointment({
-      barbershopId: Number(barbershopId),
-      barberId: Number(barberId),
+      businessId: Number(businessId),
+      professionalId: Number(professionalId),
       serviceId: Number(serviceId),
       clientId: client.id,
       date,
@@ -77,11 +78,11 @@ appointmentsRouter.post("/api/public/appointments", selfServiceRateLimiter, asyn
 
 appointmentsRouter.get("/api/public/available-slots", selfServiceRateLimiter, async (req, res, next) => {
   try {
-    const { barbershopId, barberId, serviceId, date } = req.query;
-    if (!barbershopId || !barberId || !serviceId || !date) {
-      throw new AppError("barbershopId, barberId, serviceId e date são obrigatórios");
+    const { businessId, professionalId, serviceId, date } = req.query;
+    if (!businessId || !professionalId || !serviceId || !date) {
+      throw new AppError("businessId, professionalId, serviceId e date são obrigatórios");
     }
-    res.json(await getAvailableSlots(Number(barbershopId), Number(barberId), Number(serviceId), String(date)));
+    res.json(await getAvailableSlots(Number(businessId), Number(professionalId), Number(serviceId), String(date)));
   } catch (err) {
     next(err);
   }
@@ -131,10 +132,10 @@ appointmentsRouter.get("/api/appointments/:id/ics", selfServiceRateLimiter, asyn
 /* ---------------- Painel do dono (protegido) ---------------- */
 
 appointmentsRouter.get("/api/appointments", requireAuth, requireOwner, async (req, res) => {
-  const { barberId, date } = req.query;
+  const { professionalId, date } = req.query;
   const appointments = await getAppointments({
-    barbershopId: req.session.user!.barbershopId,
-    barberId: barberId ? Number(barberId) : undefined,
+    businessId: req.session.user!.businessId,
+    professionalId: professionalId ? Number(professionalId) : undefined,
     date: date ? String(date) : undefined,
   });
   res.json(appointments.map(toApiAppointment));
@@ -146,28 +147,28 @@ appointmentsRouter.get("/api/appointments", requireAuth, requireOwner, async (re
 // exigir que já exista, como faz POST /api/public/appointments.
 appointmentsRouter.post("/api/appointments", requireAuth, async (req, res, next) => {
   try {
-    const { clientName, clientPhone, barberId, serviceId, date, startTime } = req.body || {};
+    const { clientName, clientPhone, professionalId, serviceId, date, startTime } = req.body || {};
     const normalizedPhone = normalizePhone(clientPhone);
     if (!clientName || !String(clientName).trim() || !normalizedPhone || !serviceId || !date || !startTime) {
-      throw new AppError("Nome do cliente, telefone, serviço, data e horário são obrigatórios");
+      throw new AppError(`Nome do ${vertical.client}, telefone, serviço, data e horário são obrigatórios`);
     }
 
-    // Barbeiro só cria agendamento pra si mesmo — barberId do corpo é
+    // Barbeiro só cria agendamento pra si mesmo — professionalId do corpo é
     // ignorado nesse caso (evita marcar em nome de outro barbeiro).
-    let targetBarberId = req.session.user!.role === "barber" ? req.session.user!.barberId! : Number(barberId);
+    let targetBarberId = req.session.user!.role === "professional" ? req.session.user!.professionalId! : Number(professionalId);
     if (!targetBarberId) throw new AppError("Barbeiro é obrigatório");
 
     const client = await findOrCreateClient(String(clientName).trim(), normalizedPhone);
     const appointment = await createAppointment({
-      barbershopId: req.session.user!.barbershopId,
-      barberId: targetBarberId,
+      businessId: req.session.user!.businessId,
+      professionalId: targetBarberId,
       serviceId: Number(serviceId),
       clientId: client.id,
       date,
       startTime,
     });
     await logAudit(
-      req.session.user!.barbershopId,
+      req.session.user!.businessId,
       req.session.user!.name,
       "Criou agendamento manual",
       `#${appointment.id} — ${appointment.clientName} (${appointment.serviceName})`
@@ -182,7 +183,7 @@ appointmentsRouter.get("/api/appointments/:id/product-sales", requireAuth, async
   try {
     const appointment = await getAppointmentByIdRaw(Number(req.params.id));
     if (!belongsToSession(req, appointment)) throw new AppError("Agendamento não encontrado", 404);
-    if (req.session.user!.role === "barber" && appointment!.barberId !== req.session.user!.barberId) {
+    if (req.session.user!.role === "professional" && appointment!.professionalId !== req.session.user!.professionalId) {
       throw new AppError("Você só pode ver seus próprios agendamentos", 403);
     }
     const sales = await getProductSalesForAppointment(appointment!.id);
@@ -196,7 +197,7 @@ appointmentsRouter.put("/api/appointments/:id", requireAuth, async (req, res, ne
   try {
     const appointment = await getAppointmentByIdRaw(Number(req.params.id));
     if (!belongsToSession(req, appointment)) throw new AppError("Agendamento não encontrado", 404);
-    if (req.session.user!.role === "barber" && appointment!.barberId !== req.session.user!.barberId) {
+    if (req.session.user!.role === "professional" && appointment!.professionalId !== req.session.user!.professionalId) {
       throw new AppError("Você só pode editar seus próprios agendamentos", 403);
     }
     const { clientName, serviceId, status, productSales, notes } = req.body || {};
@@ -211,7 +212,7 @@ appointmentsRouter.put("/api/appointments/:id", requireAuth, async (req, res, ne
 
     const updated = await updateAppointmentDetails(Number(req.params.id), { clientName, serviceId, status, notes });
     const soldProducts = await replaceAppointmentProductSales(
-      req.session.user!.barbershopId,
+      req.session.user!.businessId,
       updated.clientId,
       updated.id,
       updated.date,
@@ -219,7 +220,7 @@ appointmentsRouter.put("/api/appointments/:id", requireAuth, async (req, res, ne
     );
     const productsSummary = soldProducts.map((s) => `${s.quantity}x ${s.productName}`).join(", ");
     await logAudit(
-      req.session.user!.barbershopId,
+      req.session.user!.businessId,
       req.session.user!.name,
       "Editou agendamento",
       `#${updated.id} — ${updated.clientName} (${updated.serviceName})${status ? ` · status: ${status}` : ""}${productsSummary ? ` · produtos: ${productsSummary}` : ""}`
@@ -234,12 +235,12 @@ appointmentsRouter.delete("/api/appointments/:id", requireAuth, async (req, res,
   try {
     const appointment = await getAppointmentByIdRaw(Number(req.params.id));
     if (!belongsToSession(req, appointment)) throw new AppError("Agendamento não encontrado", 404);
-    if (req.session.user!.role === "barber" && appointment!.barberId !== req.session.user!.barberId) {
+    if (req.session.user!.role === "professional" && appointment!.professionalId !== req.session.user!.professionalId) {
       throw new AppError("Você só pode excluir seus próprios agendamentos", 403);
     }
     await cancelAppointment(appointment!.id);
     await logAudit(
-      req.session.user!.barbershopId,
+      req.session.user!.businessId,
       req.session.user!.name,
       "Excluiu agendamento",
       `#${appointment!.id} — ${appointment!.clientName} (${appointment!.serviceName})`

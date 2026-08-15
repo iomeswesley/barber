@@ -12,11 +12,11 @@ describe("getClientPlans (isolamento entre tenants)", () => {
   let planB: { id: number };
 
   beforeAll(async () => {
-    shopA = await prisma.barbershop.create({ data: { name: "[teste] Shop A" } });
-    shopB = await prisma.barbershop.create({ data: { name: "[teste] Shop B" } });
+    shopA = await prisma.business.create({ data: { name: "[teste] Shop A" } });
+    shopB = await prisma.business.create({ data: { name: "[teste] Shop B" } });
     planA = await prisma.clientPlan.create({
       data: {
-        barbershopId: shopA.id,
+        businessId: shopA.id,
         name: "[teste] Plano A",
         priceCents: 9900,
         benefitType: "services_included",
@@ -25,7 +25,7 @@ describe("getClientPlans (isolamento entre tenants)", () => {
     });
     planB = await prisma.clientPlan.create({
       data: {
-        barbershopId: shopB.id,
+        businessId: shopB.id,
         name: "[teste] Plano B",
         priceCents: 14900,
         benefitType: "percent_discount",
@@ -36,7 +36,7 @@ describe("getClientPlans (isolamento entre tenants)", () => {
 
   afterAll(async () => {
     await prisma.clientPlan.deleteMany({ where: { id: { in: [planA.id, planB.id] } } });
-    await prisma.barbershop.deleteMany({ where: { id: { in: [shopA.id, shopB.id] } } });
+    await prisma.business.deleteMany({ where: { id: { in: [shopA.id, shopB.id] } } });
   });
 
   it("lista só os planos da barbearia informada", async () => {
@@ -47,9 +47,9 @@ describe("getClientPlans (isolamento entre tenants)", () => {
     expect(plansB.map((p) => p.id)).toEqual([planB.id]);
   });
 
-  it("getClientPlan retorna barbershopId correto pra checagem de posse na rota", async () => {
+  it("getClientPlan retorna businessId correto pra checagem de posse na rota", async () => {
     const plan = await getClientPlan(planA.id);
-    expect(plan?.barbershopId).toBe(shopA.id);
-    expect(plan?.barbershopId).not.toBe(shopB.id);
+    expect(plan?.businessId).toBe(shopA.id);
+    expect(plan?.businessId).not.toBe(shopB.id);
   });
 });

@@ -14,7 +14,7 @@ import {
 export const servicesRouter = Router();
 
 servicesRouter.get("/api/manage/services", requireAuth, requireOwner, async (req, res) => {
-  const services = await getServices(req.session.user!.barbershopId, { includeInactive: true });
+  const services = await getServices(req.session.user!.businessId, { includeInactive: true });
   res.json(services.map(toApiService));
 });
 
@@ -24,13 +24,13 @@ servicesRouter.post("/api/manage/services", requireAuth, requireOwner, async (re
     if (!name || !String(name).trim() || !priceCents || !durationMin) {
       throw new AppError("name, priceCents e durationMin são obrigatórios");
     }
-    const barbershopId = req.session.user!.barbershopId;
-    const service = await createService(barbershopId, {
+    const businessId = req.session.user!.businessId;
+    const service = await createService(businessId, {
       name: String(name).trim(),
       priceCents: Number(priceCents),
       durationMin: Number(durationMin),
     });
-    await logAudit(barbershopId, req.session.user!.name, "Criou serviço", service.name);
+    await logAudit(businessId, req.session.user!.name, "Criou serviço", service.name);
     res.status(201).json(toApiService(service));
   } catch (err) {
     next(err);
@@ -50,7 +50,7 @@ servicesRouter.put("/api/manage/services/:id", requireAuth, requireOwner, async 
       priceCents: Number(priceCents),
       durationMin: Number(durationMin),
     });
-    await logAudit(req.session.user!.barbershopId, req.session.user!.name, "Editou serviço", updated.name);
+    await logAudit(req.session.user!.businessId, req.session.user!.name, "Editou serviço", updated.name);
     res.json(toApiService(updated));
   } catch (err) {
     next(err);

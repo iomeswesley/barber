@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireAuth, requireOwner, belongsToSession } from "@/middleware/auth.js";
 import { AppError } from "@/middleware/errorHandler.js";
-import { env } from "@/config/env.js";
+import { env, vertical } from "@/config/env.js";
 import { stripe } from "@/lib/stripe.js";
 import { normalizePhone } from "@/lib/time.js";
 import { selfServiceRateLimiter, otpRateLimiter } from "@/middleware/rateLimiter.js";
@@ -61,14 +61,14 @@ function validatePlanBody(body: Record<string, unknown>) {
 
 clientPlansRouter.post("/api/manage/client-plans/connect/start", requireAuth, requireOwner, async (req, res, next) => {
   try {
-    const barbershopId = req.session.user!.barbershopId;
-    await assertProPlan(barbershopId);
+    const businessId = req.session.user!.businessId;
+    await assertProPlan(businessId);
 
-    let connect = await getConnectAccountId(barbershopId);
+    let connect = await getConnectAccountId(businessId);
     let accountId = connect?.stripeConnectAccountId;
     if (!accountId) {
-      accountId = await createConnectAccount(barbershopId);
-      await saveConnectAccount(barbershopId, accountId);
+      accountId = await createConnectAccount(businessId);
+      await saveConnectAccount(businessId, accountId);
     }
 
     const base = env.PUBLIC_BASE_URL || `${req.protocol}://${req.get("host")}`;
@@ -83,8 +83,8 @@ clientPlansRouter.post("/api/manage/client-plans/connect/start", requireAuth, re
 
 clientPlansRouter.get("/api/manage/client-plans/connect/status", requireAuth, requireOwner, async (req, res, next) => {
   try {
-    const barbershopId = req.session.user!.barbershopId;
-    const connect = await getConnectAccountId(barbershopId);
+    const businessId = req.session.user!.businessId;
+    const connect = await getConnectAccountId(businessId);
     if (!connect?.stripeConnectAccountId) {
       return res.json({ onboarded: false, charges_enabled: false, payouts_enabled: false });
     }
@@ -99,9 +99,9 @@ clientPlansRouter.get("/api/manage/client-plans/connect/status", requireAuth, re
 
 clientPlansRouter.get("/api/manage/client-plans", requireAuth, requireOwner, async (req, res, next) => {
   try {
-    const barbershopId = req.session.user!.barbershopId;
-    await assertProPlan(barbershopId);
-    const plans = await getClientPlans(barbershopId, { includeInactive: true });
+    const businessId = req.session.user!.businessId;
+    await assertProPlan(businessId);
+    const plans = await getClientPlans(businessId, { includeInactive: true });
     res.json(plans.map(toApiClientPlan));
   } catch (err) {
     next(err);
@@ -113,9 +113,9 @@ clientPlansRouter.get("/api/manage/client-plans", requireAuth, requireOwner, asy
 // TIPOS de plano oferecidos, não quem de fato assinou.
 clientPlansRouter.get("/api/manage/client-plans/subscriptions", requireAuth, requireOwner, async (req, res, next) => {
   try {
-    const barbershopId = req.session.user!.barbershopId;
-    await assertProPlan(barbershopId);
-    const subs = await getClientPlanSubscriptions(barbershopId);
+    const businessId = req.session.user!.businessId;
+    await assertProPlan(businessId);
+    const subs = await getClientPlanSubscriptions(businessId);
     res.json(
       subs.map((s) => ({
         id: s.id,
@@ -134,17 +134,17 @@ clientPlansRouter.get("/api/manage/client-plans/subscriptions", requireAuth, req
 
 clientPlansRouter.post("/api/manage/client-plans", requireAuth, requireOwner, async (req, res, next) => {
   try {
-    const barbershopId = req.session.user!.barbershopId;
-    await assertProPlan(barbershopId);
+    const businessId = req.session.user!.businessId;
+    await assertProPlan(businessId);
 
-    const connect = await getConnectAccountId(barbershopId);
+    const connect = await getConnectAccountId(businessId);
     if (!connect?.stripeConnectAccountId || !connect.stripeConnectOnboarded) {
       throw new AppError("Ative o recebimento via Stripe Connect antes de criar um plano.", 400);
     }
 
     const { name, priceCents, benefitType, benefitValue, serviceId } = validatePlanBody(req.body || {});
     const { productId, priceId } = await createConnectedProductAndPrice(connect.stripeConnectAccountId, name, priceCents);
-    const plan = await createClientPlan(barbershopId, {
+    const plan = await createClientPlan(businessId, {
       name,
       priceCents,
       benefitType,
@@ -153,7 +153,7 @@ clientPlansRouter.post("/api/manage/client-plans", requireAuth, requireOwner, as
       stripeProductId: productId,
       stripePriceId: priceId,
     });
-    await logAudit(barbershopId, req.session.user!.name, "Criou plano de assinatura pra clientes", plan.name);
+    await logAudit(businessId, req.session.user!.name, `Criou plano de assinatura pra ${vertical.clientPlural}`, plan.name);
     res.status(201).json(toApiClientPlan(plan));
   } catch (err) {
     next(err);
@@ -162,8 +162,8 @@ clientPlansRouter.post("/api/manage/client-plans", requireAuth, requireOwner, as
 
 clientPlansRouter.put("/api/manage/client-plans/:id", requireAuth, requireOwner, async (req, res, next) => {
   try {
-    const barbershopId = req.session.user!.barbershopId;
-    await assertProPlan(barbershopId);
+    const businessId = req.session.user!.businessId;
+    await assertProPlan(businessId);
 
     const existing = await getClientPlan(Number(req.params.id));
     if (!belongsToSession(req, existing)) throw new AppError("Plano não encontrado", 404);
@@ -173,7 +173,7 @@ clientPlansRouter.put("/api/manage/client-plans/:id", requireAuth, requireOwner,
     let stripeProductId = existing!.stripeProductId!;
     let stripePriceId = existing!.stripePriceId!;
     if (priceCents !== existing!.priceCents || name !== existing!.name) {
-      const connect = await getConnectAccountId(barbershopId);
+      const connect = await getConnectAccountId(businessId);
       if (!connect?.stripeConnectAccountId) throw new AppError("Conta Stripe Connect não encontrada.", 400);
       const created = await createConnectedProductAndPrice(connect.stripeConnectAccountId, name, priceCents);
       stripeProductId = created.productId;
@@ -189,7 +189,7 @@ clientPlansRouter.put("/api/manage/client-plans/:id", requireAuth, requireOwner,
       stripeProductId,
       stripePriceId,
     });
-    await logAudit(barbershopId, req.session.user!.name, "Editou plano de assinatura pra clientes", updated.name);
+    await logAudit(businessId, req.session.user!.name, `Editou plano de assinatura pra ${vertical.clientPlural}`, updated.name);
     res.json(toApiClientPlan(updated));
   } catch (err) {
     next(err);
@@ -198,15 +198,15 @@ clientPlansRouter.put("/api/manage/client-plans/:id", requireAuth, requireOwner,
 
 clientPlansRouter.post("/api/manage/client-plans/:id/active", requireAuth, requireOwner, async (req, res, next) => {
   try {
-    const barbershopId = req.session.user!.barbershopId;
-    await assertProPlan(barbershopId);
+    const businessId = req.session.user!.businessId;
+    await assertProPlan(businessId);
     const existing = await getClientPlan(Number(req.params.id));
     if (!belongsToSession(req, existing)) throw new AppError("Plano não encontrado", 404);
     const updated = await setClientPlanActive(Number(req.params.id), !!req.body?.active);
     await logAudit(
-      barbershopId,
+      businessId,
       req.session.user!.name,
-      req.body?.active ? "Ativou plano de assinatura pra clientes" : "Desativou plano de assinatura pra clientes",
+      req.body?.active ? `Ativou plano de assinatura pra ${vertical.clientPlural}` : `Desativou plano de assinatura pra ${vertical.clientPlural}`,
       updated.name
     );
     res.json(toApiClientPlan(updated));
@@ -219,10 +219,10 @@ clientPlansRouter.post("/api/manage/client-plans/:id/active", requireAuth, requi
 
 clientPlansRouter.get("/api/public/barbershops/:id/client-plans", selfServiceRateLimiter, async (req, res, next) => {
   try {
-    const barbershopId = Number(req.params.id);
-    const connect = await getConnectAccountId(barbershopId);
+    const businessId = Number(req.params.id);
+    const connect = await getConnectAccountId(businessId);
     if (!connect?.stripeConnectOnboarded) return res.json([]);
-    const plans = await getClientPlans(barbershopId, { includeInactive: false });
+    const plans = await getClientPlans(businessId, { includeInactive: false });
     res.json(plans.map(toApiClientPlan));
   } catch (err) {
     next(err);
@@ -231,10 +231,10 @@ clientPlansRouter.get("/api/public/barbershops/:id/client-plans", selfServiceRat
 
 clientPlansRouter.post("/api/public/client-plans/verify/start", otpRateLimiter, async (req, res, next) => {
   try {
-    const barbershopId = Number(req.body?.barbershopId);
+    const businessId = Number(req.body?.businessId);
     const phone = normalizePhone(req.body?.phone);
-    if (!barbershopId || !phone) throw new AppError("Telefone e barbearia são obrigatórios");
-    await startPhoneVerification(barbershopId, phone);
+    if (!businessId || !phone) throw new AppError("Telefone e barbearia são obrigatórios");
+    await startPhoneVerification(businessId, phone);
     res.json({ ok: true });
   } catch (err) {
     next(err);

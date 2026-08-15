@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma.js";
 import { generateVerificationToken, passwordResetTokenExpiry, sendPasswordResetEmail } from "@/lib/email.js";
 import { env } from "@/config/env.js";
 import { getUserByUsername, getUserById, getUserByEmail } from "./users.repository.js";
-import { getBarbershop } from "@/modules/barbershops/barbershops.repository.js";
+import { getBarbershop } from "@/modules/businesses/businesses.repository.js";
 
 export const authRouter = Router();
 
@@ -45,8 +45,8 @@ authRouter.post("/api/auth/login", loginRateLimiter, async (req, res, next) => {
     req.session.user = {
       id: user.id,
       role: user.role,
-      barbershopId: user.barbershopId,
-      barberId: user.barberId,
+      businessId: user.businessId,
+      professionalId: user.professionalId,
       name: user.name,
     };
     // Salva explicitamente e só responde depois: sem isso, uma falha no
@@ -122,7 +122,7 @@ authRouter.post("/api/auth/reset-password", selfServiceRateLimiter, async (req, 
 
 authRouter.get("/api/auth/me", requireAuth, async (req, res) => {
   const [shop, user] = await Promise.all([
-    getBarbershop(req.session.user!.barbershopId),
+    getBarbershop(req.session.user!.businessId),
     getUserById(req.session.user!.id),
   ]);
   res.json({

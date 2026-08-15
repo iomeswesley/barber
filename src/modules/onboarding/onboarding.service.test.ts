@@ -12,9 +12,9 @@ describe("signupBarbershop", () => {
 
   afterAll(async () => {
     await prisma.user.deleteMany({ where: { username: { in: createdUsernames } } });
-    await prisma.subscription.deleteMany({ where: { barbershopId: { in: createdBarbershopIds } } });
-    await prisma.businessHours.deleteMany({ where: { barbershopId: { in: createdBarbershopIds } } });
-    await prisma.barbershop.deleteMany({ where: { id: { in: createdBarbershopIds } } });
+    await prisma.subscription.deleteMany({ where: { businessId: { in: createdBarbershopIds } } });
+    await prisma.businessHours.deleteMany({ where: { businessId: { in: createdBarbershopIds } } });
+    await prisma.business.deleteMany({ where: { id: { in: createdBarbershopIds } } });
   });
 
   function input(suffix: string) {
@@ -36,19 +36,19 @@ describe("signupBarbershop", () => {
 
     expect(barbershop.name).toBe(data.shopName);
     expect(user.role).toBe("owner");
-    expect(user.barbershopId).toBe(barbershop.id);
+    expect(user.businessId).toBe(barbershop.id);
     // A senha nunca é gravada em texto puro, só o hash — e o hash bate com
     // a senha original pelo mesmo verify usado no login.
     expect(verifyPassword(data.password, user.passwordHash)).toBe(true);
 
-    const hours = await prisma.businessHours.findMany({ where: { barbershopId: barbershop.id }, orderBy: { weekday: "asc" } });
+    const hours = await prisma.businessHours.findMany({ where: { businessId: barbershop.id }, orderBy: { weekday: "asc" } });
     expect(hours).toHaveLength(7);
     expect(hours[0]!.closed).toBe(true); // domingo (weekday 0) fechado por padrão
     expect(hours.filter((h) => !h.closed)).toHaveLength(6);
     expect(hours[1]!.opensAt).toBe("09:00");
     expect(hours[1]!.closesAt).toBe("19:00");
 
-    const sub = await prisma.subscription.findUnique({ where: { barbershopId: barbershop.id } });
+    const sub = await prisma.subscription.findUnique({ where: { businessId: barbershop.id } });
     expect(sub?.status).toBe("trialing");
     expect(sub?.plan).toBe("starter");
     expect(sub?.trialEndsAt).toBeTruthy();

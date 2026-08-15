@@ -1,21 +1,21 @@
 import { prisma } from "@/lib/prisma.js";
 
-export function createEscalation(barbershopId: number, { clientId, clientPhone, reason }: { clientId?: number | null; clientPhone: string; reason: string }) {
+export function createEscalation(businessId: number, { clientId, clientPhone, reason }: { clientId?: number | null; clientPhone: string; reason: string }) {
   return prisma.escalation.create({
-    data: { barbershopId, clientId: clientId || null, clientPhone, reason },
+    data: { businessId, clientId: clientId || null, clientPhone, reason },
   });
 }
 
-export function listEscalations(barbershopId: number, { includeResolved = false } = {}) {
+export function listEscalations(businessId: number, { includeResolved = false } = {}) {
   return prisma.escalation.findMany({
-    where: { barbershopId, ...(includeResolved ? {} : { resolved: false }) },
+    where: { businessId, ...(includeResolved ? {} : { resolved: false }) },
     include: { client: { select: { name: true } } },
     orderBy: { createdAt: "desc" },
   });
 }
 
-export async function countUnresolvedEscalations(barbershopId: number): Promise<number> {
-  return prisma.escalation.count({ where: { barbershopId, resolved: false } });
+export async function countUnresolvedEscalations(businessId: number): Promise<number> {
+  return prisma.escalation.count({ where: { businessId, resolved: false } });
 }
 
 export function resolveEscalation(id: number) {

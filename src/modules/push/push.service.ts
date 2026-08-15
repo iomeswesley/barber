@@ -20,10 +20,10 @@ export const VAPID_PUBLIC = env.VAPID_PUBLIC_KEY || "";
 // Dispara notificação push para todos os usuários cadastrados de uma
 // barbearia. Subscriptions inválidas (expiradas, revogadas) são removidas
 // automaticamente.
-async function notifyShop(barbershopId: number, payload: { title: string; body: string; url: string }) {
+async function notifyShop(businessId: number, payload: { title: string; body: string; url: string }) {
   if (!vapidReady) return;
 
-  const subscriptions = await getPushSubscriptionsForShop(barbershopId);
+  const subscriptions = await getPushSubscriptionsForShop(businessId);
   if (!subscriptions.length) return;
 
   const json = JSON.stringify(payload);
@@ -45,8 +45,8 @@ async function notifyShop(barbershopId: number, payload: { title: string; body: 
   });
 }
 
-export function notifyNewAppointment(barbershopId: number, appointment: AppointmentDTO) {
-  return notifyShop(barbershopId, {
+export function notifyNewAppointment(businessId: number, appointment: AppointmentDTO) {
+  return notifyShop(businessId, {
     title: "📅 Novo agendamento!",
     body: `${appointment.clientName} — ${appointment.serviceName} com ${appointment.barberName} em ${appointment.date} às ${appointment.startTime}`,
     url: "/admin.html",
@@ -56,8 +56,8 @@ export function notifyNewAppointment(barbershopId: number, appointment: Appointm
 // Reclamação séria ou emergência escalada pelo bot de chat — diferente de um
 // novo agendamento, isso pode precisar de resposta rápida da equipe, então
 // vale um aviso proativo em vez de só aparecer na aba de Escalações do painel.
-export function notifyEscalation(barbershopId: number, clientName: string | null, reason: string) {
-  return notifyShop(barbershopId, {
+export function notifyEscalation(businessId: number, clientName: string | null, reason: string) {
+  return notifyShop(businessId, {
     title: "🚨 Cliente precisa de atendimento humano",
     body: `${clientName || "Cliente"}: ${reason}`,
     url: "/admin.html",

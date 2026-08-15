@@ -1,9 +1,10 @@
 import { getAppointmentsNeedingReminder, getTodaysAppointmentsForReminder } from "@/modules/appointments/appointments.service.js";
 import { markReminderSent } from "@/modules/appointments/appointments.repository.js";
-import { getBarbershop } from "@/modules/barbershops/barbershops.repository.js";
+import { getBarbershop } from "@/modules/businesses/businesses.repository.js";
 import { sendWhatsappText, sendWhatsappTemplate, whatsappConfigured, resolveBarbershopAccessToken } from "@/lib/whatsapp.js";
 import { tryConsumeWhatsappTrialBudget } from "@/modules/billing/billing.service.js";
 import type { AppointmentDTO } from "@/modules/appointments/appointments.types.js";
+import { vertical } from "@/config/env.js";
 
 const CHECK_INTERVAL_MS = 60 * 1000; // varre a cada minuto
 
@@ -12,8 +13,8 @@ const CHECK_INTERVAL_MS = 60 * 1000; // varre a cada minuto
 // Connect) ou o global da plataforma; caso contrário cai no stub de sempre
 // (só loga no console), pra continuar funcionando em barbearias/ambientes
 // sem WhatsApp real conectado.
-export async function sendWhatsAppMessage(barbershopId: number, phone: string, text: string) {
-  const barbershop = await getBarbershop(barbershopId);
+export async function sendWhatsAppMessage(businessId: number, phone: string, text: string) {
+  const barbershop = await getBarbershop(businessId);
   const accessToken = resolveBarbershopAccessToken(barbershop);
   if (barbershop?.whatsappPhoneNumberId && (accessToken || whatsappConfigured)) {
     try {
@@ -32,17 +33,17 @@ export async function sendWhatsAppMessage(barbershopId: number, phone: string, t
 // 24h desde a última interação do cliente. `fallbackText` é só pro stub de
 // log (ex: template ainda "PENDING" de aprovação na Meta).
 async function sendWhatsAppTemplateMessage(
-  barbershopId: number,
+  businessId: number,
   phone: string,
   templateName: string,
   params: string[],
   fallbackText: string
 ) {
-  const barbershop = await getBarbershop(barbershopId);
+  const barbershop = await getBarbershop(businessId);
   const accessToken = resolveBarbershopAccessToken(barbershop);
   const usingSharedToken = !accessToken;
   if (barbershop?.whatsappPhoneNumberId && (accessToken || whatsappConfigured)) {
-    const withinBudget = await tryConsumeWhatsappTrialBudget(barbershopId, usingSharedToken, templateName);
+    const withinBudget = await tryConsumeWhatsappTrialBudget(businessId, usingSharedToken, templateName);
     if (withinBudget) {
       try {
         await sendWhatsappTemplate(barbershop.whatsappPhoneNumberId, phone, templateName, params, "pt_BR", accessToken);
@@ -51,15 +52,15 @@ async function sendWhatsAppTemplateMessage(
         console.error(`[WHATSAPP] Falha ao enviar template "${templateName}", caindo pro stub:`, (err as Error).message);
       }
     } else {
-      console.log(`[WHATSAPP] Limite de uso do trial atingido pra "${templateName}" (barbearia ${barbershopId}), pulando envio real.`);
+      console.log(`[WHATSAPP] Limite de uso do trial atingido pra "${templateName}" (barbearia ${businessId}), pulando envio real.`);
     }
   }
   console.log(`\n[LEMBRETE WHATSAPP - STUB] Para: ${phone}\n${fallbackText}\n`);
 }
 
-export async function sendRescheduleNotice(barbershopId: number, appointment: AppointmentDTO) {
+export async function sendRescheduleNotice(businessId: number, appointment: AppointmentDTO) {
   await sendWhatsAppTemplateMessage(
-    barbershopId,
+    businessId,
     appointment.clientPhone,
     "appointment_reschedule_notice",
     [appointment.clientName, appointment.serviceName, appointment.barberName, appointment.startTime, appointment.date],
@@ -85,7 +86,7 @@ function comeBackServiceHint(lastAppointment: AppointmentDTO | null): string {
 export function buildComeBackText(clientName: string, barbershopName: string, lastAppointment: AppointmentDTO | null = null): string {
   return (
     `Oi, ${clientName}! 👋 Faz um tempinho que a gente não te vê por aqui na ${barbershopName}... ` +
-    `sentimos sua falta! ✂️😄\n\n` +
+    `sentimos sua falta! ${vertical.brandEmoji}😄\n\n` +
     `${comeBackServiceHint(lastAppointment)} ` +
     `É só responder aqui que a gente já encaixa você. Esperamos por você! 🙌`
   );
@@ -95,14 +96,14 @@ export function buildComeBackText(clientName: string, barbershopName: string, la
 // explícito do cliente (diferente de lembrete/aviso transacional), que é
 // checado por quem chama esta função antes de enviar.
 export async function sendComeBackMessage(
-  barbershopId: number,
+  businessId: number,
   phone: string,
   clientName: string,
   barbershopName: string,
   lastAppointment: AppointmentDTO | null
 ) {
   await sendWhatsAppTemplateMessage(
-    barbershopId,
+    businessId,
     phone,
     "come_back_message",
     [clientName, barbershopName, comeBackServiceHint(lastAppointment)],
@@ -113,7 +114,7 @@ export async function sendComeBackMessage(
 function buildReminderText(appointment: AppointmentDTO): string {
   return (
     `Olá, ${appointment.clientName}! 👋 Passando pra lembrar do seu horário hoje:\n\n` +
-    `✂️ ${appointment.serviceName} com ${appointment.barberName}\n` +
+    `${vertical.brandEmoji} ${appointment.serviceName} com ${appointment.barberName}\n` +
     `🕐 ${appointment.startTime}\n` +
     `📍 ${appointment.barbershopName}\n\n` +
     `Te esperamos! Se precisar remarcar, é só responder aqui.`
@@ -128,7 +129,7 @@ export async function checkAndSendReminders() {
   const appointments = await getAppointmentsNeedingReminder();
   for (const appointment of appointments) {
     await sendWhatsAppTemplateMessage(
-      appointment.barbershopId,
+      appointment.businessId,
       appointment.clientPhone,
       "appointment_reminder",
       reminderTemplateParams(appointment),
@@ -144,7 +145,7 @@ export async function sendDailyReminders() {
   const appointments = await getTodaysAppointmentsForReminder();
   for (const appointment of appointments) {
     await sendWhatsAppTemplateMessage(
-      appointment.barbershopId,
+      appointment.businessId,
       appointment.clientPhone,
       "appointment_reminder",
       reminderTemplateParams(appointment),

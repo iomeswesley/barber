@@ -4,7 +4,7 @@ import { sendWhatsappAuthTemplate, resolveBarbershopAccessToken } from "@/lib/wh
 import { AppError } from "@/middleware/errorHandler.js";
 import { env } from "@/config/env.js";
 import { hashPassword, verifyPassword } from "@/lib/auth.js";
-import { getBarbershop } from "@/modules/barbershops/barbershops.repository.js";
+import { getBarbershop } from "@/modules/businesses/businesses.repository.js";
 import { findOrCreateClient } from "@/modules/clients/clients.repository.js";
 import {
   getActiveSubscriptions,
@@ -46,11 +46,11 @@ function specificityScore(sub: ActiveSubscription): number {
 
 export async function resolveChargedPrice(
   clientId: number,
-  barbershopId: number,
+  businessId: number,
   serviceId: number,
   listPriceCents: number
 ): Promise<ChargeResolution> {
-  const subs = await getActiveSubscriptions(clientId, barbershopId);
+  const subs = await getActiveSubscriptions(clientId, businessId);
   if (subs.length === 0) return { priceChargedCents: null, subscriptionId: null, creditConsumed: false };
 
   const bySpecificity = [...subs].sort((a, b) => specificityScore(b) - specificityScore(a));
@@ -83,8 +83,8 @@ const OTP_EXPIRY_MS = 10 * 60_000;
 const OTP_MAX_ATTEMPTS = 5;
 const OTP_VERIFIED_WINDOW_MS = 15 * 60_000;
 
-export async function startPhoneVerification(barbershopId: number, phone: string): Promise<void> {
-  const shop = await getBarbershop(barbershopId);
+export async function startPhoneVerification(businessId: number, phone: string): Promise<void> {
+  const shop = await getBarbershop(businessId);
   if (!shop?.whatsappPhoneNumberId) {
     throw new AppError("Verificação indisponível pra essa barbearia.", 400);
   }
@@ -116,10 +116,10 @@ export async function verifyPhoneViaTrustedChannel(phone: string): Promise<void>
 // Lista de planos pra oferecer ao cliente — usado pelo bot de chat. Só
 // mostra algo se a barbearia já concluiu o onboarding do Stripe Connect
 // (senão o cliente veria um plano que não dá pra assinar de verdade).
-export async function getOfferableClientPlans(barbershopId: number) {
-  const connect = await getConnectAccountId(barbershopId);
+export async function getOfferableClientPlans(businessId: number) {
+  const connect = await getConnectAccountId(businessId);
   if (!connect?.stripeConnectOnboarded) return [];
-  return getClientPlans(barbershopId, { includeInactive: false });
+  return getClientPlans(businessId, { includeInactive: false });
 }
 
 export async function assertPhoneVerifiedRecently(phone: string): Promise<void> {
@@ -144,7 +144,7 @@ export async function createClientPlanCheckoutSession(
   if (!plan || !plan.active) throw new AppError("Plano não encontrado", 404);
   if (!plan.stripePriceId) throw new AppError("Esse plano ainda não está pronto pra ser assinado.", 400);
 
-  const connect = await getConnectAccountId(plan.barbershopId);
+  const connect = await getConnectAccountId(plan.businessId);
   if (!connect?.stripeConnectAccountId || !connect.stripeConnectOnboarded) {
     throw new AppError("Essa barbearia ainda não está pronta pra receber assinaturas.", 400);
   }
@@ -159,9 +159,9 @@ export async function createClientPlanCheckoutSession(
       line_items: [{ price: plan.stripePriceId, quantity: 1 }],
       success_url: successUrl,
       cancel_url: cancelUrl,
-      metadata: { barbershopId: String(plan.barbershopId), clientId: String(client.id), clientPlanId: String(plan.id) },
+      metadata: { businessId: String(plan.businessId), clientId: String(client.id), clientPlanId: String(plan.id) },
       subscription_data: {
-        metadata: { barbershopId: String(plan.barbershopId), clientId: String(client.id), clientPlanId: String(plan.id) },
+        metadata: { businessId: String(plan.businessId), clientId: String(client.id), clientPlanId: String(plan.id) },
         ...(env.PLATFORM_COMMISSION_PERCENT > 0 ? { application_fee_percent: env.PLATFORM_COMMISSION_PERCENT } : {}),
       },
     },
@@ -180,15 +180,15 @@ function mapStripeStatus(status: Stripe.Subscription.Status): ClientPlanSubscrip
 }
 
 export async function handleClientPlanCheckoutCompleted(session: Stripe.Checkout.Session): Promise<void> {
-  const barbershopId = Number(session.metadata?.barbershopId);
+  const businessId = Number(session.metadata?.businessId);
   const clientId = Number(session.metadata?.clientId);
   const clientPlanId = Number(session.metadata?.clientPlanId);
-  if (!barbershopId || !clientId || !clientPlanId || !session.subscription) return;
+  if (!businessId || !clientId || !clientPlanId || !session.subscription) return;
   const stripeSubscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription.id;
   const stripeCustomerId = typeof session.customer === "string" ? session.customer : session.customer?.id || "";
 
   await upsertSubscriptionFromCheckout({
-    barbershopId,
+    businessId,
     clientId,
     clientPlanId,
     stripeSubscriptionId,

@@ -12,6 +12,6 @@ export function getUserByEmail(email: string) {
   return prisma.user.findUnique({ where: { email } });
 }
 
-export function getOwnerUserForBarbershop(barbershopId: number) {
-  return prisma.user.findFirst({ where: { barbershopId, role: "owner" } });
+export function getOwnerUserForBarbershop(businessId: number) {
+  return prisma.user.findFirst({ where: { businessId, role: "owner" } });
 }

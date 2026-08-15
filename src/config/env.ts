@@ -1,10 +1,18 @@
 import { z } from "zod";
+import { loadVertical } from "./verticals/index.js";
 
 // Falha rápido e alto na inicialização se uma variável de ambiente obrigatória
 // estiver faltando, em vez de deixar o erro aparecer silenciosamente depois
 // (ex: uma query rodando sem DATABASE_URL só na primeira requisição).
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  // Motor único — qual negócio este deploy atende (ver src/config/verticals/).
+  // Cada deploy Vercel (barbearia, odonto, futuros) seta essa variável; o
+  // código é o mesmo, só o vocabulário/marca mudam a partir dela. Default
+  // "barbearia" aqui (o inverso do default "odonto" do repo irmão) — se a
+  // variável não for setada em algum ambiente, cada repo cai no seu próprio
+  // vertical, nunca no do outro.
+  VERTICAL: z.enum(["odonto", "barbearia"]).default("barbearia"),
   PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_URL: z.string().min(1, "DATABASE_URL é obrigatório"),
   // Conexão direta (sem pooler em modo transaction) — exigida pelo Prisma
@@ -103,3 +111,8 @@ if (!parsed.success) {
 
 export const env = parsed.data;
 export const isProduction = env.NODE_ENV === "production";
+
+// Vocabulário/marca do deploy atual — ver src/config/verticals/. Resolvido
+// aqui (não só em verticals/index.ts) pra ficar disponível junto com o
+// resto da config, num só import (`import { vertical } from "@/config/env.js"`).
+export const vertical = loadVertical(env.VERTICAL);

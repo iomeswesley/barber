@@ -1,22 +1,22 @@
 import { prisma } from "@/lib/prisma.js";
 import type { ClientPlanBenefitType, ClientPlanSubscriptionStatus } from "@prisma/client";
 
-export function getConnectAccountId(barbershopId: number) {
-  return prisma.barbershop
-    .findUnique({ where: { id: barbershopId }, select: { stripeConnectAccountId: true, stripeConnectOnboarded: true } });
+export function getConnectAccountId(businessId: number) {
+  return prisma.business
+    .findUnique({ where: { id: businessId }, select: { stripeConnectAccountId: true, stripeConnectOnboarded: true } });
 }
 
-export function saveConnectAccount(barbershopId: number, accountId: string) {
-  return prisma.barbershop.update({ where: { id: barbershopId }, data: { stripeConnectAccountId: accountId } });
+export function saveConnectAccount(businessId: number, accountId: string) {
+  return prisma.business.update({ where: { id: businessId }, data: { stripeConnectAccountId: accountId } });
 }
 
 export function setConnectOnboardedByAccountId(accountId: string, onboarded: boolean) {
-  return prisma.barbershop.updateMany({ where: { stripeConnectAccountId: accountId }, data: { stripeConnectOnboarded: onboarded } });
+  return prisma.business.updateMany({ where: { stripeConnectAccountId: accountId }, data: { stripeConnectOnboarded: onboarded } });
 }
 
-export function getClientPlans(barbershopId: number, { includeInactive = false } = {}) {
+export function getClientPlans(businessId: number, { includeInactive = false } = {}) {
   return prisma.clientPlan.findMany({
-    where: { barbershopId, ...(includeInactive ? {} : { active: true }) },
+    where: { businessId, ...(includeInactive ? {} : { active: true }) },
     orderBy: { id: "asc" },
   });
 }
@@ -35,8 +35,8 @@ export interface CreateClientPlanInput {
   stripePriceId: string;
 }
 
-export function createClientPlan(barbershopId: number, input: CreateClientPlanInput) {
-  return prisma.clientPlan.create({ data: { barbershopId, ...input } });
+export function createClientPlan(businessId: number, input: CreateClientPlanInput) {
+  return prisma.clientPlan.create({ data: { businessId, ...input } });
 }
 
 export interface UpdateClientPlanInput {
@@ -59,9 +59,9 @@ export function setClientPlanActive(id: number, active: boolean) {
 
 /* ---------------- Assinaturas de cliente ---------------- */
 
-export function getActiveSubscriptions(clientId: number, barbershopId: number) {
+export function getActiveSubscriptions(clientId: number, businessId: number) {
   return prisma.clientPlanSubscription.findMany({
-    where: { clientId, barbershopId, status: "active" },
+    where: { clientId, businessId, status: "active" },
     include: { clientPlan: true },
   });
 }
@@ -69,9 +69,9 @@ export function getActiveSubscriptions(clientId: number, barbershopId: number) {
 // Todas as assinaturas (qualquer status) de todos os clientes da barbearia —
 // visão de conjunto pro dono, diferente de getActiveSubscriptions (só as
 // ativas de UM cliente, usada no cálculo de benefício durante o agendamento).
-export function getClientPlanSubscriptions(barbershopId: number) {
+export function getClientPlanSubscriptions(businessId: number) {
   return prisma.clientPlanSubscription.findMany({
-    where: { barbershopId },
+    where: { businessId },
     include: { client: { select: { name: true, phone: true } }, clientPlan: { select: { name: true } } },
     orderBy: { createdAt: "desc" },
   });
@@ -90,7 +90,7 @@ export async function decrementUsedThisPeriod(id: number) {
 }
 
 export interface UpsertSubscriptionInput {
-  barbershopId: number;
+  businessId: number;
   clientId: number;
   clientPlanId: number;
   stripeSubscriptionId: string;

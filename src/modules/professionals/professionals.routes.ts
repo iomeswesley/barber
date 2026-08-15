@@ -13,15 +13,16 @@ import {
   createBarberUser,
   updateBarberUser,
   linkBarberToOwner,
-} from "./barbers.repository.js";
+} from "./professionals.repository.js";
 import { assertBarberLimitNotExceeded } from "@/modules/billing/billing.service.js";
 import { hashPassword } from "@/lib/auth.js";
 import { getUserByUsername, getOwnerUserForBarbershop } from "@/modules/auth/users.repository.js";
+import { vertical } from "@/config/env.js";
 
-export const barbersRouter = Router();
+export const professionalsRouter = Router();
 
-barbersRouter.get("/api/manage/barbers", requireAuth, requireOwner, async (req, res) => {
-  const barbers = await getBarbersWithUsername(req.session.user!.barbershopId, { includeInactive: true });
+professionalsRouter.get("/api/manage/barbers", requireAuth, requireOwner, async (req, res) => {
+  const barbers = await getBarbersWithUsername(req.session.user!.businessId, { includeInactive: true });
   res.json(
     barbers.map((b) => ({
       ...toApiBarber(b),
@@ -39,17 +40,17 @@ async function assertUsernameAvailable(username: string, ignoreUserId?: number) 
   if (existing && existing.id !== ignoreUserId) throw new AppError("Esse nome de usuário já está em uso.", 409);
 }
 
-barbersRouter.post("/api/manage/barbers", requireAuth, requireOwner, async (req, res, next) => {
+professionalsRouter.post("/api/manage/barbers", requireAuth, requireOwner, async (req, res, next) => {
   try {
     const { name, username, password, linkToOwner, serviceCommissionPercent, productCommissionPercent, monthlyGoalCents } =
       req.body || {};
     if (!name || !String(name).trim()) throw new AppError("Nome é obrigatório");
 
-    const barbershopId = req.session.user!.barbershopId;
+    const businessId = req.session.user!.businessId;
     // Checa o limite do plano ANTES do de username, pra dar a mensagem mais
     // relevante primeiro quando os dois problemas coincidirem (limite do
     // Starter é o motivo mais provável de travar aqui, não conflito de nome).
-    await assertBarberLimitNotExceeded(barbershopId);
+    await assertBarberLimitNotExceeded(businessId);
 
     const commissionOpts = {
       serviceCommissionPercent: serviceCommissionPercent !== undefined ? Number(serviceCommissionPercent) : undefined,
@@ -60,11 +61,11 @@ barbersRouter.post("/api/manage/barbers", requireAuth, requireOwner, async (req,
     // Dono que também é barbeiro (comum): vincula ao próprio login de dono em
     // vez de criar um segundo usuário/senha que ele nunca vai usar.
     if (linkToOwner) {
-      const ownerUser = await getOwnerUserForBarbershop(barbershopId);
-      if (ownerUser?.barberId) throw new AppError("Sua conta já está vinculada a outro barbeiro.", 409);
-      const barber = await createBarber(barbershopId, String(name).trim(), undefined, commissionOpts);
-      await linkBarberToOwner(barbershopId, barber.id);
-      await logAudit(barbershopId, req.session.user!.name, "Criou barbeiro (vinculado ao dono)", barber.name);
+      const ownerUser = await getOwnerUserForBarbershop(businessId);
+      if (ownerUser?.professionalId) throw new AppError(`Sua conta já está vinculada a outro ${vertical.professional}.`, 409);
+      const barber = await createBarber(businessId, String(name).trim(), undefined, commissionOpts);
+      await linkBarberToOwner(businessId, barber.id);
+      await logAudit(businessId, req.session.user!.name, `Criou ${vertical.professional} (vinculado ao dono)`, barber.name);
       return res.status(201).json(toApiBarber(barber));
     }
 
@@ -75,23 +76,23 @@ barbersRouter.post("/api/manage/barbers", requireAuth, requireOwner, async (req,
     await assertUsernameAvailable(trimmedUsername);
 
     const barber = await createBarber(
-      barbershopId,
+      businessId,
       String(name).trim(),
       { username: trimmedUsername, passwordHash: hashPassword(String(password)) },
       commissionOpts
     );
-    await logAudit(barbershopId, req.session.user!.name, "Criou barbeiro", barber.name);
+    await logAudit(businessId, req.session.user!.name, `Criou ${vertical.professional}`, barber.name);
     res.status(201).json(toApiBarber(barber));
   } catch (err) {
     next(err);
   }
 });
 
-barbersRouter.put("/api/manage/barbers/:id", requireAuth, requireOwner, async (req, res, next) => {
+professionalsRouter.put("/api/manage/barbers/:id", requireAuth, requireOwner, async (req, res, next) => {
   try {
-    const barberId = Number(req.params.id);
-    const barber = await getBarber(barberId);
-    if (!belongsToSession(req, barber)) throw new AppError("Barbeiro não encontrado", 404);
+    const professionalId = Number(req.params.id);
+    const barber = await getBarber(professionalId);
+    if (!belongsToSession(req, barber)) throw new AppError(`${vertical.professional.charAt(0).toUpperCase()}${vertical.professional.slice(1)} não encontrado`, 404);
     const { name, serviceCommissionPercent, productCommissionPercent, monthlyGoalCents, username, password } = req.body || {};
     if (!name || !String(name).trim()) throw new AppError("Nome é obrigatório");
     const trimmedName = String(name).trim();
@@ -102,7 +103,7 @@ barbersRouter.put("/api/manage/barbers/:id", requireAuth, requireOwner, async (r
     // barbeiro é o dono vinculado (linkToOwner no cadastro), não existe
     // usuário/senha próprios pra gerenciar — as credenciais são as de dono,
     // geridas em outro lugar — então esses campos são ignorados aqui.
-    const existingUser = await getBarberUser(barberId);
+    const existingUser = await getBarberUser(professionalId);
     const isOwnerLinked = existingUser?.role === "owner";
     const trimmedUsername = !isOwnerLinked && username ? String(username).trim().toLowerCase() : undefined;
     const effectivePassword = !isOwnerLinked ? password : undefined;
@@ -119,20 +120,20 @@ barbersRouter.put("/api/manage/barbers/:id", requireAuth, requireOwner, async (r
       }
     } else if (!existingUser && (trimmedUsername || effectivePassword)) {
       if (!trimmedUsername || !effectivePassword) {
-        throw new AppError("Pra criar o acesso desse barbeiro, informe usuário e senha juntos.");
+        throw new AppError(`Pra criar o acesso desse ${vertical.professional}, informe usuário e senha juntos.`);
       }
-      await createBarberUser(req.session.user!.barbershopId, barberId, trimmedName, trimmedUsername, hashPassword(String(effectivePassword)));
+      await createBarberUser(req.session.user!.businessId, professionalId, trimmedName, trimmedUsername, hashPassword(String(effectivePassword)));
     }
 
-    const updated = await updateBarber(barberId, trimmedName, {
+    const updated = await updateBarber(professionalId, trimmedName, {
       serviceCommissionPercent: serviceCommissionPercent !== undefined ? Number(serviceCommissionPercent) : undefined,
       productCommissionPercent: productCommissionPercent !== undefined ? Number(productCommissionPercent) : undefined,
       monthlyGoalCents: monthlyGoalCents !== undefined ? Number(monthlyGoalCents) : undefined,
     });
     await logAudit(
-      req.session.user!.barbershopId,
+      req.session.user!.businessId,
       req.session.user!.name,
-      "Editou barbeiro",
+      `Editou ${vertical.professional}`,
       `${updated.name} · comissão serviço ${updated.serviceCommissionPercent}% · comissão produto ${updated.productCommissionPercent}% · meta R$ ${Math.round(updated.monthlyGoalCents / 100)}`
     );
     res.json(toApiBarber(updated));
@@ -141,17 +142,17 @@ barbersRouter.put("/api/manage/barbers/:id", requireAuth, requireOwner, async (r
   }
 });
 
-barbersRouter.post("/api/manage/barbers/:id/active", requireAuth, requireOwner, async (req, res, next) => {
+professionalsRouter.post("/api/manage/barbers/:id/active", requireAuth, requireOwner, async (req, res, next) => {
   try {
     const barber = await getBarber(Number(req.params.id));
-    if (!belongsToSession(req, barber)) throw new AppError("Barbeiro não encontrado", 404);
+    if (!belongsToSession(req, barber)) throw new AppError(`${vertical.professional.charAt(0).toUpperCase()}${vertical.professional.slice(1)} não encontrado`, 404);
     const { active } = req.body || {};
-    if (active) await assertBarberLimitNotExceeded(req.session.user!.barbershopId);
+    if (active) await assertBarberLimitNotExceeded(req.session.user!.businessId);
     const updated = await setBarberActive(Number(req.params.id), !!active);
     await logAudit(
-      req.session.user!.barbershopId,
+      req.session.user!.businessId,
       req.session.user!.name,
-      active ? "Ativou barbeiro" : "Desativou barbeiro",
+      active ? `Ativou ${vertical.professional}` : `Desativou ${vertical.professional}`,
       updated.name
     );
     res.json(toApiBarber(updated));

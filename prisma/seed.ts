@@ -46,14 +46,14 @@ const CLIENT_NAMES = [
 ];
 
 async function seedShops() {
-  const count = await prisma.barbershop.count();
+  const count = await prisma.business.count();
   if (count > 0) return;
 
-  const shop1 = await prisma.barbershop.create({
+  const shop1 = await prisma.business.create({
     data: { name: "Barbearia Vintage", address: "Rua das Flores, 123 - Centro", phone: "(11) 99999-1111" },
   });
   const barbers1 = await Promise.all(
-    ["Carlos", "Rafael", "Diego"].map((name) => prisma.barber.create({ data: { barbershopId: shop1.id, name } }))
+    ["Carlos", "Rafael", "Diego"].map((name) => prisma.professional.create({ data: { businessId: shop1.id, name } }))
   );
   await Promise.all(
     [
@@ -62,20 +62,20 @@ async function seedShops() {
       ["Corte + Barba", 6000, 60],
       ["Sobrancelha", 1500, 10],
     ].map(([name, price, duration]) =>
-      prisma.service.create({ data: { barbershopId: shop1.id, name: name as string, priceCents: price as number, durationMin: duration as number } })
+      prisma.service.create({ data: { businessId: shop1.id, name: name as string, priceCents: price as number, durationMin: duration as number } })
     )
   );
   for (let weekday = 0; weekday <= 6; weekday++) {
     await prisma.businessHours.create({
-      data: { barbershopId: shop1.id, weekday, opensAt: "09:00", closesAt: "19:00", closed: weekday === 0 },
+      data: { businessId: shop1.id, weekday, opensAt: "09:00", closesAt: "19:00", closed: weekday === 0 },
     });
   }
 
-  const shop2 = await prisma.barbershop.create({
-    data: { name: "Barber King", address: "Av. Paulista, 900 - Bela Vista", phone: "(11) 98888-2222" },
+  const shop2 = await prisma.business.create({
+    data: { name: "Professional King", address: "Av. Paulista, 900 - Bela Vista", phone: "(11) 98888-2222" },
   });
   const barbers2 = await Promise.all(
-    ["Lucas", "Bruno"].map((name) => prisma.barber.create({ data: { barbershopId: shop2.id, name } }))
+    ["Lucas", "Bruno"].map((name) => prisma.professional.create({ data: { businessId: shop2.id, name } }))
   );
   await Promise.all(
     [
@@ -84,12 +84,12 @@ async function seedShops() {
       ["Corte + Barba", 7500, 65],
       ["Platinado", 12000, 90],
     ].map(([name, price, duration]) =>
-      prisma.service.create({ data: { barbershopId: shop2.id, name: name as string, priceCents: price as number, durationMin: duration as number } })
+      prisma.service.create({ data: { businessId: shop2.id, name: name as string, priceCents: price as number, durationMin: duration as number } })
     )
   );
   for (let weekday = 0; weekday <= 6; weekday++) {
     await prisma.businessHours.create({
-      data: { barbershopId: shop2.id, weekday, opensAt: "10:00", closesAt: "20:00", closed: weekday === 0 },
+      data: { businessId: shop2.id, weekday, opensAt: "10:00", closesAt: "20:00", closed: weekday === 0 },
     });
   }
 
@@ -103,19 +103,19 @@ async function seedUsers() {
   const passwordHash = hashPassword(DEMO_PASSWORD);
   const credentials: { username: string; role: string; shop: string; barber?: string }[] = [];
 
-  for (const shop of await prisma.barbershop.findMany({ orderBy: { id: "asc" } })) {
+  for (const shop of await prisma.business.findMany({ orderBy: { id: "asc" } })) {
     const ownerUsername = `${slugify(shop.name)}.dono`;
     await prisma.user.create({
-      data: { barbershopId: shop.id, role: "owner", username: ownerUsername, passwordHash, name: `Dono(a) da ${shop.name}` },
+      data: { businessId: shop.id, role: "owner", username: ownerUsername, passwordHash, name: `Dono(a) da ${shop.name}` },
     });
     credentials.push({ username: ownerUsername, role: "owner", shop: shop.name });
 
-    for (const barber of await prisma.barber.findMany({ where: { barbershopId: shop.id } })) {
+    for (const barber of await prisma.professional.findMany({ where: { businessId: shop.id } })) {
       const username = slugify(barber.name);
       await prisma.user.create({
-        data: { barbershopId: shop.id, barberId: barber.id, role: "barber", username, passwordHash, name: barber.name },
+        data: { businessId: shop.id, professionalId: barber.id, role: "professional", username, passwordHash, name: barber.name },
       });
-      credentials.push({ username, role: "barber", shop: shop.name, barber: barber.name });
+      credentials.push({ username, role: "professional", shop: shop.name, barber: barber.name });
     }
   }
 
@@ -144,9 +144,9 @@ async function seedHistoricalData() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  for (const shop of await prisma.barbershop.findMany({ orderBy: { id: "asc" } })) {
-    const barbers = await prisma.barber.findMany({ where: { barbershopId: shop.id, active: true } });
-    const services = await prisma.service.findMany({ where: { barbershopId: shop.id, active: true } });
+  for (const shop of await prisma.business.findMany({ orderBy: { id: "asc" } })) {
+    const barbers = await prisma.professional.findMany({ where: { businessId: shop.id, active: true } });
+    const services = await prisma.service.findMany({ where: { businessId: shop.id, active: true } });
     if (barbers.length === 0 || services.length === 0) continue;
 
     async function scheduleRandom(
@@ -174,8 +174,8 @@ async function seedHistoricalData() {
         const clientRow = clientPool[Math.floor(Math.random() * clientPool.length)]!;
         await prisma.appointment.create({
           data: {
-            barbershopId: shop.id,
-            barberId: barber.id,
+            businessId: shop.id,
+            professionalId: barber.id,
             serviceId: service.id,
             clientId: clientRow.id,
             date: new Date(`${dateStr}T00:00:00`),
@@ -193,7 +193,7 @@ async function seedHistoricalData() {
       day.setDate(day.getDate() - offset);
       const dateStr = localDateStr(day);
       const hours = await prisma.businessHours.findUnique({
-        where: { barbershopId_weekday: { barbershopId: shop.id, weekday: day.getDay() } },
+        where: { businessId_weekday: { businessId: shop.id, weekday: day.getDay() } },
       });
       if (!hours || hours.closed) continue;
       const openMin = timeToMinutes(hours.opensAt);
@@ -209,7 +209,7 @@ async function seedHistoricalData() {
     const nowMin = now.getHours() * 60 + now.getMinutes();
     const todayStr = localDateStr(today);
     const todayHours = await prisma.businessHours.findUnique({
-      where: { barbershopId_weekday: { barbershopId: shop.id, weekday: today.getDay() } },
+      where: { businessId_weekday: { businessId: shop.id, weekday: today.getDay() } },
     });
     const busyToday: Record<number, { start: number; end: number }[]> = {};
 

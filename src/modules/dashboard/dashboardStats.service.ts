@@ -1,6 +1,6 @@
 import { getAppointments } from "@/modules/appointments/appointments.repository.js";
-import { getBarbers } from "@/modules/barbers/barbers.repository.js";
-import { getBusinessHours } from "@/modules/barbershops/barbershops.repository.js";
+import { getBarbers } from "@/modules/professionals/professionals.repository.js";
+import { getBusinessHours } from "@/modules/businesses/businesses.repository.js";
 import { getProductSalesRevenue, getProductSalesWithAppointment } from "@/modules/products/products.repository.js";
 import { localDateStr, timeToMinutes, weekdayForDateStr } from "@/lib/time.js";
 import type { AppointmentDTO } from "@/modules/appointments/appointments.types.js";
@@ -60,18 +60,18 @@ function monthRange(month: string) {
 // ninguém específico. Reaproveitado em getDashboardSummary,
 // getMonthlyFinancialTrend, getBarberOwnSummary e getBarberPerformance.
 async function productRevenueCentsByBarberId(
-  barbershopId: number,
+  businessId: number,
   appointmentsInScope: AppointmentDTO[],
   dateFrom: string,
   dateTo: string
 ): Promise<Map<number, number>> {
-  const barberIdByAppointmentId = new Map(appointmentsInScope.map((a) => [a.id, a.barberId]));
-  const sales = await getProductSalesWithAppointment(barbershopId, { dateFrom, dateTo });
+  const barberIdByAppointmentId = new Map(appointmentsInScope.map((a) => [a.id, a.professionalId]));
+  const sales = await getProductSalesWithAppointment(businessId, { dateFrom, dateTo });
   const map = new Map<number, number>();
   for (const sale of sales) {
-    const barberId = barberIdByAppointmentId.get(sale.appointmentId);
-    if (barberId == null) continue;
-    map.set(barberId, (map.get(barberId) || 0) + sale.amountCents);
+    const professionalId = barberIdByAppointmentId.get(sale.appointmentId);
+    if (professionalId == null) continue;
+    map.set(professionalId, (map.get(professionalId) || 0) + sale.amountCents);
   }
   return map;
 }
@@ -85,19 +85,19 @@ function sumMapValues(map: Map<number, number>): number {
 // comissão pra ninguém, mas segue contando na receita bruta.
 function productCommissionCentsFor(productRevenueByBarberId: Map<number, number>, productCommissionPercentByBarberId: Record<number, number>): number {
   let total = 0;
-  for (const [barberId, cents] of productRevenueByBarberId) {
-    total += (cents * (productCommissionPercentByBarberId[barberId] ?? 0)) / 100;
+  for (const [professionalId, cents] of productRevenueByBarberId) {
+    total += (cents * (productCommissionPercentByBarberId[professionalId] ?? 0)) / 100;
   }
   return total;
 }
 
-export async function getDashboardSummary(barbershopId: number) {
+export async function getDashboardSummary(businessId: number) {
   const now = new Date();
   // A meta da barbearia toda não é setada diretamente — é a soma da meta de cada
   // barbeiro ativo, então existe um único lugar (as configs do próprio barbeiro)
   // pra manter isso consistente.
-  const barbersAll = await getBarbers(barbershopId, { includeInactive: true });
-  const barbersActive = await getBarbers(barbershopId);
+  const barbersAll = await getBarbers(businessId, { includeInactive: true });
+  const barbersActive = await getBarbers(businessId);
   const shopGoalCents = sum(barbersActive.map((b) => b.monthlyGoalCents));
   // Comissão de serviço é devida por barbeiro sobre serviços realizados (ou
   // agendados, pra previsão); comissão de produto usa uma taxa separada,
@@ -106,11 +106,11 @@ export async function getDashboardSummary(barbershopId: number) {
   const serviceCommissionPercentByBarberId = Object.fromEntries(barbersAll.map((b) => [b.id, Number(b.serviceCommissionPercent)]));
   const productCommissionPercentByBarberId = Object.fromEntries(barbersAll.map((b) => [b.id, Number(b.productCommissionPercent)]));
   const commissionCentsFor = (rows: AppointmentDTO[]) =>
-    sum(rows.map((a) => (a.priceCents * (serviceCommissionPercentByBarberId[a.barberId] ?? 0)) / 100));
+    sum(rows.map((a) => (a.priceCents * (serviceCommissionPercentByBarberId[a.professionalId] ?? 0)) / 100));
 
   // No-shows nunca geraram receita, então são excluídos de todas as figuras
   // financeiras aqui — consistente com a aba Histórico, que filtra do mesmo jeito.
-  const all = (await getAppointments({ barbershopId })).filter((a) => a.status !== "no_show");
+  const all = (await getAppointments({ businessId })).filter((a) => a.status !== "no_show");
 
   const thisMonthKey = monthKey(localDateStr(now));
   const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -126,7 +126,7 @@ export async function getDashboardSummary(barbershopId: number) {
   const realizedThisMonth = thisMonth.filter((a) => endDateTime(a) <= now);
 
   const { from: monthFrom, to: monthTo } = monthDateRange(now);
-  const productRevenueByBarberIdThisMonth = await productRevenueCentsByBarberId(barbershopId, thisMonth, monthFrom, monthTo);
+  const productRevenueByBarberIdThisMonth = await productRevenueCentsByBarberId(businessId, thisMonth, monthFrom, monthTo);
   const productRevenueThisMonth = sumMapValues(productRevenueByBarberIdThisMonth) / 100;
   const productCommissionCentsThisMonth = productCommissionCentsFor(productRevenueByBarberIdThisMonth, productCommissionPercentByBarberId);
 
@@ -143,7 +143,7 @@ export async function getDashboardSummary(barbershopId: number) {
   const lastMonthCutoffDay = Math.min(now.getDate(), lastMonthDaysInMonth);
   const lastMonthFrom = `${lastMonthKey}-01`;
   const lastMonthTo = `${lastMonthKey}-${pad(lastMonthCutoffDay)}`;
-  const productRevenueByBarberIdLastMonth = await productRevenueCentsByBarberId(barbershopId, lastMonthMTD, lastMonthFrom, lastMonthTo);
+  const productRevenueByBarberIdLastMonth = await productRevenueCentsByBarberId(businessId, lastMonthMTD, lastMonthFrom, lastMonthTo);
   const productRevenueLastMonth = sumMapValues(productRevenueByBarberIdLastMonth) / 100;
   const productCommissionCentsLastMonth = productCommissionCentsFor(productRevenueByBarberIdLastMonth, productCommissionPercentByBarberId);
   const revenueLastMonthServiceOnly = sum(lastMonthMTD.map((a) => a.priceCents)) / 100;
@@ -156,7 +156,7 @@ export async function getDashboardSummary(barbershopId: number) {
   const avgTicketThisMonth = countRealizedThisMonth ? revenueRealizedThisMonth / countRealizedThisMonth : 0;
   const avgTicketLastMonth = countRealizedLastMonth ? revenueLastMonthServiceOnly / countRealizedLastMonth : 0;
 
-  const rawThisMonth = (await getAppointments({ barbershopId })).filter((a) => a.date.slice(0, 7) === thisMonthKey);
+  const rawThisMonth = (await getAppointments({ businessId })).filter((a) => a.date.slice(0, 7) === thisMonthKey);
   const noShowCountThisMonth = rawThisMonth.filter((a) => a.status === "no_show").length;
   const noShowRate =
     noShowCountThisMonth + countRealizedThisMonth
@@ -205,15 +205,15 @@ export async function getDashboardSummary(barbershopId: number) {
 // Tendência mês a mês dos quatro KPIs de receita, pros mini-gráficos dos cards
 // da visão geral. Meses passados são sempre totalmente "realizados", então
 // bruto/líquido naturalmente igualam previsãoBruto/previsãoLíquido, exceto no mês atual.
-export async function getMonthlyFinancialTrend(barbershopId: number, months = 6) {
+export async function getMonthlyFinancialTrend(businessId: number, months = 6) {
   const now = new Date();
-  const barbersAll = await getBarbers(barbershopId, { includeInactive: true });
+  const barbersAll = await getBarbers(businessId, { includeInactive: true });
   const serviceCommissionPercentByBarberId = Object.fromEntries(barbersAll.map((b) => [b.id, Number(b.serviceCommissionPercent)]));
   const productCommissionPercentByBarberId = Object.fromEntries(barbersAll.map((b) => [b.id, Number(b.productCommissionPercent)]));
   const commissionCentsFor = (rows: AppointmentDTO[]) =>
-    sum(rows.map((a) => (a.priceCents * (serviceCommissionPercentByBarberId[a.barberId] ?? 0)) / 100));
+    sum(rows.map((a) => (a.priceCents * (serviceCommissionPercentByBarberId[a.professionalId] ?? 0)) / 100));
 
-  const all = (await getAppointments({ barbershopId })).filter((a) => a.status !== "no_show");
+  const all = (await getAppointments({ businessId })).filter((a) => a.status !== "no_show");
   const endDateTime = (a: AppointmentDTO) => new Date(`${a.date}T${a.endTime}:00`);
 
   const result = [];
@@ -223,7 +223,7 @@ export async function getMonthlyFinancialTrend(barbershopId: number, months = 6)
     const monthAppts = all.filter((a) => a.date.slice(0, 7) === mKey);
     const realized = monthAppts.filter((a) => endDateTime(a) <= now);
     const { from, to } = monthRange(mKey);
-    const productRevenueByBarberId = await productRevenueCentsByBarberId(barbershopId, monthAppts, from, to);
+    const productRevenueByBarberId = await productRevenueCentsByBarberId(businessId, monthAppts, from, to);
     const productRevenue = sumMapValues(productRevenueByBarberId) / 100;
     const productCommissionCents = productCommissionCentsFor(productRevenueByBarberId, productCommissionPercentByBarberId);
 
@@ -237,11 +237,11 @@ export async function getMonthlyFinancialTrend(barbershopId: number, months = 6)
   return result;
 }
 
-export async function getBarberOwnSummary(barbershopId: number, barberId: number) {
+export async function getBarberOwnSummary(businessId: number, professionalId: number) {
   const now = new Date();
-  const barbersAll = await getBarbers(barbershopId, { includeInactive: true });
-  const barber = barbersAll.find((b) => b.id === barberId);
-  const all = (await getAppointments({ barbershopId, barberId })).filter((a) => a.status !== "no_show");
+  const barbersAll = await getBarbers(businessId, { includeInactive: true });
+  const barber = barbersAll.find((b) => b.id === professionalId);
+  const all = (await getAppointments({ businessId, professionalId })).filter((a) => a.status !== "no_show");
 
   const thisMonthKey = monthKey(localDateStr(now));
   const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -255,18 +255,18 @@ export async function getBarberOwnSummary(barbershopId: number, barberId: number
   const realizedThisMonth = thisMonth.filter((a) => endDateTime(a) <= now);
 
   const { from: monthFrom, to: monthTo } = monthDateRange(now);
-  const productRevenueMapThisMonth = await productRevenueCentsByBarberId(barbershopId, thisMonth, monthFrom, monthTo);
-  const productRevenueThisMonth = (productRevenueMapThisMonth.get(barberId) || 0) / 100;
+  const productRevenueMapThisMonth = await productRevenueCentsByBarberId(businessId, thisMonth, monthFrom, monthTo);
+  const productRevenueThisMonth = (productRevenueMapThisMonth.get(professionalId) || 0) / 100;
 
   const lastMonthDaysInMonth = new Date(lastMonthDate.getFullYear(), lastMonthDate.getMonth() + 1, 0).getDate();
   const lastMonthCutoffDay = Math.min(now.getDate(), lastMonthDaysInMonth);
   const productRevenueMapLastMonth = await productRevenueCentsByBarberId(
-    barbershopId,
+    businessId,
     lastMonthMTD,
     `${lastMonthKey}-01`,
     `${lastMonthKey}-${pad(lastMonthCutoffDay)}`
   );
-  const productRevenueLastMonth = (productRevenueMapLastMonth.get(barberId) || 0) / 100;
+  const productRevenueLastMonth = (productRevenueMapLastMonth.get(professionalId) || 0) / 100;
 
   const serviceRevenueThisMonth = sum(thisMonth.map((a) => a.priceCents)) / 100;
   const serviceRevenueLastMonth = sum(lastMonthMTD.map((a) => a.priceCents)) / 100;
@@ -300,16 +300,16 @@ export async function getBarberOwnSummary(barbershopId: number, barberId: number
   };
 }
 
-export async function getRevenueDaily(barbershopId: number, range: string) {
+export async function getRevenueDaily(businessId: number, range: string) {
   const now = new Date();
   let days: number;
   if (range === "week") days = 7;
   else if (range === "3months") days = 90;
   else days = 30; // "month"
 
-  const all = (await getAppointments({ barbershopId })).filter((a) => a.status !== "no_show");
+  const all = (await getAppointments({ businessId })).filter((a) => a.status !== "no_show");
   const byDate = groupSum(all, (a) => a.date, (a) => a.priceCents);
-  const productsByDate = groupSum(await getProductSalesRevenue(barbershopId, {}), (p) => p.date, (p) => p.amountCents);
+  const productsByDate = groupSum(await getProductSalesRevenue(businessId, {}), (p) => p.date, (p) => p.amountCents);
 
   const result = [];
   for (let i = days - 1; i >= 0; i--) {
@@ -328,16 +328,16 @@ export async function getRevenueDaily(barbershopId: number, range: string) {
 // ocorrências daquele dia da semana dentro do período) — dá um % que já
 // pondera agendamentos mais curtos que 1h corretamente. Dias marcados como
 // fechado nas configurações simplesmente não aparecem no resultado.
-export async function getOccupancyByHour(barbershopId: number, range: string) {
+export async function getOccupancyByHour(businessId: number, range: string) {
   const now = new Date();
   let days: number;
   if (range === "week") days = 7;
   else if (range === "3months") days = 90;
   else days = 30; // "month"
 
-  const weekHours = await getBusinessHours(barbershopId);
+  const weekHours = await getBusinessHours(businessId);
   const hoursByWeekday = new Map(weekHours.map((h) => [h.weekday, h]));
-  const barbers = await getBarbers(barbershopId);
+  const barbers = await getBarbers(businessId);
   const barberCount = Math.max(barbers.length, 1);
 
   // Range de horas próprio de cada dia da semana (dias diferentes podem abrir
@@ -378,7 +378,7 @@ export async function getOccupancyByHour(barbershopId: number, range: string) {
 
   const dateSet = new Set(dateList);
   const appts = (
-    await getAppointments({ barbershopId, dateFrom: dateList[0], dateTo: dateList[dateList.length - 1] })
+    await getAppointments({ businessId, dateFrom: dateList[0], dateTo: dateList[dateList.length - 1] })
   ).filter((a) => a.status !== "no_show" && dateSet.has(a.date));
   for (const a of appts) {
     const weekday = weekdayForDateStr(a.date);
@@ -410,10 +410,10 @@ export async function getOccupancyByHour(barbershopId: number, range: string) {
   return result;
 }
 
-export async function getBarberPerformance(barbershopId: number) {
+export async function getBarberPerformance(businessId: number) {
   const now = new Date();
-  const barbers = await getBarbers(barbershopId);
-  const all = (await getAppointments({ barbershopId })).filter((a) => a.status !== "no_show");
+  const barbers = await getBarbers(businessId);
+  const all = (await getAppointments({ businessId })).filter((a) => a.status !== "no_show");
   const thisMonthKey = monthKey(localDateStr(now));
   const thisMonth = all.filter((a) => a.date.slice(0, 7) === thisMonthKey);
 
@@ -425,7 +425,7 @@ export async function getBarberPerformance(barbershopId: number) {
   // a sessão tinha expirado.
   const year = now.getFullYear();
   const month = now.getMonth();
-  const weekHours = await getBusinessHours(barbershopId);
+  const weekHours = await getBusinessHours(businessId);
   const hoursByWeekday = new Map(weekHours.map((h) => [h.weekday, h]));
   let availableMinutes = 0;
   for (let day = 1; day <= now.getDate(); day++) {
@@ -437,11 +437,11 @@ export async function getBarberPerformance(barbershopId: number) {
   availableMinutes = Math.max(availableMinutes, 1);
 
   const { from: monthFrom, to: monthTo } = monthDateRange(now);
-  const productRevenueByBarberId = await productRevenueCentsByBarberId(barbershopId, thisMonth, monthFrom, monthTo);
+  const productRevenueByBarberId = await productRevenueCentsByBarberId(businessId, thisMonth, monthFrom, monthTo);
 
   return barbers
     .map((b) => {
-      const rows = thisMonth.filter((a) => a.barberId === b.id);
+      const rows = thisMonth.filter((a) => a.professionalId === b.id);
       const revenue = sum(rows.map((a) => a.priceCents)) / 100;
       const productRevenue = (productRevenueByBarberId.get(b.id) || 0) / 100;
       const count = rows.length;
@@ -470,19 +470,19 @@ export function computeApptStatus(a: AppointmentDTO, now = new Date()): string {
   return "confirmado";
 }
 
-export async function getTodayAppointments(barbershopId: number) {
+export async function getTodayAppointments(businessId: number) {
   const now = new Date();
   const todayStr = localDateStr(now);
-  const all = await getAppointments({ barbershopId, date: todayStr });
+  const all = await getAppointments({ businessId, date: todayStr });
 
   return all
     .map((a) => ({ ...a, computedStatus: computeApptStatus(a, now) }))
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 }
 
-export async function getAppointmentsInRange(barbershopId: number, barberId: number | undefined, dateFrom: string, dateTo: string) {
+export async function getAppointmentsInRange(businessId: number, professionalId: number | undefined, dateFrom: string, dateTo: string) {
   const now = new Date();
-  const all = await getAppointments({ barbershopId, barberId, dateFrom, dateTo });
+  const all = await getAppointments({ businessId, professionalId, dateFrom, dateTo });
   return all
     .map((a) => ({ ...a, computedStatus: computeApptStatus(a, now) }))
     .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
@@ -509,8 +509,8 @@ function periodDateFrom(period?: string): string | null {
 }
 
 export async function getHistory(
-  barbershopId: number,
-  { period, barberId, month }: { period?: string; barberId?: number; month?: string } = {}
+  businessId: number,
+  { period, professionalId, month }: { period?: string; professionalId?: number; month?: string } = {}
 ) {
   const now = new Date();
   const { dateFrom, dateTo } = month
@@ -519,7 +519,7 @@ export async function getHistory(
         return { dateFrom: r.from, dateTo: r.to };
       })()
     : { dateFrom: periodDateFrom(period) ?? undefined, dateTo: localDateStr(now) };
-  const all = await getAppointments({ barbershopId, barberId, dateFrom, dateTo });
+  const all = await getAppointments({ businessId, professionalId, dateFrom, dateTo });
   const realized = all.filter((a) => computeApptStatus(a, now) === "concluido");
 
   const revenueByBarber = groupSum(realized, (a) => a.barberName, (a) => a.priceCents);
@@ -527,9 +527,9 @@ export async function getHistory(
 
   // Vendas de produto não são atribuídas a um barbeiro específico, então só
   // entram nos totais da barbearia toda (não aparecem ao filtrar por barbeiro).
-  const productRevenue = barberId
+  const productRevenue = professionalId
     ? 0
-    : sum((await getProductSalesRevenue(barbershopId, { dateFrom, dateTo })).map((p) => p.amountCents)) / 100;
+    : sum((await getProductSalesRevenue(businessId, { dateFrom, dateTo })).map((p) => p.amountCents)) / 100;
 
   const serviceRevenue = sum(realized.map((a) => a.priceCents)) / 100;
 

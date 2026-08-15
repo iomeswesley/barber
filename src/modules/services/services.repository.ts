@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma.js";
 
-export function getServices(barbershopId: number, { includeInactive = false } = {}) {
+export function getServices(businessId: number, { includeInactive = false } = {}) {
   return prisma.service.findMany({
-    where: { barbershopId, ...(includeInactive ? {} : { active: true }) },
+    where: { businessId, ...(includeInactive ? {} : { active: true }) },
     orderBy: { id: "asc" },
   });
 }
@@ -12,10 +12,10 @@ export function getService(id: number) {
 }
 
 export function createService(
-  barbershopId: number,
+  businessId: number,
   { name, priceCents, durationMin }: { name: string; priceCents: number; durationMin: number }
 ) {
-  return prisma.service.create({ data: { barbershopId, name, priceCents, durationMin } });
+  return prisma.service.create({ data: { businessId, name, priceCents, durationMin } });
 }
 
 export function updateService(

@@ -15,19 +15,19 @@ describe("clientBelongsToShop / anonymizeClient (integração)", () => {
   let appointmentId: number;
 
   beforeAll(async () => {
-    shopA = await prisma.barbershop.create({ data: { name: "[teste] Shop A" } });
-    shopB = await prisma.barbershop.create({ data: { name: "[teste] Shop B" } });
-    barber = await prisma.barber.create({
-      data: { barbershopId: shopA.id, name: "[teste] Barbeiro", serviceCommissionPercent: 40 },
+    shopA = await prisma.business.create({ data: { name: "[teste] Shop A" } });
+    shopB = await prisma.business.create({ data: { name: "[teste] Shop B" } });
+    barber = await prisma.professional.create({
+      data: { businessId: shopA.id, name: "[teste] Barbeiro", serviceCommissionPercent: 40 },
     });
     service = await prisma.service.create({
-      data: { barbershopId: shopA.id, name: "[teste] Corte", priceCents: 3000, durationMin: 30 },
+      data: { businessId: shopA.id, name: "[teste] Corte", priceCents: 3000, durationMin: 30 },
     });
     client = await prisma.client.create({ data: { name: "[teste] Cliente", phone: `teste-${Date.now()}` } });
     const appt = await prisma.appointment.create({
       data: {
-        barbershopId: shopA.id,
-        barberId: barber.id,
+        businessId: shopA.id,
+        professionalId: barber.id,
         serviceId: service.id,
         clientId: client.id,
         date: new Date(),
@@ -43,8 +43,8 @@ describe("clientBelongsToShop / anonymizeClient (integração)", () => {
     await prisma.appointment.deleteMany({ where: { id: appointmentId } });
     await prisma.client.deleteMany({ where: { id: client.id } });
     await prisma.service.deleteMany({ where: { id: service.id } });
-    await prisma.barber.deleteMany({ where: { id: barber.id } });
-    await prisma.barbershop.deleteMany({ where: { id: { in: [shopA.id, shopB.id] } } });
+    await prisma.professional.deleteMany({ where: { id: barber.id } });
+    await prisma.business.deleteMany({ where: { id: { in: [shopA.id, shopB.id] } } });
   });
 
   it("confirma vínculo na barbearia onde o cliente realmente tem agendamento", async () => {

@@ -16,7 +16,7 @@ pushRouter.post("/api/push/subscribe", requireAuth, async (req, res, next) => {
     if (!endpoint || !keys?.p256dh || !keys?.auth) {
       throw new AppError("endpoint e keys (p256dh, auth) são obrigatórios");
     }
-    await savePushSubscription(req.session.user!.barbershopId, req.session.user!.id, {
+    await savePushSubscription(req.session.user!.businessId, req.session.user!.id, {
       endpoint,
       p256dh: keys.p256dh,
       auth: keys.auth,

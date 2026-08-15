@@ -46,8 +46,8 @@ onboardingRouter.post("/api/signup", signupRateLimiter, async (req, res, next) =
     req.session.user = {
       id: user.id,
       role: user.role,
-      barbershopId: user.barbershopId,
-      barberId: user.barberId,
+      businessId: user.businessId,
+      professionalId: user.professionalId,
       name: user.name,
     };
     req.session.save((err) => {

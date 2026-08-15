@@ -8,36 +8,36 @@ import {
   updateBusinessHours,
   getToneExamples,
   updateToneExamples,
-} from "./barbershops.repository.js";
+} from "./businesses.repository.js";
 import { getServices } from "@/modules/services/services.repository.js";
-import { getBarbers } from "@/modules/barbers/barbers.repository.js";
+import { getBarbers } from "@/modules/professionals/professionals.repository.js";
 import { toApiService, toApiBarber, toApiBusinessHours, toApiBarbershopPublic } from "@/lib/apiMappers.js";
 
-export const barbershopsRouter = Router();
+export const businessesRouter = Router();
 
 // Rotas públicas — usadas pela tela de reserva antes do cliente se identificar.
-barbershopsRouter.get("/api/barbershops", async (_req, res) => {
+businessesRouter.get("/api/barbershops", async (_req, res) => {
   res.json((await getBarbershops()).map(toApiBarbershopPublic));
 });
 
-barbershopsRouter.get("/api/barbershops/:id/services", async (req, res) => {
+businessesRouter.get("/api/barbershops/:id/services", async (req, res) => {
   const services = await getServices(Number(req.params.id));
   res.json(services.map(toApiService));
 });
 
-barbershopsRouter.get("/api/barbershops/:id/barbers", async (req, res) => {
+businessesRouter.get("/api/barbershops/:id/barbers", async (req, res) => {
   const barbers = await getBarbers(Number(req.params.id));
   res.json(barbers.map(toApiBarber));
 });
 
-barbershopsRouter.get("/api/manage/business-hours", requireAuth, requireOwner, async (req, res) => {
-  const hours = await getBusinessHours(req.session.user!.barbershopId);
+businessesRouter.get("/api/manage/business-hours", requireAuth, requireOwner, async (req, res) => {
+  const hours = await getBusinessHours(req.session.user!.businessId);
   res.json(hours.map(toApiBusinessHours));
 });
 
 const WEEKDAYS = 7;
 
-barbershopsRouter.put("/api/manage/business-hours", requireAuth, requireOwner, async (req, res, next) => {
+businessesRouter.put("/api/manage/business-hours", requireAuth, requireOwner, async (req, res, next) => {
   try {
     const { hours } = req.body || {};
     if (!Array.isArray(hours) || hours.length !== WEEKDAYS) {
@@ -53,9 +53,9 @@ barbershopsRouter.put("/api/manage/business-hours", requireAuth, requireOwner, a
         throw new AppError("Cada dia precisa de weekday e, se não estiver fechado, opensAt/closesAt");
       }
     }
-    const barbershopId = req.session.user!.barbershopId;
+    const businessId = req.session.user!.businessId;
     const updated = await updateBusinessHours(
-      barbershopId,
+      businessId,
       hours.map((h) => ({
         weekday: h.weekday,
         opensAt: h.opensAt || "09:00",
@@ -63,7 +63,7 @@ barbershopsRouter.put("/api/manage/business-hours", requireAuth, requireOwner, a
         closed: !!h.closed,
       }))
     );
-    await logAudit(barbershopId, req.session.user!.name, "Alterou horário de funcionamento", "por dia da semana");
+    await logAudit(businessId, req.session.user!.name, "Alterou horário de funcionamento", "por dia da semana");
     res.json(updated.map(toApiBusinessHours));
   } catch (err) {
     next(err);
@@ -76,11 +76,11 @@ barbershopsRouter.put("/api/manage/business-hours", requireAuth, requireOwner, a
 const MAX_TONE_EXAMPLES = 20;
 const MAX_TONE_EXAMPLE_LENGTH = 500;
 
-barbershopsRouter.get("/api/manage/tone-examples", requireAuth, requireOwner, async (req, res) => {
-  res.json({ examples: await getToneExamples(req.session.user!.barbershopId) });
+businessesRouter.get("/api/manage/tone-examples", requireAuth, requireOwner, async (req, res) => {
+  res.json({ examples: await getToneExamples(req.session.user!.businessId) });
 });
 
-barbershopsRouter.put("/api/manage/tone-examples", requireAuth, requireOwner, async (req, res, next) => {
+businessesRouter.put("/api/manage/tone-examples", requireAuth, requireOwner, async (req, res, next) => {
   try {
     const { examples } = req.body || {};
     if (!Array.isArray(examples)) throw new AppError("examples deve ser uma lista de textos");
@@ -91,9 +91,9 @@ barbershopsRouter.put("/api/manage/tone-examples", requireAuth, requireOwner, as
       .filter((e) => e.length > 0)
       .map((e) => e.slice(0, MAX_TONE_EXAMPLE_LENGTH));
 
-    const barbershopId = req.session.user!.barbershopId;
-    await updateToneExamples(barbershopId, cleaned);
-    await logAudit(barbershopId, req.session.user!.name, "Atualizou exemplos de tom de voz da IA", `${cleaned.length} exemplo(s)`);
+    const businessId = req.session.user!.businessId;
+    await updateToneExamples(businessId, cleaned);
+    await logAudit(businessId, req.session.user!.name, "Atualizou exemplos de tom de voz da IA", `${cleaned.length} exemplo(s)`);
     res.json({ examples: cleaned });
   } catch (err) {
     next(err);

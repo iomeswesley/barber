@@ -20,13 +20,13 @@ describe("billing.service (sem Stripe)", () => {
   let shop: { id: number };
 
   beforeAll(async () => {
-    shop = await prisma.barbershop.create({ data: { name: "[teste] Billing Service" } });
+    shop = await prisma.business.create({ data: { name: "[teste] Billing Service" } });
   });
 
   afterAll(async () => {
-    await prisma.subscription.deleteMany({ where: { barbershopId: shop.id } });
-    await prisma.barber.deleteMany({ where: { barbershopId: shop.id } });
-    await prisma.barbershop.deleteMany({ where: { id: shop.id } });
+    await prisma.subscription.deleteMany({ where: { businessId: shop.id } });
+    await prisma.professional.deleteMany({ where: { businessId: shop.id } });
+    await prisma.business.deleteMany({ where: { id: shop.id } });
   });
 
   it("grantTrial cria a assinatura em trialing quando não existia nenhuma", async () => {
@@ -47,14 +47,14 @@ describe("billing.service (sem Stripe)", () => {
 
   describe("tryConsumeWhatsappTrialBudget", () => {
     it("sempre libera quando não está usando o token compartilhado, mesmo sem assinatura", async () => {
-      const otherShop = await prisma.barbershop.create({ data: { name: "[teste] Billing Sem Sub" } });
+      const otherShop = await prisma.business.create({ data: { name: "[teste] Billing Sem Sub" } });
       const ok = await tryConsumeWhatsappTrialBudget(otherShop.id, false, "appointment_reminder");
       expect(ok).toBe(true);
-      await prisma.barbershop.deleteMany({ where: { id: otherShop.id } });
+      await prisma.business.deleteMany({ where: { id: otherShop.id } });
     });
 
     it("libera e não consome quando a barbearia não está em trial (plano pago)", async () => {
-      await prisma.subscription.update({ where: { barbershopId: shop.id }, data: { status: "active", whatsappTrialUsagePoints: 0 } });
+      await prisma.subscription.update({ where: { businessId: shop.id }, data: { status: "active", whatsappTrialUsagePoints: 0 } });
       const ok = await tryConsumeWhatsappTrialBudget(shop.id, true, "appointment_reminder");
       expect(ok).toBe(true);
       const sub = await getSubscription(shop.id);
@@ -63,7 +63,7 @@ describe("billing.service (sem Stripe)", () => {
 
     it("em trial, consome o peso do template até estourar o limite configurado", async () => {
       await prisma.subscription.update({
-        where: { barbershopId: shop.id },
+        where: { businessId: shop.id },
         data: { status: "trialing", whatsappTrialUsagePoints: env.WHATSAPP_TRIAL_USAGE_LIMIT - 2 },
       });
       // appointment_reminder pesa 2 (ver WHATSAPP_TEMPLATE_WEIGHTS) — cabe exatamente.
@@ -80,7 +80,7 @@ describe("billing.service (sem Stripe)", () => {
     });
 
     it("um template não mapeado usa o peso padrão (1)", async () => {
-      await prisma.subscription.update({ where: { barbershopId: shop.id }, data: { status: "trialing", whatsappTrialUsagePoints: 0 } });
+      await prisma.subscription.update({ where: { businessId: shop.id }, data: { status: "trialing", whatsappTrialUsagePoints: 0 } });
       const ok = await tryConsumeWhatsappTrialBudget(shop.id, true, "template_desconhecido");
       expect(ok).toBe(true);
       const sub = await getSubscription(shop.id);
@@ -89,13 +89,13 @@ describe("billing.service (sem Stripe)", () => {
   });
 
   it("expireOverdueTrials vira canceled só quem está trialing E já passou do prazo", async () => {
-    const pastShop = await prisma.barbershop.create({ data: { name: "[teste] Trial Vencido" } });
-    const futureShop = await prisma.barbershop.create({ data: { name: "[teste] Trial Futuro" } });
+    const pastShop = await prisma.business.create({ data: { name: "[teste] Trial Vencido" } });
+    const futureShop = await prisma.business.create({ data: { name: "[teste] Trial Futuro" } });
     await prisma.subscription.create({
-      data: { barbershopId: pastShop.id, status: "trialing", plan: "starter", trialEndsAt: new Date(Date.now() - 1000) },
+      data: { businessId: pastShop.id, status: "trialing", plan: "starter", trialEndsAt: new Date(Date.now() - 1000) },
     });
     await prisma.subscription.create({
-      data: { barbershopId: futureShop.id, status: "trialing", plan: "starter", trialEndsAt: new Date(Date.now() + 60_000) },
+      data: { businessId: futureShop.id, status: "trialing", plan: "starter", trialEndsAt: new Date(Date.now() + 60_000) },
     });
 
     await expireOverdueTrials();
@@ -105,45 +105,45 @@ describe("billing.service (sem Stripe)", () => {
     expect(past?.status).toBe("canceled");
     expect(future?.status).toBe("trialing");
 
-    await prisma.subscription.deleteMany({ where: { barbershopId: { in: [pastShop.id, futureShop.id] } } });
-    await prisma.barbershop.deleteMany({ where: { id: { in: [pastShop.id, futureShop.id] } } });
+    await prisma.subscription.deleteMany({ where: { businessId: { in: [pastShop.id, futureShop.id] } } });
+    await prisma.business.deleteMany({ where: { id: { in: [pastShop.id, futureShop.id] } } });
   });
 
   describe("assertBarberLimitNotExceeded", () => {
     it("não trava quando não há assinatura ativa (sem sub ou em trial)", async () => {
-      await prisma.subscription.update({ where: { barbershopId: shop.id }, data: { status: "trialing" } });
+      await prisma.subscription.update({ where: { businessId: shop.id }, data: { status: "trialing" } });
       await expect(assertBarberLimitNotExceeded(shop.id)).resolves.toBeUndefined();
     });
 
     it("trava no limite do plano Starter (2 barbeiros) só quando a assinatura está active", async () => {
-      await prisma.barber.createMany({
+      await prisma.professional.createMany({
         data: [
-          { barbershopId: shop.id, name: "[teste] Barbeiro 1" },
-          { barbershopId: shop.id, name: "[teste] Barbeiro 2" },
+          { businessId: shop.id, name: "[teste] Barbeiro 1" },
+          { businessId: shop.id, name: "[teste] Barbeiro 2" },
         ],
       });
-      await prisma.subscription.update({ where: { barbershopId: shop.id }, data: { status: "active", plan: "starter" } });
+      await prisma.subscription.update({ where: { businessId: shop.id }, data: { status: "active", plan: "starter" } });
       await expect(assertBarberLimitNotExceeded(shop.id)).rejects.toThrow(/plano starter permite até 2/);
 
       // Plano Pro (ilimitado) com a mesma contagem de barbeiros não trava.
-      await prisma.subscription.update({ where: { barbershopId: shop.id }, data: { plan: "pro" } });
+      await prisma.subscription.update({ where: { businessId: shop.id }, data: { plan: "pro" } });
       await expect(assertBarberLimitNotExceeded(shop.id)).resolves.toBeUndefined();
 
-      await prisma.barber.deleteMany({ where: { barbershopId: shop.id } });
+      await prisma.professional.deleteMany({ where: { businessId: shop.id } });
     });
   });
 
   describe("assertProPlan", () => {
     it("rejeita quando o plano não é pro ou a assinatura não está active", async () => {
-      await prisma.subscription.update({ where: { barbershopId: shop.id }, data: { status: "trialing", plan: "pro" } });
+      await prisma.subscription.update({ where: { businessId: shop.id }, data: { status: "trialing", plan: "pro" } });
       await expect(assertProPlan(shop.id)).rejects.toThrow(/Pro/);
 
-      await prisma.subscription.update({ where: { barbershopId: shop.id }, data: { status: "active", plan: "starter" } });
+      await prisma.subscription.update({ where: { businessId: shop.id }, data: { status: "active", plan: "starter" } });
       await expect(assertProPlan(shop.id)).rejects.toThrow(/Pro/);
     });
 
     it("libera quando a assinatura está active no plano pro", async () => {
-      await prisma.subscription.update({ where: { barbershopId: shop.id }, data: { status: "active", plan: "pro" } });
+      await prisma.subscription.update({ where: { businessId: shop.id }, data: { status: "active", plan: "pro" } });
       await expect(assertProPlan(shop.id)).resolves.toBeUndefined();
     });
   });
@@ -154,7 +154,7 @@ describe("billing.service (sem Stripe)", () => {
   // dados fora do controle deste teste.
   describe("getBillingOverview", () => {
     it("marca needsAttention quando a assinatura está past_due", async () => {
-      await prisma.subscription.update({ where: { barbershopId: shop.id }, data: { status: "past_due", plan: "pro" } });
+      await prisma.subscription.update({ where: { businessId: shop.id }, data: { status: "past_due", plan: "pro" } });
       const overview = await getBillingOverview();
       const row = overview.shops.find((s) => s.id === shop.id);
       expect(row).toBeTruthy();
@@ -163,7 +163,7 @@ describe("billing.service (sem Stripe)", () => {
     });
 
     it("não marca needsAttention pra assinatura active em dia", async () => {
-      await prisma.subscription.update({ where: { barbershopId: shop.id }, data: { status: "active", plan: "pro" } });
+      await prisma.subscription.update({ where: { businessId: shop.id }, data: { status: "active", plan: "pro" } });
       const overview = await getBillingOverview();
       const row = overview.shops.find((s) => s.id === shop.id);
       expect(row!.needsAttention).toBe(false);
@@ -171,7 +171,7 @@ describe("billing.service (sem Stripe)", () => {
 
     it("marca needsAttention quando o trial expira dentro de 3 dias", async () => {
       const soon = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
-      await prisma.subscription.update({ where: { barbershopId: shop.id }, data: { status: "trialing", trialEndsAt: soon } });
+      await prisma.subscription.update({ where: { businessId: shop.id }, data: { status: "trialing", trialEndsAt: soon } });
       const overview = await getBillingOverview();
       const row = overview.shops.find((s) => s.id === shop.id);
       expect(row!.needsAttention).toBe(true);
@@ -179,7 +179,7 @@ describe("billing.service (sem Stripe)", () => {
 
     it("não marca needsAttention pra trial que ainda tem mais de 3 dias", async () => {
       const later = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
-      await prisma.subscription.update({ where: { barbershopId: shop.id }, data: { status: "trialing", trialEndsAt: later } });
+      await prisma.subscription.update({ where: { businessId: shop.id }, data: { status: "trialing", trialEndsAt: later } });
       const overview = await getBillingOverview();
       const row = overview.shops.find((s) => s.id === shop.id);
       expect(row!.needsAttention).toBe(false);

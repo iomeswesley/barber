@@ -7,7 +7,7 @@ import { listEscalations, getEscalationById, resolveEscalation } from "./escalat
 export const escalationsRouter = Router();
 
 escalationsRouter.get("/api/manage/escalations", requireAuth, requireOwner, async (req, res) => {
-  const escalations = await listEscalations(req.session.user!.barbershopId);
+  const escalations = await listEscalations(req.session.user!.businessId);
   res.json(escalations.map(toApiEscalation));
 });
 

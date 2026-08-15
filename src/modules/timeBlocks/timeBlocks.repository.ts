@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma.js";
 import { timeToMinutes } from "@/lib/time.js";
 
 export interface TimeBlockInput {
-  barberId?: number | null;
+  professionalId?: number | null;
   type: string;
   label?: string | null;
   date?: string | null;
@@ -11,11 +11,11 @@ export interface TimeBlockInput {
   recurring: boolean;
 }
 
-export function createTimeBlock(barbershopId: number, input: TimeBlockInput) {
+export function createTimeBlock(businessId: number, input: TimeBlockInput) {
   return prisma.timeBlock.create({
     data: {
-      barbershopId,
-      barberId: input.barberId || null,
+      businessId,
+      professionalId: input.professionalId || null,
       type: input.type,
       label: input.label || null,
       date: input.recurring ? null : input.date ? new Date(input.date) : null,
@@ -26,18 +26,18 @@ export function createTimeBlock(barbershopId: number, input: TimeBlockInput) {
   });
 }
 
-export function listTimeBlocks(barbershopId: number) {
+export function listTimeBlocks(businessId: number) {
   return prisma.timeBlock.findMany({
-    where: { barbershopId },
-    include: { barber: { select: { name: true } } },
+    where: { businessId },
+    include: { professional: { select: { name: true } } },
     orderBy: [{ recurring: "desc" }, { date: "asc" }, { startTime: "asc" }],
   });
 }
 
-export function listTimeBlocksForBarber(barbershopId: number, barberId: number) {
+export function listTimeBlocksForBarber(businessId: number, professionalId: number) {
   return prisma.timeBlock.findMany({
-    where: { barbershopId, barberId },
-    include: { barber: { select: { name: true } } },
+    where: { businessId, professionalId },
+    include: { professional: { select: { name: true } } },
     orderBy: [{ recurring: "desc" }, { date: "asc" }, { startTime: "asc" }],
   });
 }
@@ -50,7 +50,7 @@ export function updateTimeBlock(id: number, input: TimeBlockInput) {
   return prisma.timeBlock.update({
     where: { id },
     data: {
-      barberId: input.barberId || null,
+      professionalId: input.professionalId || null,
       type: input.type,
       label: input.label || null,
       date: input.recurring ? null : input.date ? new Date(input.date) : null,
@@ -65,14 +65,14 @@ export function deleteTimeBlock(id: number) {
   return prisma.timeBlock.delete({ where: { id } });
 }
 
-// Aplica-se a este barbeiro especificamente, OU à barbearia toda (barberId nulo).
+// Aplica-se a este barbeiro especificamente, OU à barbearia toda (professionalId nulo).
 // Ou casa uma data fixa, ou é um bloqueio recorrente diário.
-export async function getBlocksFor(barbershopId: number, barberId: number, date: string) {
+export async function getBlocksFor(businessId: number, professionalId: number, date: string) {
   const dateObj = new Date(`${date}T00:00:00`);
   const blocks = await prisma.timeBlock.findMany({
     where: {
-      barbershopId,
-      OR: [{ barberId: null }, { barberId }],
+      businessId,
+      OR: [{ professionalId: null }, { professionalId }],
       AND: [{ OR: [{ recurring: true }, { date: dateObj }] }],
     },
   });

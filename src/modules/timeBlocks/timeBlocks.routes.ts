@@ -2,10 +2,11 @@ import { Router } from "express";
 import { requireAuth, requireOwner, requireBarber, belongsToSession } from "@/middleware/auth.js";
 import { AppError } from "@/middleware/errorHandler.js";
 import { logAudit } from "@/modules/auditLog/auditLog.repository.js";
-import { getBarber } from "@/modules/barbers/barbers.repository.js";
+import { getBarber } from "@/modules/professionals/professionals.repository.js";
 import { getAffectedAppointments } from "@/modules/appointments/appointments.service.js";
 import { sendRescheduleNotice } from "@/jobs/reminders.js";
 import { toApiTimeBlock } from "@/lib/apiMappers.js";
+import { vertical } from "@/config/env.js";
 import {
   createTimeBlock,
   listTimeBlocks,
@@ -28,13 +29,13 @@ function validateBlockInput(body: any) {
 // pra essa data — isso avisa cada cliente afetado, ao invés de dar no-show
 // silencioso. Bloqueios recorrentes não têm uma data única pra checar, são pulados.
 async function notifyAffectedAppointments(
-  barbershopId: number,
-  { barberId, date, startTime, endTime, recurring }: { barberId: number | null; date?: string | null; startTime: string; endTime: string; recurring: boolean }
+  businessId: number,
+  { professionalId, date, startTime, endTime, recurring }: { professionalId: number | null; date?: string | null; startTime: string; endTime: string; recurring: boolean }
 ) {
   if (recurring || !date) return [];
-  const affected = await getAffectedAppointments(barbershopId, barberId, date, startTime, endTime);
+  const affected = await getAffectedAppointments(businessId, professionalId, date, startTime, endTime);
   for (const appointment of affected) {
-    await sendRescheduleNotice(barbershopId, appointment);
+    await sendRescheduleNotice(businessId, appointment);
   }
   return affected;
 }
@@ -42,7 +43,7 @@ async function notifyAffectedAppointments(
 /* ---------------- Bloqueios do próprio barbeiro ---------------- */
 
 timeBlocksRouter.get("/api/barber/time-blocks", requireAuth, requireBarber, async (req, res) => {
-  const blocks = await listTimeBlocksForBarber(req.session.user!.barbershopId, req.session.user!.barberId!);
+  const blocks = await listTimeBlocksForBarber(req.session.user!.businessId, req.session.user!.professionalId!);
   res.json(blocks.map(toApiTimeBlock));
 });
 
@@ -50,10 +51,10 @@ timeBlocksRouter.post("/api/barber/time-blocks", requireAuth, requireBarber, asy
   try {
     validateBlockInput(req.body);
     const { type, label, date, startTime, endTime, recurring } = req.body;
-    const barbershopId = req.session.user!.barbershopId;
-    const barberId = req.session.user!.barberId!;
-    const block = await createTimeBlock(barbershopId, {
-      barberId,
+    const businessId = req.session.user!.businessId;
+    const professionalId = req.session.user!.professionalId!;
+    const block = await createTimeBlock(businessId, {
+      professionalId,
       type,
       label,
       date,
@@ -61,18 +62,18 @@ timeBlocksRouter.post("/api/barber/time-blocks", requireAuth, requireBarber, asy
       endTime,
       recurring: !!recurring,
     });
-    const affected = await notifyAffectedAppointments(barbershopId, {
-      barberId,
+    const affected = await notifyAffectedAppointments(businessId, {
+      professionalId,
       date,
       startTime,
       endTime,
       recurring: !!recurring,
     });
     await logAudit(
-      barbershopId,
+      businessId,
       req.session.user!.name,
       "Criou bloqueio de horário (próprio)",
-      `${date || "recorrente"} ${startTime}–${endTime}${affected.length ? ` · ${affected.length} cliente(s) avisado(s)` : ""}`
+      `${date || "recorrente"} ${startTime}–${endTime}${affected.length ? ` · ${affected.length} ${vertical.client}(s) avisado(s)` : ""}`
     );
     res.status(201).json({ ...toApiTimeBlock(block), affectedCount: affected.length });
   } catch (err) {
@@ -85,8 +86,8 @@ timeBlocksRouter.delete("/api/barber/time-blocks/:id", requireAuth, requireBarbe
     const block = await getTimeBlockById(Number(req.params.id));
     if (
       !block ||
-      block.barbershopId !== req.session.user!.barbershopId ||
-      block.barberId !== req.session.user!.barberId
+      block.businessId !== req.session.user!.businessId ||
+      block.professionalId !== req.session.user!.professionalId
     ) {
       throw new AppError("Bloqueio não encontrado", 404);
     }
@@ -100,21 +101,21 @@ timeBlocksRouter.delete("/api/barber/time-blocks/:id", requireAuth, requireBarbe
 /* ---------------- Bloqueios administrados pelo dono ---------------- */
 
 timeBlocksRouter.get("/api/manage/time-blocks", requireAuth, requireOwner, async (req, res) => {
-  const blocks = await listTimeBlocks(req.session.user!.barbershopId);
+  const blocks = await listTimeBlocks(req.session.user!.businessId);
   res.json(blocks.map(toApiTimeBlock));
 });
 
 timeBlocksRouter.post("/api/manage/time-blocks", requireAuth, requireOwner, async (req, res, next) => {
   try {
     validateBlockInput(req.body);
-    const { barberId, type, label, date, startTime, endTime, recurring } = req.body;
-    const barbershopId = req.session.user!.barbershopId;
-    if (barberId) {
-      const barber = await getBarber(Number(barberId));
+    const { professionalId, type, label, date, startTime, endTime, recurring } = req.body;
+    const businessId = req.session.user!.businessId;
+    if (professionalId) {
+      const barber = await getBarber(Number(professionalId));
       if (!belongsToSession(req, barber)) throw new AppError("Barbeiro inválido");
     }
-    const block = await createTimeBlock(barbershopId, {
-      barberId: barberId ? Number(barberId) : null,
+    const block = await createTimeBlock(businessId, {
+      professionalId: professionalId ? Number(professionalId) : null,
       type,
       label,
       date,
@@ -122,18 +123,18 @@ timeBlocksRouter.post("/api/manage/time-blocks", requireAuth, requireOwner, asyn
       endTime,
       recurring: !!recurring,
     });
-    const affected = await notifyAffectedAppointments(barbershopId, {
-      barberId: barberId ? Number(barberId) : null,
+    const affected = await notifyAffectedAppointments(businessId, {
+      professionalId: professionalId ? Number(professionalId) : null,
       date,
       startTime,
       endTime,
       recurring: !!recurring,
     });
     await logAudit(
-      barbershopId,
+      businessId,
       req.session.user!.name,
       "Criou bloqueio de horário",
-      `${date || "recorrente"} ${startTime}–${endTime}${affected.length ? ` · ${affected.length} cliente(s) avisado(s)` : ""}`
+      `${date || "recorrente"} ${startTime}–${endTime}${affected.length ? ` · ${affected.length} ${vertical.client}(s) avisado(s)` : ""}`
     );
     res.status(201).json({ ...toApiTimeBlock(block), affectedCount: affected.length });
   } catch (err) {
@@ -146,13 +147,13 @@ timeBlocksRouter.put("/api/manage/time-blocks/:id", requireAuth, requireOwner, a
     const existing = await getTimeBlockById(Number(req.params.id));
     if (!belongsToSession(req, existing)) throw new AppError("Bloqueio não encontrado", 404);
     validateBlockInput(req.body);
-    const { barberId, type, label, date, startTime, endTime, recurring } = req.body;
-    if (barberId) {
-      const barber = await getBarber(Number(barberId));
+    const { professionalId, type, label, date, startTime, endTime, recurring } = req.body;
+    if (professionalId) {
+      const barber = await getBarber(Number(professionalId));
       if (!belongsToSession(req, barber)) throw new AppError("Barbeiro inválido");
     }
     const updated = await updateTimeBlock(Number(req.params.id), {
-      barberId: barberId ? Number(barberId) : null,
+      professionalId: professionalId ? Number(professionalId) : null,
       type,
       label,
       date,
@@ -171,7 +172,7 @@ timeBlocksRouter.delete("/api/manage/time-blocks/:id", requireAuth, requireOwner
     const block = await getTimeBlockById(Number(req.params.id));
     if (!belongsToSession(req, block)) throw new AppError("Bloqueio não encontrado", 404);
     await deleteTimeBlock(Number(req.params.id));
-    await logAudit(req.session.user!.barbershopId, req.session.user!.name, "Removeu bloqueio de horário", `#${block!.id}`);
+    await logAudit(req.session.user!.businessId, req.session.user!.name, "Removeu bloqueio de horário", `#${block!.id}`);
     res.json({ ok: true });
   } catch (err) {
     next(err);

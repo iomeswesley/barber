@@ -15,12 +15,12 @@ import {
 export const productsRouter = Router();
 
 productsRouter.get("/api/manage/products", requireAuth, async (req, res) => {
-  const products = await getProducts(req.session.user!.barbershopId, { includeInactive: true });
+  const products = await getProducts(req.session.user!.businessId, { includeInactive: true });
   res.json(products.map(toApiProduct));
 });
 
 productsRouter.get("/api/manage/stock-overview", requireAuth, requireOwner, async (req, res) => {
-  const overview = await getStockOverview(req.session.user!.barbershopId);
+  const overview = await getStockOverview(req.session.user!.businessId);
   res.json(overview.map(toApiStockOverviewItem));
 });
 
@@ -30,14 +30,14 @@ productsRouter.post("/api/manage/products", requireAuth, requireOwner, async (re
     if (!name || !String(name).trim() || !priceCents) {
       throw new AppError("name e priceCents são obrigatórios");
     }
-    const barbershopId = req.session.user!.barbershopId;
-    const product = await createProduct(barbershopId, {
+    const businessId = req.session.user!.businessId;
+    const product = await createProduct(businessId, {
       name: String(name).trim(),
       priceCents: Number(priceCents),
       stockQuantity: Number(stockQuantity) || 0,
       lowStockThreshold: lowStockThreshold !== undefined ? Number(lowStockThreshold) : undefined,
     });
-    await logAudit(barbershopId, req.session.user!.name, "Criou produto", `${product.name} · estoque: ${product.stockQuantity}`);
+    await logAudit(businessId, req.session.user!.name, "Criou produto", `${product.name} · estoque: ${product.stockQuantity}`);
     res.status(201).json(toApiProduct(product));
   } catch (err) {
     next(err);
@@ -59,7 +59,7 @@ productsRouter.put("/api/manage/products/:id", requireAuth, requireOwner, async 
       lowStockThreshold: lowStockThreshold !== undefined ? Number(lowStockThreshold) : undefined,
     });
     await logAudit(
-      req.session.user!.barbershopId,
+      req.session.user!.businessId,
       req.session.user!.name,
       "Editou produto",
       `${updated.name} · estoque: ${updated.stockQuantity}`

@@ -16,20 +16,20 @@ describe("resolveChargedPrice", () => {
   let planUnlimited: { id: number };
 
   beforeAll(async () => {
-    shop = await prisma.barbershop.create({ data: { name: "[teste] Plan Consumo" } });
+    shop = await prisma.business.create({ data: { name: "[teste] Plan Consumo" } });
     client = await prisma.client.create({ data: { name: "[teste] Cliente Plano", phone: `teste-plan-${Date.now()}` } });
     service = await prisma.service.create({
-      data: { barbershopId: shop.id, name: "[teste] Corte", priceCents: 5000, durationMin: 30 },
+      data: { businessId: shop.id, name: "[teste] Corte", priceCents: 5000, durationMin: 30 },
     });
     planIncluded = await prisma.clientPlan.create({
-      data: { barbershopId: shop.id, name: "[teste] Incluído", priceCents: 9900, benefitType: "services_included", benefitValue: 1 },
+      data: { businessId: shop.id, name: "[teste] Incluído", priceCents: 9900, benefitType: "services_included", benefitValue: 1 },
     });
     planDiscount = await prisma.clientPlan.create({
-      data: { barbershopId: shop.id, name: "[teste] Desconto", priceCents: 4900, benefitType: "percent_discount", benefitValue: 20 },
+      data: { businessId: shop.id, name: "[teste] Desconto", priceCents: 4900, benefitType: "percent_discount", benefitValue: 20 },
     });
     planUnlimited = await prisma.clientPlan.create({
       data: {
-        barbershopId: shop.id,
+        businessId: shop.id,
         name: "[teste] Ilimitado",
         priceCents: 14900,
         benefitType: "unlimited_service",
@@ -40,11 +40,11 @@ describe("resolveChargedPrice", () => {
   });
 
   afterAll(async () => {
-    await prisma.clientPlanSubscription.deleteMany({ where: { barbershopId: shop.id } });
-    await prisma.clientPlan.deleteMany({ where: { barbershopId: shop.id } });
+    await prisma.clientPlanSubscription.deleteMany({ where: { businessId: shop.id } });
+    await prisma.clientPlan.deleteMany({ where: { businessId: shop.id } });
     await prisma.service.deleteMany({ where: { id: service.id } });
     await prisma.client.deleteMany({ where: { id: client.id } });
-    await prisma.barbershop.deleteMany({ where: { id: shop.id } });
+    await prisma.business.deleteMany({ where: { id: shop.id } });
   });
 
   it("sem assinatura ativa, retorna preço de tabela (null)", async () => {
@@ -54,7 +54,7 @@ describe("resolveChargedPrice", () => {
 
   it("unlimited_service: preço 0 sem consumir cota", async () => {
     const sub = await prisma.clientPlanSubscription.create({
-      data: { barbershopId: shop.id, clientId: client.id, clientPlanId: planUnlimited.id, status: "active" },
+      data: { businessId: shop.id, clientId: client.id, clientPlanId: planUnlimited.id, status: "active" },
     });
     const result = await resolveChargedPrice(client.id, shop.id, service.id, service.priceCents);
     expect(result.priceChargedCents).toBe(0);
@@ -64,7 +64,7 @@ describe("resolveChargedPrice", () => {
 
   it("services_included: consome a cota até esgotar, depois cai pro preço cheio", async () => {
     const sub = await prisma.clientPlanSubscription.create({
-      data: { barbershopId: shop.id, clientId: client.id, clientPlanId: planIncluded.id, status: "active" },
+      data: { businessId: shop.id, clientId: client.id, clientPlanId: planIncluded.id, status: "active" },
     });
     const first = await resolveChargedPrice(client.id, shop.id, service.id, service.priceCents);
     expect(first.priceChargedCents).toBe(0);
@@ -78,7 +78,7 @@ describe("resolveChargedPrice", () => {
 
   it("percent_discount: aplica o desconto sobre o preço de tabela", async () => {
     const sub = await prisma.clientPlanSubscription.create({
-      data: { barbershopId: shop.id, clientId: client.id, clientPlanId: planDiscount.id, status: "active" },
+      data: { businessId: shop.id, clientId: client.id, clientPlanId: planDiscount.id, status: "active" },
     });
     const result = await resolveChargedPrice(client.id, shop.id, service.id, service.priceCents);
     expect(result.priceChargedCents).toBe(4000); // 5000 * (1 - 0.20)

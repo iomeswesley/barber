@@ -31,13 +31,13 @@ export async function signupBarbershop(input: SignupInput) {
   const verificationExpiresAt = verificationTokenExpiry();
 
   const { barbershop, user } = await prisma.$transaction(async (tx) => {
-    const barbershop = await tx.barbershop.create({
+    const barbershop = await tx.business.create({
       data: { name: input.shopName, phone: input.phone },
     });
 
     await tx.businessHours.createMany({
       data: Array.from({ length: 7 }, (_, weekday) => ({
-        barbershopId: barbershop.id,
+        businessId: barbershop.id,
         weekday,
         opensAt: DEFAULT_OPENS_AT,
         closesAt: DEFAULT_CLOSES_AT,
@@ -49,12 +49,12 @@ export async function signupBarbershop(input: SignupInput) {
     // pra Stripe, ver campos stripeCustomerId/stripeSubscriptionId, mas
     // sem checkout/webhook por decisão consciente desta rodada).
     await tx.subscription.create({
-      data: { barbershopId: barbershop.id, status: "trialing", plan: "starter", trialEndsAt },
+      data: { businessId: barbershop.id, status: "trialing", plan: "starter", trialEndsAt },
     });
 
     const user = await tx.user.create({
       data: {
-        barbershopId: barbershop.id,
+        businessId: barbershop.id,
         role: "owner",
         username: input.username,
         passwordHash: hashPassword(input.password),

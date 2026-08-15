@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma.js";
 
-export function getProducts(barbershopId: number, { includeInactive = false } = {}) {
+export function getProducts(businessId: number, { includeInactive = false } = {}) {
   return prisma.product.findMany({
-    where: { barbershopId, ...(includeInactive ? {} : { active: true }) },
+    where: { businessId, ...(includeInactive ? {} : { active: true }) },
     orderBy: { id: "asc" },
   });
 }
@@ -12,12 +12,12 @@ export function getProduct(id: number) {
 }
 
 export function createProduct(
-  barbershopId: number,
+  businessId: number,
   { name, priceCents, stockQuantity, lowStockThreshold }: { name: string; priceCents: number; stockQuantity?: number; lowStockThreshold?: number }
 ) {
   return prisma.product.create({
     data: {
-      barbershopId,
+      businessId,
       name,
       priceCents,
       stockQuantity: stockQuantity || 0,
@@ -50,19 +50,19 @@ export function adjustProductStock(id: number, delta: number) {
   return prisma.product.update({ where: { id }, data: { stockQuantity: { increment: delta } } });
 }
 
-export async function getStockOverview(barbershopId: number) {
-  const products = await getProducts(barbershopId, { includeInactive: true });
+export async function getStockOverview(businessId: number) {
+  const products = await getProducts(businessId, { includeInactive: true });
   return products.map((p) => ({ ...p, lowStock: p.active && p.stockQuantity <= p.lowStockThreshold }));
 }
 
 export async function createProductSale(
-  barbershopId: number,
+  businessId: number,
   { clientId, productId, quantity, date, appointmentId }: { clientId: number; productId: number; quantity?: number; date: string; appointmentId?: number | null }
 ) {
   const qty = quantity || 1;
   const sale = await prisma.productSale.create({
     data: {
-      barbershopId,
+      businessId,
       clientId,
       productId,
       quantity: qty,
@@ -90,7 +90,7 @@ export async function getProductSalesForAppointment(appointmentId: number) {
 // duplicaria a venda. O estoque é restaurado antes de deduzir de novo, então
 // editar um agendamento nunca drena silenciosamente estoque que nunca foi vendido.
 export async function replaceAppointmentProductSales(
-  barbershopId: number,
+  businessId: number,
   clientId: number,
   appointmentId: number,
   date: string,
@@ -103,7 +103,7 @@ export async function replaceAppointmentProductSales(
   await prisma.productSale.deleteMany({ where: { appointmentId } });
   for (const s of sales) {
     if (!s.productId) continue;
-    await createProductSale(barbershopId, {
+    await createProductSale(businessId, {
       clientId,
       productId: s.productId,
       quantity: s.quantity || 1,
@@ -114,10 +114,10 @@ export async function replaceAppointmentProductSales(
   return getProductSalesForAppointment(appointmentId);
 }
 
-export async function getProductSalesRevenue(barbershopId: number, { dateFrom, dateTo }: { dateFrom?: string; dateTo?: string } = {}) {
+export async function getProductSalesRevenue(businessId: number, { dateFrom, dateTo }: { dateFrom?: string; dateTo?: string } = {}) {
   const sales = await prisma.productSale.findMany({
     where: {
-      barbershopId,
+      businessId,
       ...(dateFrom || dateTo
         ? {
             date: {
@@ -141,12 +141,12 @@ export async function getProductSalesRevenue(barbershopId: number, { dateFrom, d
 // não tem como ser atribuída a ninguém, então fica de fora dessa visão por
 // barbeiro (mas continua contando no faturamento total da barbearia).
 export async function getProductSalesWithAppointment(
-  barbershopId: number,
+  businessId: number,
   { dateFrom, dateTo }: { dateFrom?: string; dateTo?: string } = {}
 ) {
   const sales = await prisma.productSale.findMany({
     where: {
-      barbershopId,
+      businessId,
       appointmentId: { not: null },
       ...(dateFrom || dateTo
         ? {

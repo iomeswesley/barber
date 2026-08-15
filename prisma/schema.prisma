@@ -1,10 +1,14 @@
 // Schema Prisma — modelo de dados multi-tenant para a plataforma.
 //
 // Convenção de isolamento de tenant: toda tabela que pertence a uma barbearia
-// tem uma coluna `barbershopId` com índice. `Client` é a única entidade global
+// tem uma coluna `businessId` com índice. `Client` é a única entidade global
 // (identificada pelo telefone, como no WhatsApp), e seu vínculo com uma
 // barbearia específica é verificado via existência de Appointment — igual ao
 // comportamento original em barbearia-bot/src/db.js (clientBelongsToShop).
+//
+// Nomes de model/coluna genéricos (Business/Professional) desde o motor
+// único — ver src/config/verticals/. O vocabulário em português ("barbearia",
+// "barbeiro") vem de lá, não mais hardcoded aqui.
 
 generator client {
   provider = "prisma-client-js"
@@ -22,7 +26,7 @@ datasource db {
 
 enum UserRole {
   owner
-  barber
+  professional
 }
 
 enum AppointmentStatus {
@@ -50,7 +54,7 @@ enum ClientPlanSubscriptionStatus {
   canceled
 }
 
-model Barbershop {
+model Business {
   id                    Int      @id @default(autoincrement())
   name                  String
   address               String?
@@ -85,7 +89,7 @@ model Barbershop {
   // não copiados literalmente). Lista vazia = comportamento padrão do bot.
   toneExamples String[] @default([]) @map("tone_examples")
 
-  barbers                 Barber[]
+  professionals           Professional[]
   services                Service[]
   appointments            Appointment[]
   users                   User[]
@@ -101,14 +105,14 @@ model Barbershop {
   clientPlans             ClientPlan[]
   clientPlanSubscriptions ClientPlanSubscription[]
 
-  @@map("barbershops")
+  @@map("businesses")
 }
 
-model Barber {
-  id           Int     @id @default(autoincrement())
-  barbershopId Int     @map("barbershop_id")
-  name         String
-  active       Boolean @default(true)
+model Professional {
+  id         Int     @id @default(autoincrement())
+  businessId Int     @map("business_id")
+  name       String
+  active     Boolean @default(true)
   // Comissão de serviço (mesma coluna física de sempre, só renomeada no
   // Prisma) e de produto separadas — podem ser taxas diferentes (ex: 0% em
   // produto revendido com margem menor). Produto default 0 pra não mudar
@@ -118,33 +122,33 @@ model Barber {
   productCommissionPercent Decimal @default(0) @map("product_commission_percent") @db.Decimal(5, 2)
   monthlyGoalCents        Int     @default(0) @map("monthly_goal_cents")
 
-  barbershop   Barbershop    @relation(fields: [barbershopId], references: [id])
+  business     Business      @relation(fields: [businessId], references: [id])
   appointments Appointment[]
   users        User[]
   timeBlocks   TimeBlock[]
   reviews      Review[]
 
-  @@index([barbershopId])
-  @@map("barbers")
+  @@index([businessId])
+  @@map("professionals")
 }
 
 model Service {
-  id           Int     @id @default(autoincrement())
-  barbershopId Int     @map("barbershop_id")
-  name         String
-  priceCents   Int     @map("price_cents")
-  durationMin  Int     @map("duration_min")
-  active       Boolean @default(true)
+  id         Int     @id @default(autoincrement())
+  businessId Int     @map("business_id")
+  name       String
+  priceCents Int     @map("price_cents")
+  durationMin Int    @map("duration_min")
+  active     Boolean @default(true)
 
-  barbershop   Barbershop    @relation(fields: [barbershopId], references: [id])
+  business     Business      @relation(fields: [businessId], references: [id])
   appointments Appointment[]
   clientPlans  ClientPlan[]
 
-  @@index([barbershopId])
+  @@index([businessId])
   @@map("services")
 }
 
-// Global — não tem barbershopId. O vínculo com uma barbearia é feito via
+// Global — não tem businessId. O vínculo com uma barbearia é feito via
 // Appointment (ver clientBelongsToShop no service layer).
 model Client {
   id             Int       @id @default(autoincrement())
@@ -168,8 +172,8 @@ model Client {
 
 model Appointment {
   id               Int               @id @default(autoincrement())
-  barbershopId     Int               @map("barbershop_id")
-  barberId         Int               @map("barber_id")
+  businessId       Int               @map("business_id")
+  professionalId   Int               @map("professional_id")
   serviceId        Int               @map("service_id")
   clientId         Int               @map("client_id")
   date             DateTime          @db.Date
@@ -194,31 +198,31 @@ model Appointment {
   // produto que o cliente reagiu mal, pedido especial) — não é um
   // prontuário estruturado, só um registro rápido pra consultar no
   // histórico do cliente na próxima visita. Quem grava: dono ou o próprio
-  // barbeiro responsável, ao editar o agendamento.
+  // profissional responsável, ao editar o agendamento.
   notes String? @map("notes")
 
-  barbershop             Barbershop              @relation(fields: [barbershopId], references: [id])
-  barber                 Barber                  @relation(fields: [barberId], references: [id])
+  business               Business                @relation(fields: [businessId], references: [id])
+  professional           Professional            @relation(fields: [professionalId], references: [id])
   service                Service                 @relation(fields: [serviceId], references: [id])
   client                 Client                  @relation(fields: [clientId], references: [id])
   clientPlanSubscription ClientPlanSubscription? @relation(fields: [clientPlanSubscriptionId], references: [id])
   review                 Review?
   productSales           ProductSale[]
 
-  @@index([barbershopId])
-  @@index([barberId, date])
+  @@index([businessId])
+  @@index([professionalId, date])
   @@map("appointments")
 }
 
 model User {
-  id           Int      @id @default(autoincrement())
-  barbershopId Int      @map("barbershop_id")
-  barberId     Int?     @map("barber_id")
-  role         UserRole
-  username     String   @unique
-  passwordHash String   @map("password_hash")
-  name         String
-  createdAt    DateTime @default(now()) @map("created_at")
+  id             Int      @id @default(autoincrement())
+  businessId     Int      @map("business_id")
+  professionalId Int?     @map("professional_id")
+  role           UserRole
+  username       String   @unique
+  passwordHash   String   @map("password_hash")
+  name           String
+  createdAt      DateTime @default(now()) @map("created_at")
 
   // Data URL (base64) da foto de perfil, redimensionada no navegador antes
   // do upload (ver assets/profileModal.js) — sem infra de storage externo
@@ -244,71 +248,71 @@ model User {
   // manualmente depois ("Ver tour") não mexe nisso.
   tourSeenAt DateTime? @map("tour_seen_at")
 
-  barbershop        Barbershop         @relation(fields: [barbershopId], references: [id])
-  barber            Barber?            @relation(fields: [barberId], references: [id])
+  business          Business           @relation(fields: [businessId], references: [id])
+  professional      Professional?      @relation(fields: [professionalId], references: [id])
   pushSubscriptions PushSubscription[]
 
-  @@index([barbershopId])
+  @@index([businessId])
   @@map("users")
 }
 
 model TimeBlock {
-  id           Int       @id @default(autoincrement())
-  barbershopId Int       @map("barbershop_id")
-  barberId     Int?      @map("barber_id")
-  type         String
-  label        String?
-  date         DateTime? @db.Date
-  startTime    String    @map("start_time")
-  endTime      String    @map("end_time")
-  recurring    Boolean   @default(false)
-  createdAt    DateTime  @default(now()) @map("created_at")
+  id             Int       @id @default(autoincrement())
+  businessId     Int       @map("business_id")
+  professionalId Int?      @map("professional_id")
+  type           String
+  label          String?
+  date           DateTime? @db.Date
+  startTime      String    @map("start_time")
+  endTime        String    @map("end_time")
+  recurring      Boolean   @default(false)
+  createdAt      DateTime  @default(now()) @map("created_at")
 
-  barbershop Barbershop @relation(fields: [barbershopId], references: [id])
-  barber     Barber?    @relation(fields: [barberId], references: [id])
+  business     Business      @relation(fields: [businessId], references: [id])
+  professional Professional? @relation(fields: [professionalId], references: [id])
 
-  @@index([barbershopId])
+  @@index([businessId])
   @@map("time_blocks")
 }
 
 model Review {
-  id            Int      @id @default(autoincrement())
-  appointmentId Int      @unique @map("appointment_id")
-  barbershopId  Int      @map("barbershop_id")
-  barberId      Int      @map("barber_id")
-  clientId      Int      @map("client_id")
-  rating        Int
-  comment       String?
-  createdAt     DateTime @default(now()) @map("created_at")
+  id             Int      @id @default(autoincrement())
+  appointmentId  Int      @unique @map("appointment_id")
+  businessId     Int      @map("business_id")
+  professionalId Int      @map("professional_id")
+  clientId       Int      @map("client_id")
+  rating         Int
+  comment        String?
+  createdAt      DateTime @default(now()) @map("created_at")
 
-  appointment Appointment @relation(fields: [appointmentId], references: [id])
-  barbershop  Barbershop  @relation(fields: [barbershopId], references: [id])
-  barber      Barber      @relation(fields: [barberId], references: [id])
-  client      Client      @relation(fields: [clientId], references: [id])
+  appointment  Appointment  @relation(fields: [appointmentId], references: [id])
+  business     Business     @relation(fields: [businessId], references: [id])
+  professional Professional @relation(fields: [professionalId], references: [id])
+  client       Client       @relation(fields: [clientId], references: [id])
 
-  @@index([barbershopId])
+  @@index([businessId])
   @@map("reviews")
 }
 
 model Product {
   id                Int     @id @default(autoincrement())
-  barbershopId      Int     @map("barbershop_id")
+  businessId        Int     @map("business_id")
   name              String
   priceCents        Int     @map("price_cents")
   active            Boolean @default(true)
   stockQuantity     Int     @default(0) @map("stock_quantity")
   lowStockThreshold Int     @default(5) @map("low_stock_threshold")
 
-  barbershop   Barbershop    @relation(fields: [barbershopId], references: [id])
+  business     Business      @relation(fields: [businessId], references: [id])
   productSales ProductSale[]
 
-  @@index([barbershopId])
+  @@index([businessId])
   @@map("products")
 }
 
 model ProductSale {
   id            Int      @id @default(autoincrement())
-  barbershopId  Int      @map("barbershop_id")
+  businessId    Int      @map("business_id")
   clientId      Int      @map("client_id")
   productId     Int      @map("product_id")
   quantity      Int      @default(1)
@@ -316,72 +320,72 @@ model ProductSale {
   appointmentId Int?     @map("appointment_id")
   createdAt     DateTime @default(now()) @map("created_at")
 
-  barbershop  Barbershop   @relation(fields: [barbershopId], references: [id])
+  business    Business     @relation(fields: [businessId], references: [id])
   client      Client       @relation(fields: [clientId], references: [id])
   product     Product      @relation(fields: [productId], references: [id])
   appointment Appointment? @relation(fields: [appointmentId], references: [id])
 
-  @@index([barbershopId])
+  @@index([businessId])
   @@map("product_sales")
 }
 
 model AuditLog {
-  id           Int      @id @default(autoincrement())
-  barbershopId Int      @map("barbershop_id")
-  userName     String   @map("user_name")
-  action       String
-  details      String?
-  createdAt    DateTime @default(now()) @map("created_at")
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
+  userName   String   @map("user_name")
+  action     String
+  details    String?
+  createdAt  DateTime @default(now()) @map("created_at")
 
-  barbershop Barbershop @relation(fields: [barbershopId], references: [id])
+  business Business @relation(fields: [businessId], references: [id])
 
-  @@index([barbershopId])
+  @@index([businessId])
   @@map("audit_log")
 }
 
 model BusinessHours {
-  id           Int     @id @default(autoincrement())
-  barbershopId Int     @map("barbershop_id")
-  weekday      Int
-  opensAt      String  @map("opens_at")
-  closesAt     String  @map("closes_at")
-  closed       Boolean @default(false)
+  id         Int     @id @default(autoincrement())
+  businessId Int     @map("business_id")
+  weekday    Int
+  opensAt    String  @map("opens_at")
+  closesAt   String  @map("closes_at")
+  closed     Boolean @default(false)
 
-  barbershop Barbershop @relation(fields: [barbershopId], references: [id])
+  business Business @relation(fields: [businessId], references: [id])
 
-  @@unique([barbershopId, weekday])
+  @@unique([businessId, weekday])
   @@map("business_hours")
 }
 
 model Escalation {
-  id           Int      @id @default(autoincrement())
-  barbershopId Int      @map("barbershop_id")
-  clientId     Int?     @map("client_id")
-  clientPhone  String   @map("client_phone")
-  reason       String
-  resolved     Boolean  @default(false)
-  createdAt    DateTime @default(now()) @map("created_at")
+  id          Int      @id @default(autoincrement())
+  businessId  Int      @map("business_id")
+  clientId    Int?     @map("client_id")
+  clientPhone String   @map("client_phone")
+  reason      String
+  resolved    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
 
-  barbershop Barbershop @relation(fields: [barbershopId], references: [id])
-  client     Client?    @relation(fields: [clientId], references: [id])
+  business Business @relation(fields: [businessId], references: [id])
+  client   Client?  @relation(fields: [clientId], references: [id])
 
-  @@index([barbershopId])
+  @@index([businessId])
   @@map("escalations")
 }
 
 model PushSubscription {
-  id           Int      @id @default(autoincrement())
-  barbershopId Int      @map("barbershop_id")
-  userId       Int      @map("user_id")
-  endpoint     String   @unique
-  p256dh       String
-  auth         String
-  createdAt    DateTime @default(now()) @map("created_at")
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
+  userId     Int      @map("user_id")
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  createdAt  DateTime @default(now()) @map("created_at")
 
-  barbershop Barbershop @relation(fields: [barbershopId], references: [id])
-  user       User       @relation(fields: [userId], references: [id])
+  business Business @relation(fields: [businessId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
 
-  @@index([barbershopId])
+  @@index([businessId])
   @@map("push_subscriptions")
 }
 
@@ -392,10 +396,10 @@ model PushSubscription {
 // serviços numerados, e a próxima mensagem "1" chega numa instância sem
 // memória da lista, então o bot não entende a resposta).
 model ChatSession {
-  sessionId    String   @id @map("session_id")
-  barbershopId Int      @map("barbershop_id")
-  messages     Json
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  sessionId  String   @id @map("session_id")
+  businessId Int      @map("business_id")
+  messages   Json
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@map("chat_sessions")
 }
@@ -418,16 +422,16 @@ model ProcessedWhatsappMessage {
 // mensagem pode disparar várias chamadas dentro do loop de ferramentas em
 // chatEngine.ts). Ver scripts/chat-usage-report.ts pra somar por barbearia/mês.
 model ChatUsageLog {
-  id                      Int      @id @default(autoincrement())
-  barbershopId            Int      @map("barbershop_id")
-  model                   String
-  inputTokens             Int      @map("input_tokens")
-  outputTokens            Int      @map("output_tokens")
-  cacheCreationInputTokens Int     @default(0) @map("cache_creation_input_tokens")
-  cacheReadInputTokens    Int      @default(0) @map("cache_read_input_tokens")
-  createdAt               DateTime @default(now()) @map("created_at")
+  id                       Int      @id @default(autoincrement())
+  businessId               Int      @map("business_id")
+  model                    String
+  inputTokens              Int      @map("input_tokens")
+  outputTokens             Int      @map("output_tokens")
+  cacheCreationInputTokens Int      @default(0) @map("cache_creation_input_tokens")
+  cacheReadInputTokens     Int      @default(0) @map("cache_read_input_tokens")
+  createdAt                DateTime @default(now()) @map("created_at")
 
-  @@index([barbershopId, createdAt])
+  @@index([businessId, createdAt])
   @@map("chat_usage_logs")
 }
 
@@ -448,7 +452,7 @@ model RateLimitHit {
 // sem lógica de cobrança implementada nesta passada.
 model Subscription {
   id                   Int                @id @default(autoincrement())
-  barbershopId         Int                @unique @map("barbershop_id")
+  businessId           Int                @unique @map("business_id")
   status               SubscriptionStatus @default(trialing)
   plan                 String             @default("starter")
   trialEndsAt          DateTime?          @map("trial_ends_at")
@@ -462,11 +466,11 @@ model Subscription {
   // em billing.service.ts); serve pra estimar/limitar gasto sem precisar do
   // preço exato de cada mensagem, que a Meta só manda via webhook de status
   // (não implementado ainda).
-  whatsappTrialUsagePoints Int @default(0) @map("whatsapp_trial_usage_points")
-  createdAt            DateTime           @default(now()) @map("created_at")
-  updatedAt            DateTime           @updatedAt @map("updated_at")
+  whatsappTrialUsagePoints Int      @default(0) @map("whatsapp_trial_usage_points")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
 
-  barbershop Barbershop @relation(fields: [barbershopId], references: [id])
+  business Business @relation(fields: [businessId], references: [id])
 
   @@map("subscriptions")
 }
@@ -474,11 +478,11 @@ model Subscription {
 // Planos de assinatura que a barbearia (não a plataforma) oferece pros
 // próprios clientes finais — feature restrita ao plano Pro, cobrada via
 // Stripe Connect (conta conectada da barbearia, ver stripeConnectAccountId
-// em Barbershop). Benefício é um enum fechado (não motor de regras livre)
+// em Business). Benefício é um enum fechado (não motor de regras livre)
 // pra manter self-service sem virar suporte manual.
 model ClientPlan {
   id              Int                   @id @default(autoincrement())
-  barbershopId    Int                   @map("barbershop_id")
+  businessId      Int                   @map("business_id")
   name            String
   priceCents      Int                   @map("price_cents")
   benefitType     ClientPlanBenefitType @map("benefit_type")
@@ -490,11 +494,11 @@ model ClientPlan {
   createdAt       DateTime              @default(now()) @map("created_at")
   updatedAt       DateTime              @updatedAt @map("updated_at")
 
-  barbershop    Barbershop               @relation(fields: [barbershopId], references: [id])
+  business      Business                 @relation(fields: [businessId], references: [id])
   service       Service?                 @relation(fields: [serviceId], references: [id])
   subscriptions ClientPlanSubscription[]
 
-  @@index([barbershopId])
+  @@index([businessId])
   @@map("client_plans")
 }
 
@@ -503,7 +507,7 @@ model ClientPlan {
 // nunca diretamente pela rota de checkout (que só inicia a sessão).
 model ClientPlanSubscription {
   id                   Int                          @id @default(autoincrement())
-  barbershopId         Int                          @map("barbershop_id")
+  businessId           Int                          @map("business_id")
   clientId             Int                          @map("client_id")
   clientPlanId         Int                          @map("client_plan_id")
   status               ClientPlanSubscriptionStatus @default(active)
@@ -516,13 +520,13 @@ model ClientPlanSubscription {
   createdAt            DateTime                     @default(now()) @map("created_at")
   updatedAt            DateTime                     @updatedAt @map("updated_at")
 
-  barbershop   Barbershop    @relation(fields: [barbershopId], references: [id])
+  business     Business      @relation(fields: [businessId], references: [id])
   client       Client        @relation(fields: [clientId], references: [id])
   clientPlan   ClientPlan    @relation(fields: [clientPlanId], references: [id])
   appointments Appointment[]
 
   @@unique([clientId, clientPlanId])
-  @@index([barbershopId])
+  @@index([businessId])
   @@index([clientId])
   @@map("client_plan_subscriptions")
 }
