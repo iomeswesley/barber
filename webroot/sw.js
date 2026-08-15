@@ -1,4 +1,4 @@
-// Service Worker — Barbearia Bot PWA
+// Service Worker — barber.bot PWA
 // Versão do cache — incrementar para forçar atualização (v2: remove
 // admin.html/barber.html do pré-cache, ver comentário abaixo; v3: rebrand
 // dourado → verde neon, força buscar o /login.html com o CSS novo em vez
@@ -64,7 +64,7 @@ self.addEventListener("push", (event) => {
   try {
     data = event.data.json();
   } catch {
-    data = { title: "Barbearia Bot", body: event.data.text(), url: "/admin.html" };
+    data = { title: "barber.bot", body: event.data.text(), url: "/admin.html" };
   }
 
   const options = {
@@ -79,7 +79,7 @@ self.addEventListener("push", (event) => {
     requireInteraction: false,
   };
 
-  event.waitUntil(self.registration.showNotification(data.title || "Barbearia Bot", options));
+  event.waitUntil(self.registration.showNotification(data.title || "barber.bot", options));
 });
 
 /* ---------- Notification Click ---------- */

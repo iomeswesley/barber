@@ -1,6 +1,6 @@
 {
-  "name": "Barbearia Bot",
-  "short_name": "BarbBot",
+  "name": "barber.bot",
+  "short_name": "barber.bot",
   "description": "Painel de gerenciamento para barbearias com agendamento via IA",
   "start_url": "/admin.html",
   "display": "standalone",
