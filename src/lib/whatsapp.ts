@@ -47,6 +47,66 @@ export async function sendWhatsappText(phoneNumberId: string, to: string, text: 
   }
 }
 
+// Upload em 2 passos da Cloud API pra anexos (imagem/PDF) mandados
+// manualmente pelo dono/barbeiro na aba Mensagens (ver chatEngine.ts,
+// sendManualAttachment): primeiro sobe o arquivo aqui e recebe um media
+// id, depois manda esse id numa mensagem (ver sendWhatsappMedia). O
+// arquivo em si não fica arquivado no nosso banco, só passou pela Meta.
+export async function uploadWhatsappMedia(
+  phoneNumberId: string,
+  fileBuffer: Buffer,
+  mimeType: string,
+  fileName: string,
+  accessToken?: string
+): Promise<string> {
+  const form = new FormData();
+  form.append("messaging_product", "whatsapp");
+  form.append("file", new Blob([fileBuffer], { type: mimeType }), fileName);
+  const res = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${phoneNumberId}/media`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken || env.WHATSAPP_ACCESS_TOKEN}` },
+    body: form,
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Falha ao enviar anexo pro WhatsApp (${res.status}): ${body}`);
+  }
+  const data = (await res.json()) as { id: string };
+  return data.id;
+}
+
+// image/* vira mensagem tipo "image" (a Meta gera preview/miniatura
+// automaticamente no WhatsApp); qualquer outro tipo (PDF etc.) vira
+// "document", que exige filename pra o app do cliente mostrar um nome
+// decente em vez de um hash.
+export async function sendWhatsappMedia(
+  phoneNumberId: string,
+  to: string,
+  mediaId: string,
+  mimeType: string,
+  fileName: string,
+  accessToken?: string
+): Promise<void> {
+  const isImage = mimeType.startsWith("image/");
+  const res = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${phoneNumberId}/messages`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken || env.WHATSAPP_ACCESS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to,
+      type: isImage ? "image" : "document",
+      [isImage ? "image" : "document"]: isImage ? { id: mediaId } : { id: mediaId, filename: fileName },
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Falha ao enviar anexo WhatsApp (${res.status}): ${body}`);
+  }
+}
+
 // Envia uma mensagem via Message Template aprovado — necessário pra
 // mensagens iniciadas pela barbearia (não em resposta direta a uma
 // mensagem do cliente) fora da janela de 24h da última interação, quando

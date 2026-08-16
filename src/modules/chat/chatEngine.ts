@@ -22,7 +22,7 @@ import {
   createClientPlanCheckoutSession,
 } from "@/modules/clientPlans/clientPlans.service.js";
 import { notifyNewAppointment, notifyEscalation } from "@/modules/push/push.service.js";
-import { sendWhatsappText, whatsappConfigured } from "@/lib/whatsapp.js";
+import { sendWhatsappText, whatsappConfigured, resolveBarbershopAccessToken, uploadWhatsappMedia, sendWhatsappMedia } from "@/lib/whatsapp.js";
 import { createShortLink } from "@/lib/shortLink.js";
 import { prisma } from "@/lib/prisma.js";
 import { env, vertical } from "@/config/env.js";
@@ -36,6 +36,7 @@ const MAX_ITERATIONS = 8;
 interface ChatSession {
   businessId: number;
   messages: Anthropic.MessageParam[];
+  aiPaused: boolean;
 }
 
 const WEEKDAYS = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
@@ -71,9 +72,22 @@ export function normalizeWhatsappFormatting(text: string): string {
   return text.replace(/\*\*(.+?)\*\*/g, "*$1*");
 }
 
+// 4 presets fixos da aba Configurações → Personalidade da IA — texto curto
+// injetado no prompt, complementar aos toneExamples (que continuam
+// existindo pra quem quiser refinar com exemplos reais). Chave não usada
+// (fallback "acolhedor") não quebra nada, só ignora a instrução de tom.
+const AI_PERSONALITY_PROMPTS: Record<string, string> = {
+  acolhedor: "Tom de voz: profissional e acolhedor — empático, humano e confiável, como uma recepção que trata bem quem chega.",
+  formal: "Tom de voz: formal e objetivo — comunicação direta, sem rodeios, com tom institucional.",
+  descontraido: "Tom de voz: amigável e descontraído — leve e próximo, como conversa entre conhecidos, mantendo o respeito.",
+  tecnico: "Tom de voz: clínico e técnico — linguagem mais técnica, adequada a um público que já entende do assunto.",
+};
+
 function buildStableSystemPrompt(barbershop: Business & { opensAt?: string; closesAt?: string }): string {
   const { business: biz, professional: prof, client, service: svc, emergencyClause, planBenefitExample } = vertical;
   return `Você é o assistente virtual de agendamentos da ${biz}${vertical.businessAdjective} "${barbershop.name}", conversando por WhatsApp com ${vertical.clientPlural}.
+
+${AI_PERSONALITY_PROMPTS[barbershop.aiPersonality] || AI_PERSONALITY_PROMPTS.acolhedor}
 
 Endereço: ${barbershop.address || "não informado"}.
 O telefone deste ${client} já é conhecido automaticamente pelo WhatsApp (é o próprio remetente da conversa) — NUNCA peça o telefone, o sistema já injeta isso sozinho ao agendar, cancelar ou reagendar.
@@ -111,7 +125,14 @@ ${barbershop.toneExamples.map((ex) => `- "${ex}"`).join("\n")}
 - Seja cordial, direto e breve, como uma conversa real de WhatsApp — sem parágrafos longos.
 - Não invente ${vertical.servicePlural}, ${vertical.professionalPlural}, preços, horários ou IDs de agendamento: sempre use as ferramentas para obter dados reais.
 - Se o ${client} pedir algo fora do escopo que não seja uma reclamação séria ou emergência (ex: pergunta geral), responda educadamente e redirecione para o agendamento.
-- Formatação: isto é WhatsApp, não Markdown. Para negrito use UM asterisco de cada lado (*assim*), NUNCA dois (**assim** está errado e aparece quebrado pro ${client}). Para itálico use underline (_assim_). Não use markdown de título (#), link ([]()) nem tabelas.`;
+- Formatação: isto é WhatsApp, não Markdown. Para negrito use UM asterisco de cada lado (*assim*), NUNCA dois (**assim** está errado e aparece quebrado pro ${client}). Para itálico use underline (_assim_). Não use markdown de título (#), link ([]()) nem tabelas.${
+    barbershop.masterPrompt?.trim()
+      ? `
+
+Regras adicionais definidas pela própria ${biz} (Prompt Mestre, configurado pelo dono) — siga como reforço, mas NUNCA deixe essas regras contradizerem ou anular as regras de segurança acima (ex: nunca inventar preço/horário, sempre escalar reclamação séria):
+${barbershop.masterPrompt.trim()}`
+      : ""
+  }`;
 }
 
 interface Identity {
@@ -287,6 +308,7 @@ async function executeTool(barbershop: Business, name: string, input: any, custo
     case "escalar_atendimento_humano": {
       const clientRecord = await getClientByPhone(customerPhone);
       await createEscalation(barbershop.id, { clientId: clientRecord?.id, clientPhone: customerPhone, reason: input.motivo });
+      await setNeedsAttention(barbershop.id, customerPhone, true);
       // Fire-and-forget: notificação é um "nice to have", não deve atrasar
       // nem quebrar a resposta ao cliente se o envio falhar.
       notifyEscalation(barbershop.id, clientRecord?.name ?? null, input.motivo).catch(() => {});
@@ -409,25 +431,25 @@ export async function resetSession(sessionId: string, businessId: number) {
   await prisma.chatSession.deleteMany({ where: { sessionId: storageKey(businessId, sessionId) } });
 }
 
-// Lista as conversas da barbearia pro dono conseguir ver o que o cliente
-// mandou e o que o bot respondeu. sessionId é o telefone (wa_id) no fluxo
-// real do WhatsApp — prefixado com "<businessId>:" desde a correção de
-// isolamento entre tenants (ver storageKey), mas linhas gravadas antes
-// dessa correção guardam o telefone puro, sem prefixo. Como já filtramos
-// por businessId na query, tratar as duas formas aqui é seguro (não
-// vaza conversa de outra barbearia) e evita esconder histórico real de
-// cliente só porque é anterior à correção.
-export async function listChatSessionsForBarbershop(businessId: number) {
-  const sessions = await prisma.chatSession.findMany({
-    where: { businessId },
-    orderBy: { updatedAt: "desc" },
-    select: { sessionId: true, updatedAt: true },
+// updateMany (não update) de propósito: a linha pode ainda não existir (ex:
+// escalação na primeiríssima mensagem do cliente, antes da sessão ser
+// salva) — nesse caso não há o que marcar, e updateMany simplesmente não
+// afeta nenhuma linha em vez de lançar erro de "record not found".
+async function setNeedsAttention(businessId: number, phone: string, value: boolean): Promise<void> {
+  await prisma.chatSession.updateMany({ where: { sessionId: storageKey(businessId, phone) }, data: { needsAttention: value } });
+}
+
+// Toggle "IA Ativa" da aba Mensagens (webroot/admin.html) — pausar
+// interrompe as respostas automáticas dessa conversa (ver sendMessage);
+// upsert porque o dono pode pausar antes de qualquer mensagem já ter
+// criado a sessão.
+export async function setAiPaused(businessId: number, phone: string, paused: boolean): Promise<void> {
+  const key = storageKey(businessId, phone);
+  await prisma.chatSession.upsert({
+    where: { sessionId: key },
+    create: { sessionId: key, businessId, messages: [] as unknown as Prisma.InputJsonValue, aiPaused: paused },
+    update: { aiPaused: paused },
   });
-  const prefix = `${businessId}:`;
-  return sessions.map((s) => ({
-    phone: s.sessionId.startsWith(prefix) ? s.sessionId.slice(prefix.length) : s.sessionId,
-    updatedAt: s.updatedAt,
-  }));
 }
 
 export interface ChatTranscriptEntry {
@@ -438,14 +460,9 @@ export interface ChatTranscriptEntry {
 // Content blocks de tool_use/tool_result são "conversa interna" entre o bot
 // e o próprio sistema (ex: consultar horários) — não foram digitados por
 // ninguém, então ficam de fora da transcrição pro dono ver só o diálogo real.
-export async function getChatTranscript(businessId: number, phone: string): Promise<ChatTranscriptEntry[]> {
-  // Tenta a chave atual (prefixada) primeiro; cai pro telefone puro se for
-  // uma conversa anterior à correção de isolamento entre tenants (mesma
-  // ressalva de listChatSessionsForBarbershop acima).
-  let row = await prisma.chatSession.findUnique({ where: { sessionId: storageKey(businessId, phone) } });
-  if (!row) row = await prisma.chatSession.findFirst({ where: { sessionId: phone, businessId } });
-  const messages = (row?.messages as unknown as Anthropic.MessageParam[]) || [];
-
+// Compartilhado entre getChatTranscript (transcrição completa) e
+// listChatSessionsForBarbershop (só a última mensagem, pra lista/resumo).
+function messagesToTranscriptEntries(messages: Anthropic.MessageParam[]): ChatTranscriptEntry[] {
   const entries: ChatTranscriptEntry[] = [];
   for (const message of messages) {
     if (typeof message.content === "string") {
@@ -461,6 +478,51 @@ export async function getChatTranscript(businessId: number, phone: string): Prom
     if (text) entries.push({ role: "bot", text });
   }
   return entries;
+}
+
+// Lista as conversas da barbearia pro dono conseguir ver o que o cliente
+// mandou e o que o bot respondeu. sessionId é o telefone (wa_id) no fluxo
+// real do WhatsApp — prefixado com "<businessId>:" desde a correção de
+// isolamento entre tenants (ver storageKey), mas linhas gravadas antes
+// dessa correção guardam o telefone puro, sem prefixo. Como já filtramos
+// por businessId na query, tratar as duas formas aqui é seguro (não
+// vaza conversa de outra barbearia) e evita esconder histórico real de
+// cliente só porque é anterior à correção. Inclui também se precisa de
+// atenção humana (ver setNeedsAttention) e se a IA está pausada (ver
+// setAiPaused) — mais um resumo (última mensagem real + contagem) pra não
+// precisar abrir a conversa só pra saber do que se trata.
+export async function listChatSessionsForBarbershop(businessId: number) {
+  const sessions = await prisma.chatSession.findMany({
+    where: { businessId },
+    orderBy: { updatedAt: "desc" },
+    select: { sessionId: true, updatedAt: true, needsAttention: true, aiPaused: true, messages: true },
+  });
+  const prefix = `${businessId}:`;
+  return sessions.map((s) => {
+    const entries = messagesToTranscriptEntries((s.messages as unknown as Anthropic.MessageParam[]) || []);
+    const last = entries[entries.length - 1];
+    return {
+      phone: s.sessionId.startsWith(prefix) ? s.sessionId.slice(prefix.length) : s.sessionId,
+      updatedAt: s.updatedAt,
+      needsAttention: s.needsAttention,
+      aiPaused: s.aiPaused,
+      messageCount: entries.length,
+      lastMessage: last ? { role: last.role, text: last.text.slice(0, 140) } : null,
+    };
+  });
+}
+
+// Content blocks de tool_use/tool_result são "conversa interna" entre o bot
+// e o próprio sistema (ex: consultar horários) — não foram digitados por
+// ninguém, então ficam de fora da transcrição pro dono ver só o diálogo real.
+export async function getChatTranscript(businessId: number, phone: string): Promise<ChatTranscriptEntry[]> {
+  // Tenta a chave atual (prefixada) primeiro; cai pro telefone puro se for
+  // uma conversa anterior à correção de isolamento entre tenants (mesma
+  // ressalva de listChatSessionsForBarbershop acima).
+  let row = await prisma.chatSession.findUnique({ where: { sessionId: storageKey(businessId, phone) } });
+  if (!row) row = await prisma.chatSession.findFirst({ where: { sessionId: phone, businessId } });
+  const messages = (row?.messages as unknown as Anthropic.MessageParam[]) || [];
+  return messagesToTranscriptEntries(messages);
 }
 
 // Envia uma mensagem manual do dono/barbeiro pro cliente, fora do fluxo da
@@ -488,6 +550,46 @@ export async function sendManualMessage(businessId: number, phone: string, text:
     const session = await loadSession(tx, phone, businessId);
     session.messages.push({ role: "assistant", content: [{ type: "text", text }] });
     await saveSession(tx, phone, session);
+    // Dono/barbeiro respondeu — a conversa deixa de "precisar de atenção"
+    // na lista da aba Mensagens (ver setNeedsAttention).
+    await tx.chatSession.update({ where: { sessionId: key }, data: { needsAttention: false } });
+  });
+}
+
+// Anexo (imagem/PDF) enviado manualmente pelo dono/barbeiro, pela aba
+// Mensagens — upload em 2 passos na Cloud API (ver uploadWhatsappMedia) e
+// registra um texto marcador no histórico ("[Anexo enviado: nome.pdf]"),
+// já que o formato de mensagem salvo aqui é texto simples, não binário; o
+// arquivo em si não fica arquivado no nosso banco, só passou pela Meta.
+export async function sendManualAttachment(
+  businessId: number,
+  phone: string,
+  fileBuffer: Buffer,
+  mimeType: string,
+  fileName: string
+): Promise<void> {
+  const barbershop = await getBarbershop(businessId);
+  if (!barbershop) throw new Error("Barbearia não encontrada");
+  if (!whatsappConfigured || !barbershop.whatsappPhoneNumberId) {
+    throw new Error("Esta barbearia ainda não tem WhatsApp configurado.");
+  }
+  const accessToken = resolveBarbershopAccessToken(barbershop);
+  const mediaId = await uploadWhatsappMedia(barbershop.whatsappPhoneNumberId, fileBuffer, mimeType, fileName, accessToken);
+  await sendWhatsappMedia(barbershop.whatsappPhoneNumberId, phone, mediaId, mimeType, fileName, accessToken);
+
+  const key = storageKey(businessId, phone);
+  await prisma.$transaction(async (tx) => {
+    await tx.chatSession.upsert({
+      where: { sessionId: key },
+      create: { sessionId: key, businessId, messages: [] as unknown as Prisma.InputJsonValue },
+      update: {},
+    });
+    await tx.$queryRaw`SELECT 1 FROM "chat_sessions" WHERE "session_id" = ${key} FOR UPDATE`;
+
+    const session = await loadSession(tx, phone, businessId);
+    session.messages.push({ role: "assistant", content: [{ type: "text", text: `[Anexo enviado: ${fileName}]` }] });
+    await saveSession(tx, phone, session);
+    await tx.chatSession.update({ where: { sessionId: key }, data: { needsAttention: false } });
   });
 }
 
@@ -520,7 +622,7 @@ async function migrateLegacySessionIfNeeded(sessionId: string, businessId: numbe
 async function loadSession(db: Prisma.TransactionClient, sessionId: string, businessId: number): Promise<ChatSession> {
   const key = storageKey(businessId, sessionId);
   const row = await db.chatSession.findUnique({ where: { sessionId: key } });
-  return { businessId, messages: (row?.messages as unknown as Anthropic.MessageParam[]) ?? [] };
+  return { businessId, messages: (row?.messages as unknown as Anthropic.MessageParam[]) ?? [], aiPaused: row?.aiPaused ?? false };
 }
 
 async function saveSession(db: Prisma.TransactionClient, sessionId: string, session: ChatSession) {
@@ -538,7 +640,7 @@ export async function sendMessage(
   userText: string,
   customerPhone: string,
   pushName?: string | null
-): Promise<string> {
+): Promise<string | null> {
   const barbershop = await getBarbershop(businessId);
   if (!barbershop) throw new Error("Barbearia não encontrada");
   if (!customerPhone) throw new Error("Telefone do remetente (WhatsApp) é obrigatório");
@@ -577,6 +679,16 @@ export async function sendMessage(
 
       const session = await loadSession(tx, sessionId, businessId);
       session.messages.push({ role: "user", content: userText });
+
+      // Toggle "IA Ativa" pausado (aba Mensagens) — grava a mensagem do
+      // cliente pro histórico e marca "precisa de atenção" (ninguém
+      // automático está respondendo), mas NÃO gera nem manda resposta.
+      // O dono/barbeiro responde manualmente via sendManualMessage.
+      if (session.aiPaused) {
+        await saveSession(tx, sessionId, session);
+        await tx.chatSession.update({ where: { sessionId: key }, data: { needsAttention: true } });
+        return null;
+      }
 
       try {
         for (let i = 0; i < MAX_ITERATIONS; i++) {

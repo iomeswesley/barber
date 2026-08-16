@@ -22,6 +22,18 @@ export function updateToneExamples(businessId: number, examples: string[]) {
   return prisma.business.update({ where: { id: businessId }, data: { toneExamples: examples } });
 }
 
+export function updateAiPersonality(businessId: number, personality: string) {
+  return prisma.business.update({ where: { id: businessId }, data: { aiPersonality: personality } });
+}
+
+export function updateMasterPrompt(businessId: number, masterPrompt: string | null) {
+  return prisma.business.update({ where: { id: businessId }, data: { masterPrompt } });
+}
+
+export function updateIcalImportUrl(businessId: number, icalImportUrl: string | null) {
+  return prisma.business.update({ where: { id: businessId }, data: { icalImportUrl } });
+}
+
 export function getBusinessHours(businessId: number) {
   return prisma.businessHours.findMany({
     where: { businessId },

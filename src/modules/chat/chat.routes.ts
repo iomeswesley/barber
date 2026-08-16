@@ -5,7 +5,15 @@ import { AppError } from "@/middleware/errorHandler.js";
 import { normalizePhone } from "@/lib/time.js";
 import { getBarbershop } from "@/modules/businesses/businesses.repository.js";
 import { getClientByPhone } from "@/modules/clients/clients.repository.js";
-import { sendMessage, resetSession, listChatSessionsForBarbershop, getChatTranscript, sendManualMessage } from "./chatEngine.js";
+import {
+  sendMessage,
+  resetSession,
+  listChatSessionsForBarbershop,
+  getChatTranscript,
+  sendManualMessage,
+  sendManualAttachment,
+  setAiPaused,
+} from "./chatEngine.js";
 
 export const chatRouter = Router();
 
@@ -48,7 +56,15 @@ chatRouter.get("/api/manage/chat-sessions", requireAuth, requireOwner, async (re
     const withNames = await Promise.all(
       sessions.map(async (s) => {
         const client = await getClientByPhone(s.phone);
-        return { phone: s.phone, clientName: client?.name || null, updatedAt: s.updatedAt };
+        return {
+          phone: s.phone,
+          clientName: client?.name || null,
+          updatedAt: s.updatedAt,
+          needsAttention: s.needsAttention,
+          aiPaused: s.aiPaused,
+          messageCount: s.messageCount,
+          lastMessage: s.lastMessage,
+        };
       })
     );
     res.json(withNames);
@@ -68,6 +84,20 @@ chatRouter.get("/api/manage/chat-sessions/:phone", requireAuth, requireOwner, as
   }
 });
 
+// Toggle "IA Ativa" da aba Mensagens — pausar interrompe respostas
+// automáticas dessa conversa (ver setAiPaused/sendMessage em chatEngine.ts).
+chatRouter.post("/api/manage/chat-sessions/:phone/ai-toggle", requireAuth, requireOwner, async (req, res, next) => {
+  try {
+    const phone = req.params.phone;
+    if (!phone) throw new AppError("Telefone é obrigatório");
+    const paused = !!req.body?.paused;
+    await setAiPaused(req.session.user!.businessId, phone, paused);
+    res.json({ ok: true, paused });
+  } catch (err) {
+    next(err);
+  }
+});
+
 chatRouter.post("/api/manage/chat-sessions/:phone/send", requireAuth, requireOwner, async (req, res, next) => {
   try {
     const phone = req.params.phone;
@@ -81,6 +111,30 @@ chatRouter.post("/api/manage/chat-sessions/:phone/send", requireAuth, requireOwn
       // Meta, etc.) é uma condição esperada e acionável pelo dono — não um
       // bug do sistema — então vira 400 com a mensagem original em vez de
       // 500 genérico.
+      throw new AppError((err as Error).message);
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Anexo (imagem/PDF) da aba Mensagens — arquivo chega como base64 no corpo
+// JSON (não multipart: o projeto não tem parser de multipart instalado, e
+// isso evita adicionar uma dependência nova só pra esse upload pontual).
+// 15MB de limite no express.json() (ver app.ts) cobre o caso de uso real
+// (documento), com folga pro overhead de ~33% do base64.
+chatRouter.post("/api/manage/chat-sessions/:phone/send-attachment", requireAuth, requireOwner, async (req, res, next) => {
+  try {
+    const phone = req.params.phone;
+    const { fileName, mimeType, dataBase64 } = req.body || {};
+    if (!phone) throw new AppError("Telefone é obrigatório");
+    if (!fileName || !mimeType || !dataBase64) throw new AppError("fileName, mimeType e dataBase64 são obrigatórios");
+    const buffer = Buffer.from(String(dataBase64), "base64");
+    if (buffer.length > 10 * 1024 * 1024) throw new AppError("Arquivo muito grande (máximo 10MB).");
+    try {
+      await sendManualAttachment(req.session.user!.businessId, phone, buffer, String(mimeType), String(fileName));
+    } catch (err) {
       throw new AppError((err as Error).message);
     }
     res.json({ ok: true });

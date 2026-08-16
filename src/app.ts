@@ -8,6 +8,7 @@ import { errorHandler, notFoundHandler } from "@/middleware/errorHandler.js";
 import "@/middleware/session.js";
 import "@/middleware/rawBody.js";
 import { sendDailyReminders } from "@/jobs/reminders.js";
+import { runIcalImport } from "@/jobs/icalImport.js";
 import { resolveShortLink } from "@/lib/shortLink.js";
 import { expireOverdueTrials } from "@/modules/billing/billing.service.js";
 import { serverlessBackupConfigured, runServerlessBackup } from "@/jobs/serverlessBackup.js";
@@ -32,6 +33,8 @@ import { clientsRouter } from "@/modules/clients/clients.routes.js";
 import { billingRouter } from "@/modules/billing/billing.routes.js";
 import { clientPlansRouter } from "@/modules/clientPlans/clientPlans.routes.js";
 import { superAdminRouter } from "@/modules/superadmin/superadmin.routes.js";
+import { campaignsRouter } from "@/modules/campaigns/campaigns.routes.js";
+import { googleCalendarRouter } from "@/modules/googleCalendar/googleCalendar.routes.js";
 
 const PgSession = connectPgSimple(session);
 
@@ -88,7 +91,7 @@ export function createApp() {
   // Guarda o corpo bruto da requisição em req.rawBody: o webhook do
   // WhatsApp precisa dele (não do JSON já parseado) pra validar a
   // assinatura HMAC que a Meta envia no header X-Hub-Signature-256.
-  app.use(express.json({ verify: (req, _res, buf) => { (req as express.Request).rawBody = buf; } }));
+  app.use(express.json({ limit: "15mb", verify: (req, _res, buf) => { (req as express.Request).rawBody = buf; } }));
   app.use(
     session({
       // Usa DATABASE_URL (pooler em modo transaction, porta 6543), não
@@ -176,7 +179,14 @@ export function createApp() {
     // Trials vencidos que nunca converteram em assinatura — mesmo cron
     // diário, sem endpoint separado.
     await expireOverdueTrials();
-    res.json({ ok: true });
+    // Import de calendário externo (.ics) das barbearias que configuraram
+    // (Fase 8) — mesmo cron diário; plano Hobby da Vercel limita o número
+    // de crons, não vale abrir um dedicado só pra isso.
+    const icalResult = await runIcalImport().catch((err) => {
+      console.error("[CRON] Falha no import de iCal:", (err as Error).message);
+      return null;
+    });
+    res.json({ ok: true, ical: icalResult });
   });
 
   // Backup diário compatível com serverless (ver src/jobs/serverlessBackup.ts)
@@ -218,6 +228,8 @@ export function createApp() {
   app.use(billingRouter);
   app.use(clientPlansRouter);
   app.use(superAdminRouter);
+  app.use(campaignsRouter);
+  app.use(googleCalendarRouter);
 
   app.use("/api", notFoundHandler);
   app.use(errorHandler);

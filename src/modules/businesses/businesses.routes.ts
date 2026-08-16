@@ -3,11 +3,15 @@ import { requireAuth, requireOwner } from "@/middleware/auth.js";
 import { AppError } from "@/middleware/errorHandler.js";
 import { logAudit } from "@/modules/auditLog/auditLog.repository.js";
 import {
+  getBarbershop,
   getBarbershops,
   getBusinessHours,
   updateBusinessHours,
   getToneExamples,
   updateToneExamples,
+  updateAiPersonality,
+  updateMasterPrompt,
+  updateIcalImportUrl,
 } from "./businesses.repository.js";
 import { getServices } from "@/modules/services/services.repository.js";
 import { getBarbers } from "@/modules/professionals/professionals.repository.js";
@@ -95,6 +99,72 @@ businessesRouter.put("/api/manage/tone-examples", requireAuth, requireOwner, asy
     await updateToneExamples(businessId, cleaned);
     await logAudit(businessId, req.session.user!.name, "Atualizou exemplos de tom de voz da IA", `${cleaned.length} exemplo(s)`);
     res.json({ examples: cleaned });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const AI_PERSONALITY_OPTIONS = ["acolhedor", "formal", "descontraido", "tecnico"];
+
+businessesRouter.get("/api/manage/ai-personality", requireAuth, requireOwner, async (req, res) => {
+  const barbershop = await getBarbershop(req.session.user!.businessId);
+  res.json({ personality: barbershop?.aiPersonality || "acolhedor" });
+});
+
+businessesRouter.put("/api/manage/ai-personality", requireAuth, requireOwner, async (req, res, next) => {
+  try {
+    const { personality } = req.body || {};
+    if (!AI_PERSONALITY_OPTIONS.includes(personality)) {
+      throw new AppError(`personality precisa ser um de: ${AI_PERSONALITY_OPTIONS.join(", ")}`);
+    }
+    const businessId = req.session.user!.businessId;
+    await updateAiPersonality(businessId, personality);
+    await logAudit(businessId, req.session.user!.name, "Alterou personalidade da IA", personality);
+    res.json({ personality });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const MASTER_PROMPT_MAX_LENGTH = 4000;
+
+businessesRouter.get("/api/manage/master-prompt", requireAuth, requireOwner, async (req, res) => {
+  const barbershop = await getBarbershop(req.session.user!.businessId);
+  res.json({ master_prompt: barbershop?.masterPrompt || "" });
+});
+
+businessesRouter.put("/api/manage/master-prompt", requireAuth, requireOwner, async (req, res, next) => {
+  try {
+    const text = typeof req.body?.masterPrompt === "string" ? req.body.masterPrompt.trim() : "";
+    if (text.length > MASTER_PROMPT_MAX_LENGTH) {
+      throw new AppError(`O Prompt Mestre pode ter no máximo ${MASTER_PROMPT_MAX_LENGTH} caracteres`);
+    }
+    const businessId = req.session.user!.businessId;
+    await updateMasterPrompt(businessId, text || null);
+    await logAudit(businessId, req.session.user!.name, "Editou o Prompt Mestre da IA", text ? `${text.length} caracteres` : "removido");
+    res.json({ master_prompt: text });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// URL de calendário externo (.ics) — importado 1x/dia (src/jobs/icalImport.ts,
+// piggyback no cron de lembretes) e virado bloqueio de horário.
+businessesRouter.get("/api/manage/ical-import-url", requireAuth, requireOwner, async (req, res) => {
+  const barbershop = await getBarbershop(req.session.user!.businessId);
+  res.json({ ical_import_url: barbershop?.icalImportUrl || "" });
+});
+
+businessesRouter.put("/api/manage/ical-import-url", requireAuth, requireOwner, async (req, res, next) => {
+  try {
+    const url = typeof req.body?.icalImportUrl === "string" ? req.body.icalImportUrl.trim() : "";
+    if (url && !/^https?:\/\//i.test(url)) {
+      throw new AppError("A URL do calendário precisa começar com http:// ou https://");
+    }
+    const businessId = req.session.user!.businessId;
+    await updateIcalImportUrl(businessId, url || null);
+    await logAudit(businessId, req.session.user!.name, "Alterou URL de importação de calendário (iCal)", url || "removida");
+    res.json({ ical_import_url: url });
   } catch (err) {
     next(err);
   }

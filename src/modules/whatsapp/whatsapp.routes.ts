@@ -123,7 +123,10 @@ whatsappRouter.post("/api/whatsapp/webhook", async (req, res) => {
         }
 
         const reply = await sendMessage(barbershop.id, from, message.text.body, from, pushName);
-        await sendWhatsappText(phoneNumberId, from, reply, accessToken);
+        // null = IA pausada nessa conversa (toggle "IA Ativa" em Mensagens)
+        // — a mensagem do cliente já foi salva no histórico, mas não manda
+        // nada automático de volta; o dono responde manualmente.
+        if (reply) await sendWhatsappText(phoneNumberId, from, reply, accessToken);
       }
     }
 
