@@ -52,7 +52,9 @@ Migrations aplicadas via `prisma migrate deploy` (nunca `migrate dev`, mesma cau
 
 **Não portado de propósito**: convênios médicos e prontuário (Fases 9-10 do odonto-saas) — são features específicas de clínica odontológica, não fazem sentido pra barbearia.
 
-**Env vars novas, ainda não configuradas em produção**: `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` — sem elas o botão "Conectar Google Agenda" fica desligado (mensagem "ainda não configurada"), não quebra nada.
+**Env vars novas, ainda não configuradas em produção**: `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` — sem elas o botão "Conectar Google Agenda" fica desligado (mensagem "ainda não configurada"), não quebra nada. Pra ativar: criar OAuth Client ID no Google Cloud Console (tipo "Web application", redirect URI `https://<domínio>/api/manage/google-calendar/callback`) e configurar as duas env vars na Vercel.
+
+**Retoques de UI pós-port (mesmo dia)**: hint da mensagem de campanha (`Nova campanha de reativação`) estava saindo grande/sem estilo porque a classe `.field-hint` nunca tinha CSS definido — trocado por `style` inline pequeno e mudo (11.5px, `--text-muted`); botão de salvar aniversário na tabela de clientes estava empilhando embaixo do campo de data — envolvido num `display:flex` pra ficar ao lado. Mesmo ajuste feito no odonto-saas.
 
 - Onboarding self-service, LGPD (privacidade/termos/exclusão), Sentry, headers de segurança (helmet), recuperação de senha, cobrança via Stripe (Starter/Pro).
 - WhatsApp Cloud API oficial da Meta (não Baileys) — `src/lib/whatsapp.ts` + `src/modules/whatsapp/`, com Message Templates aprovados pra lembrete/reagendamento/reconquista.
