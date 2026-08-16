@@ -31,9 +31,28 @@ O design system é estilo **Cal.com** desde 2026-08-15 (antes era "Google style"
 - **Migrations do Prisma**: nunca rodar `prisma migrate dev` direto — ele detecta "drift" por causa da tabela `session` (criada em runtime pelo `connect-pg-simple`, fora do controle de migrations do Prisma) e tenta oferecer um **reset completo do banco de produção**. Sempre criar a pasta de migration manualmente (copiando o padrão de `prisma/migrations/*/migration.sql`) e aplicar com `npx prisma migrate deploy`, que só aplica migrations pendentes sem checar drift.
 - **Testes de integração** usam o banco real — sempre prefixar dados de teste com `[teste]` e limpar no `afterAll` (ver `src/modules/appointments/appointments.service.test.ts` como modelo). Nunca rodar ações reais (reset de senha, cobrança, envio de WhatsApp) contra contas de clientes de verdade — criar um registro `[teste]` descartável, validar, apagar.
 
-## Status (última atualização: 2026-08-15)
+## Status (última atualização: 2026-08-16)
 
 Tudo abaixo já está implementado e em produção — o README pode estar desatualizado em relação a isso, checar o código antes de assumir que algo é "próximo passo":
+
+### Motor único portado do odonto-saas — Fases 0 a 8 (2026-08-16)
+
+O `odonto-saas` implementou primeiro um roadmap grande de 11 fases (motor único, Fases 0-8, + prontuário odontológico, Fases 9-10, essas últimas fora de escopo aqui). Todo o motor único foi portado manualmente pra cá na sequência (backend primeiro, frontend depois), cada fase com commit próprio, testado num dev server local contra o banco real de produção (dados `[teste]` limpos depois) antes de cada push:
+
+- **Fases 0, 1** — `AppointmentStatus.scheduled` (agendado, ainda não confirmado) + `Appointment.confirmationToken`; lembrete automático (`src/jobs/reminders.ts`) manda link de confirmação (`GET /api/public/appointments/confirm` → `webroot/confirmar.html`).
+- **Fase 2** — Botão "bloquear o dia todo" no cabeçalho de cada dia da Agenda (grade desktop + lista mobile, `admin.html`) e em `barber.html` (agenda do próprio barbeiro).
+- **Fase 3** — Aba **Conversas → Mensagens**: layout de 3 colunas — lista com badge "precisa de atenção"/"IA respondeu" + prévia da última mensagem, chat central com botão de anexo (`sendManualAttachment`/`uploadWhatsappMedia`/`sendWhatsappMedia` em `src/lib/whatsapp.ts`), coluna de info do cliente com toggle **"IA Ativa"** que pausa resposta automática só naquela conversa (`ChatSession.aiPaused`, `setAiPaused` em `chatEngine.ts`).
+- **Fase 4** — Nova aba **Campanhas**: reativação em massa via WhatsApp (`src/modules/campaigns/`), nunca manda campanha 2x pro mesmo cliente em 90 dias (`Campaign`/`CampaignSend`), respeita opt-in de marketing.
+- **Fase 5** — Visão Geral dividida em **Atendimentos** (agendamentos de hoje + resumo de conversas do WhatsApp + avaliações) e **Métricas** (KPIs, gráfico de faturamento/ocupação, análise por barbeiro) — gráficos recarregam toda vez que a aba Métricas abre, sem gate de "já carregou" (evita canvas com tamanho zero criado com a aba ainda escondida). Ícone novo `icon-trending-up` em `assets/icons.svg`.
+- **Fase 6** — Aba **Clientes** própria (antes vivia dentro de Histórico), com pills de filtro por status (Novo/Ativo/Inativo/Retorno, derivado de `dueStatus` + dias desde a última visita) e busca por nome ou telefone.
+- **Fase 7** — Configurações: **Personalidade da IA** (4 presets fixos, injetados no system prompt antes dos exemplos de tom de voz) e **Prompt Mestre** (regras extras de texto livre, injetadas como reforço no fim do prompt, nunca podendo anular as regras de segurança — `Business.aiPersonality`/`masterPrompt`).
+- **Fase 8a** — Google Agenda por barbeiro (OAuth2 via `src/lib/googleCalendar.ts`, fetch puro sem SDK `googleapis`) espelha agendamentos criados/cancelados/reagendados (fire-and-forget, nunca bloqueia o agendamento); import de calendário externo `.ics` (`src/lib/icsParser.ts` + `src/jobs/icalImport.ts`, piggyback no mesmo cron diário de lembretes) vira `TimeBlock` com `source: "ical_import"`.
+
+Migrations aplicadas via `prisma migrate deploy` (nunca `migrate dev`, mesma cautela de sempre por causa da tabela `session`): `20260816300000_add_scheduled_appointment_status`, `20260816300100_motor_unico_fases_1a8`.
+
+**Não portado de propósito**: convênios médicos e prontuário (Fases 9-10 do odonto-saas) — são features específicas de clínica odontológica, não fazem sentido pra barbearia.
+
+**Env vars novas, ainda não configuradas em produção**: `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` — sem elas o botão "Conectar Google Agenda" fica desligado (mensagem "ainda não configurada"), não quebra nada.
 
 - Onboarding self-service, LGPD (privacidade/termos/exclusão), Sentry, headers de segurança (helmet), recuperação de senha, cobrança via Stripe (Starter/Pro).
 - WhatsApp Cloud API oficial da Meta (não Baileys) — `src/lib/whatsapp.ts` + `src/modules/whatsapp/`, com Message Templates aprovados pra lembrete/reagendamento/reconquista.
@@ -64,7 +83,9 @@ Tudo abaixo já está implementado e em produção — o README pode estar desat
 2. Exclusão LGPD é global entre barbearias (por `Client` ser entidade compartilhada por telefone) — decisão de arquitetura documentada, não bug; revisitar se virar problema real.
 3. Confirmar entrega do OTP com o número real de produção da Vintage (o teste de 15/08 usou número de teste da Meta sem verificação de negócio completa — ver bullet do WhatsApp acima) — não bloqueia nada, só falta fechar a confirmação.
 4. Reenvio do App Review (`business_management`) ainda não feito — avaliar se ainda é necessário depois do sucesso de 15/08.
-5. Cobertura de testes ainda não fechada: `/api/chat` (chat.routes.ts) como rota HTTP, e Stripe Connect/webhooks de `clientPlans` fim a fim.
+5. Cobertura de testes ainda não fechada: `/api/chat` (chat.routes.ts) como rota HTTP, Stripe Connect/webhooks de `clientPlans` fim a fim, e os módulos novos do motor único (`campaigns`, `googleCalendar`) portados em 2026-08-16.
+6. **Google Agenda (motor único, 2026-08-16) precisa de `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`** — código pronto, só falta configurar em produção.
+7. Depois do push do motor único (2026-08-16), conferir no painel da Vercel se o deployment novo foi promovido pra produção automaticamente (ver nota "Promote to Production" acima).
 
 ## Login de demonstração
 
