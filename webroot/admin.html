@@ -865,6 +865,7 @@
     <button data-page="tipos"><span class="nav-ico"><svg class="icon"><use href="#icon-clipboard"></use></svg></span>Serviços</button>
     <button data-page="conversas"><span class="nav-ico"><svg class="icon"><use href="#icon-chat"></use></svg></span>Mensagens</button>
     <button data-page="campanhas"><span class="nav-ico"><svg class="icon"><use href="#icon-rocket"></use></svg></span>Campanhas</button>
+    <button data-page="clientes"><span class="nav-ico"><svg class="icon"><use href="#icon-users"></use></svg></span>Clientes</button>
     <button data-page="historico"><span class="nav-ico"><svg class="icon"><use href="#icon-history"></use></svg></span>Histórico</button>
     <button data-page="estoque"><span class="nav-ico"><svg class="icon"><use href="#icon-inventory"></use></svg></span>Estoque</button>
     <button data-page="configuracoes"><span class="nav-ico"><svg class="icon"><use href="#icon-settings"></use></svg></span>Configurações</button>
@@ -1266,17 +1267,24 @@
       </div>
     </div>
 
-    <div class="section-title">Cadastro e histórico do cliente</div>
-    <div class="card panel">
-      <div class="hint">Quantas vezes cada cliente veio, ticket médio e data de aniversário. Ordenado pela última visita, mais recentes primeiro.</div>
-      <div class="chart-head" style="margin-bottom:12px;">
-        <div class="form-field" style="min-width:220px;">
-          <label>Buscar por nome</label>
-          <input type="text" id="client-search-name" placeholder="Nome do cliente..." />
+  </div>
+
+  <div id="page-clientes" class="page-section" style="display:none;">
+    <div class="section-title">Clientes</div>
+    <div class="card panel" style="padding:0;">
+      <div style="padding:16px 18px; border-bottom:1px solid var(--card-border);">
+        <div class="chart-head" style="margin-bottom:12px;">
+          <div class="form-field" style="min-width:220px; margin:0;">
+            <input type="text" id="client-search-name" placeholder="Buscar por nome ou telefone..." />
+          </div>
+          <button class="btn-secondary" id="nudge-all-btn" title="Manda a mensagem de reconquista pra todo cliente atrasado que já deu consentimento de marketing"><svg class="icon"><use href="#icon-arrow-right"></use></svg> Convidar atrasados a voltar</button>
         </div>
-        <div class="form-actions" style="margin-top:auto;">
-          <button class="btn-secondary" id="client-search-clear">Limpar filtro</button>
-          <button class="btn-secondary" id="nudge-all-btn">Convidar atrasados a voltar</button>
+        <div class="tabs" id="client-status-filter">
+          <button data-status="" class="active">Todos</button>
+          <button data-status="novo">Novo</button>
+          <button data-status="ativo">Ativo</button>
+          <button data-status="inativo">Inativo</button>
+          <button data-status="retorno">Retorno</button>
         </div>
       </div>
       <div id="clients-table"></div>
@@ -1820,7 +1828,8 @@ const ADMIN_TOUR_STEPS = [
   { activateSelector: '#page-tabs button[data-page="tipos"]', selector: "#page-tipos", title: "Serviços", text: "Cadastre cada serviço com preço e duração — é o que a IA usa no WhatsApp pra calcular horário e valor." },
   { activateSelector: '#page-tabs button[data-page="conversas"]', selector: "#page-conversas", title: "Mensagens", text: "Acompanhe as conversas que a IA está tendo com seus clientes, pause a IA numa conversa específica e responda manualmente quando quiser assumir." },
   { activateSelector: '#page-tabs button[data-page="campanhas"]', selector: "#page-campanhas", title: "Campanhas", text: "Crie campanhas de reativação em massa pra clientes inativos há muito tempo." },
-  { activateSelector: '#page-tabs button[data-page="historico"]', selector: "#page-historico", title: "Histórico", text: "Faturamento detalhado por período, participação de cada barbeiro e serviço, e o cadastro completo de clientes." },
+  { activateSelector: '#page-tabs button[data-page="clientes"]', selector: "#page-clientes", title: "Clientes", text: "Cadastro completo de clientes, com filtro por status (novo, ativo, inativo, retorno)." },
+  { activateSelector: '#page-tabs button[data-page="historico"]', selector: "#page-historico", title: "Histórico", text: "Faturamento detalhado por período e participação de cada barbeiro e serviço." },
   { activateSelector: '#page-tabs button[data-page="estoque"]', selector: "#page-estoque", title: "Estoque", text: "Controle os produtos vendidos no balcão e receba alerta quando o estoque estiver baixo." },
   { activateSelector: '#page-tabs button[data-page="configuracoes"]', selector: "#page-configuracoes", title: "Configurações", text: "Aqui fica praticamente tudo: WhatsApp, cobrança, planos pros seus clientes, horário de funcionamento, bloqueios, barbeiros e backup." },
   { activateSelector: '#page-tabs button[data-page="auditoria"]', selector: "#page-auditoria", title: "Auditoria", text: "Um histórico de todas as ações feitas no painel — quem fez o quê e quando." },
@@ -4218,15 +4227,27 @@ document.getElementById("hist-barber-filter").addEventListener("change", (e) => 
   loadHistory();
 });
 
-function dueStatusBadge(c) {
-  if (c.dueStatus === "atrasado") {
-    return `<span title="Já passou da hora de voltar" style="font-size:16px;">🟡</span>
-      <button class="icon-btn" data-nudge-client="${c.id}" title="Mandar mensagem convidando o cliente a voltar"><svg class="icon"><use href="#icon-arrow-right"></use></svg></button>`;
-  }
-  if (c.dueStatus === "em_dia") {
-    return `<span title="Cliente em dia" style="font-size:16px;"><svg class="icon"><use href="#icon-check-circle"></use></svg></span>`;
-  }
-  return "";
+// Bucket de status do cliente (aba Clientes, filtro por pill) — não é o
+// mesmo campo que dueStatus (que só distingue "atrasado"/"em dia" pra
+// reconquista): aqui cruza com tempo desde a última visita pra separar
+// "novo" (nunca veio) de "inativo" (não vem há mais de 90 dias).
+function clientStatusBucket(c) {
+  if (!c.last_visit_date) return "novo";
+  const daysSince = Math.floor((Date.now() - new Date(c.last_visit_date).getTime()) / 86400000);
+  if (daysSince > 90) return "inativo";
+  if (c.dueStatus === "atrasado") return "retorno";
+  return "ativo";
+}
+
+const CLIENT_STATUS_LABEL = { novo: "Novo", ativo: "Ativo", inativo: "Inativo", retorno: "Retorno" };
+
+function clientStatusBadge(c) {
+  const bucket = clientStatusBucket(c);
+  const nudgeBtn =
+    bucket === "retorno" || bucket === "inativo"
+      ? `<button class="icon-btn" data-nudge-client="${c.id}" title="Mandar mensagem convidando o cliente a voltar"><svg class="icon"><use href="#icon-arrow-right"></use></svg></button>`
+      : "";
+  return `<span class="badge ${bucket === "ativo" ? "confirmado" : bucket === "novo" ? "agendado" : bucket === "inativo" ? "nao_compareceu" : "em_andamento"}"><span class="dot"></span>${CLIENT_STATUS_LABEL[bucket]}</span> ${nudgeBtn}`;
 }
 
 let productsCache = [];
@@ -4237,12 +4258,14 @@ async function ensureProductsCache() {
 }
 
 let allClientsCache = [];
+let clientStatusFilter = "";
 
 function renderClientsTable() {
-  const nameQuery = document.getElementById("client-search-name").value.trim().toLowerCase();
+  const query = document.getElementById("client-search-name").value.trim().toLowerCase();
 
   const clients = allClientsCache.filter((c) => {
-    if (nameQuery && !c.name.toLowerCase().includes(nameQuery)) return false;
+    if (query && !c.name.toLowerCase().includes(query) && !c.phone.toLowerCase().includes(query)) return false;
+    if (clientStatusFilter && clientStatusBucket(c) !== clientStatusFilter) return false;
     return true;
   });
 
@@ -4272,7 +4295,7 @@ function renderClientsTable() {
               <input type="date" id="client-birthday-${c.id}" value="${c.birthday || ""}" />
               <button class="icon-btn" data-save-birthday="${c.id}" title="Salvar"><svg class="icon"><use href="#icon-save"></use></svg></button>
             </td>
-            <td id="client-status-${c.id}" style="white-space:nowrap;">${dueStatusBadge(c)}</td>
+            <td id="client-status-${c.id}" style="white-space:nowrap;">${clientStatusBadge(c)}</td>
           </tr>
         `
           )
@@ -4314,9 +4337,14 @@ async function loadClients() {
 }
 
 document.getElementById("client-search-name").addEventListener("input", renderClientsTable);
-document.getElementById("client-search-clear").addEventListener("click", () => {
-  document.getElementById("client-search-name").value = "";
-  renderClientsTable();
+
+document.querySelectorAll("#client-status-filter button").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#client-status-filter button").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    clientStatusFilter = btn.dataset.status;
+    renderClientsTable();
+  });
 });
 
 document.getElementById("nudge-all-btn").addEventListener("click", async () => {
@@ -5533,6 +5561,7 @@ document.getElementById("billing-portal-btn").addEventListener("click", async (e
 let agendaLoaded = false;
 let conversasLoaded = false;
 let campanhasLoaded = false;
+let clientesLoaded = false;
 let historicoLoaded = false;
 let auditoriaLoaded = false;
 let estoqueLoaded = false;
@@ -5544,7 +5573,7 @@ document.querySelectorAll("#page-tabs button").forEach((btn) => {
     document.querySelectorAll("#page-tabs button").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     const page = btn.dataset.page;
-    ["overview", "metricas", "agenda", "tipos", "conversas", "campanhas", "historico", "estoque", "configuracoes", "auditoria"].forEach((p) => {
+    ["overview", "metricas", "agenda", "tipos", "conversas", "campanhas", "clientes", "historico", "estoque", "configuracoes", "auditoria"].forEach((p) => {
       document.getElementById(`page-${p}`).style.display = p === page ? "block" : "none";
     });
     if (page === "metricas") {
@@ -5571,9 +5600,13 @@ document.querySelectorAll("#page-tabs button").forEach((btn) => {
       campanhasLoaded = true;
       await loadCampaigns();
     }
+    if (page === "clientes" && !clientesLoaded) {
+      clientesLoaded = true;
+      await loadClients();
+    }
     if (page === "historico" && !historicoLoaded) {
       historicoLoaded = true;
-      await Promise.all([loadHistory(), loadClients()]);
+      await loadHistory();
     }
     if (page === "estoque" && !estoqueLoaded) {
       estoqueLoaded = true;
