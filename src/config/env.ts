@@ -57,6 +57,15 @@ const envSchema = z.object({
   // envios automáticos (lembrete/reagendamento/reconquista) passarem a cair
   // no stub em vez de sair de verdade.
   WHATSAPP_TRIAL_USAGE_LIMIT: z.coerce.number().int().positive().default(100),
+  // Google Calendar (Fase 8 do motor único) — OAuth2 por profissional
+  // (Configurações → Gerenciar barbeiros → "Conectar Google Agenda"), pra
+  // espelhar agendamentos criados/cancelados/reagendados no Google Agenda
+  // pessoal de cada barbeiro. Client ID/Secret vêm do Google Cloud Console
+  // (OAuth consent screen + credentials); sem eles, o botão de conexão
+  // fica desligado (mesmo padrão do WhatsApp Embedded Signup acima).
+  // Reaproveita WHATSAPP_TOKEN_ENCRYPTION_KEY pra criptografar os tokens.
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().optional(),

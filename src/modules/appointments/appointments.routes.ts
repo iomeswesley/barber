@@ -19,6 +19,7 @@ import {
   updateAppointmentDetails,
   getAppointmentsByClientPhone,
   getClientAppointmentHistory,
+  confirmAppointmentByToken,
 } from "./appointments.service.js";
 
 export const appointmentsRouter = Router();
@@ -125,6 +126,26 @@ appointmentsRouter.post("/api/public/appointments/:id/reschedule", selfServiceRa
     res.json(toApiAppointment(await rescheduleAppointment(appointment.id, newDate, newStartTime)));
   } catch (err) {
     next(err);
+  }
+});
+
+// Clique no link enviado junto do lembrete automático (~1 dia antes) —
+// distinção agendado (scheduled) vs. confirmado (confirmed). Confirma
+// direto no servidor e redireciona pra uma página estática de resultado,
+// mesmo padrão de GET /api/verify-email (onboarding.routes.ts) — sem
+// checagem de telefone de propósito: o token (32 bytes aleatórios, ver
+// generateVerificationToken) já é a credencial, igual ao link de
+// redefinição de senha; confirmar presença não é sensível o bastante pra
+// justificar pedir o telefone de novo depois de já ter vindo de uma
+// mensagem do WhatsApp da própria barbearia.
+appointmentsRouter.get("/api/public/appointments/confirm", selfServiceRateLimiter, async (req, res) => {
+  const token = String(req.query?.token || "").trim();
+  if (!token) return res.redirect("/confirmar.html?status=invalid");
+  try {
+    await confirmAppointmentByToken(token);
+    res.redirect("/confirmar.html?status=ok");
+  } catch {
+    res.redirect("/confirmar.html?status=invalid");
   }
 });
 

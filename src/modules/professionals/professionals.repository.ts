@@ -119,3 +119,36 @@ export function updateBarber(
 export function setBarberActive(id: number, active: boolean) {
   return prisma.professional.update({ where: { id }, data: { active } });
 }
+
+// Google Agenda (Fase 8) — tokens já vêm criptografados de quem chama
+// (ver googleCalendar.routes.ts, usa encryptSecret/decryptSecret de lib/crypto.ts).
+export function saveGoogleCalendarConnection(
+  professionalId: number,
+  data: { tokenEnc: string; refreshTokenEnc: string | null; calendarId: string }
+) {
+  return prisma.professional.update({
+    where: { id: professionalId },
+    data: {
+      googleCalendarTokenEnc: data.tokenEnc,
+      googleCalendarRefreshTokenEnc: data.refreshTokenEnc,
+      googleCalendarId: data.calendarId,
+      googleCalendarConnectedAt: new Date(),
+    },
+  });
+}
+
+export function clearGoogleCalendarConnection(professionalId: number) {
+  return prisma.professional.update({
+    where: { id: professionalId },
+    data: {
+      googleCalendarTokenEnc: null,
+      googleCalendarRefreshTokenEnc: null,
+      googleCalendarId: null,
+      googleCalendarConnectedAt: null,
+    },
+  });
+}
+
+export function updateGoogleCalendarAccessToken(professionalId: number, tokenEnc: string) {
+  return prisma.professional.update({ where: { id: professionalId }, data: { googleCalendarTokenEnc: tokenEnc } });
+}

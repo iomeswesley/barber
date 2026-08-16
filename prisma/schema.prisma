@@ -30,6 +30,12 @@ enum UserRole {
 }
 
 enum AppointmentStatus {
+  // Criado pela IA/painel, ainda sem confirmação do cliente. Vira
+  // `confirmed` quando o cliente clica no link enviado junto do lembrete
+  // automático (ver Appointment.confirmationToken) — até lá, conta como
+  // agendado normalmente pra disponibilidade (a IA não oferece o horário
+  // de novo), só não mostra o selo de confirmado no painel.
+  scheduled
   confirmed
   cancelled
   no_show
@@ -88,6 +94,23 @@ model Business {
   // prompt do bot (chatEngine.ts) como referência de tom/vocabulário (few-shot,
   // não copiados literalmente). Lista vazia = comportamento padrão do bot.
   toneExamples String[] @default([]) @map("tone_examples")
+  // Preset fixo de personalidade da IA (aba Configurações) — chave curta
+  // ("acolhedor" | "formal" | "descontraido" | "tecnico"), não um enum
+  // Prisma de propósito, pra poder adicionar preset novo sem migration.
+  // Injeta um bloco curto de instrução no prompt (ver chatEngine.ts),
+  // complementar aos toneExamples (que continuam existindo pra quem quiser
+  // refinar mais com exemplos reais).
+  aiPersonality String  @default("acolhedor") @map("ai_personality")
+  // Texto livre do dono ("Prompt Mestre") concatenado no FIM do prompt do
+  // bot, como reforço — nunca antes das regras fixas de segurança, pra não
+  // dar brecha do dono (sem querer ou não) anular alguma regra crítica
+  // (ex: "nunca invente preço"). Limitado a 4000 chars na validação da rota.
+  masterPrompt String? @map("master_prompt")
+  // URL pública de um calendário externo (.ics) — importado periodicamente
+  // (src/jobs/icalImport.ts) e virado TimeBlock com source="ical_import"
+  // pra IA parar de oferecer esses horários. Um só por barbearia na v1 (não
+  // por profissional).
+  icalImportUrl String? @map("ical_import_url")
 
   professionals           Professional[]
   services                Service[]
@@ -104,6 +127,7 @@ model Business {
   subscription            Subscription?
   clientPlans             ClientPlan[]
   clientPlanSubscriptions ClientPlanSubscription[]
+  campaigns               Campaign[]
 
   @@map("businesses")
 }
@@ -121,6 +145,15 @@ model Professional {
   serviceCommissionPercent Decimal @default(40) @map("commission_percent") @db.Decimal(5, 2)
   productCommissionPercent Decimal @default(0) @map("product_commission_percent") @db.Decimal(5, 2)
   monthlyGoalCents        Int     @default(0) @map("monthly_goal_cents")
+
+  // Google Agenda (MVP de exportação — ver src/lib/googleCalendar.ts).
+  // Token/refresh token criptografados (mesmo padrão do WhatsApp token —
+  // decryptSecret/encryptSecret), calendarId é sempre "primary" hoje (sem
+  // seletor de agenda específica na v1). connectedAt null = não conectado.
+  googleCalendarTokenEnc        String?   @map("google_calendar_token_enc")
+  googleCalendarRefreshTokenEnc String?   @map("google_calendar_refresh_token_enc")
+  googleCalendarId              String?   @map("google_calendar_id")
+  googleCalendarConnectedAt     DateTime? @map("google_calendar_connected_at")
 
   business     Business      @relation(fields: [businessId], references: [id])
   appointments Appointment[]
@@ -166,6 +199,7 @@ model Client {
   productSales            ProductSale[]
   escalations             Escalation[]
   clientPlanSubscriptions ClientPlanSubscription[]
+  campaignSends           CampaignSend[]
 
   @@map("clients")
 }
@@ -179,10 +213,20 @@ model Appointment {
   date             DateTime          @db.Date
   startTime        String            @map("start_time")
   endTime          String            @map("end_time")
-  status           AppointmentStatus @default(confirmed)
+  status           AppointmentStatus @default(scheduled)
   reminderSentAt   DateTime?         @map("reminder_sent_at")
   reviewPromptedAt DateTime?         @map("review_prompted_at")
   createdAt        DateTime          @default(now()) @map("created_at")
+  // Token do link enviado no lembrete automático (~1 dia antes) — o cliente
+  // clica e a rota pública marca status=confirmed. Único porque vira parte
+  // da URL pública (GET /confirmar.html?token=); null até o lembrete ser
+  // enviado.
+  confirmationToken String? @unique @map("confirmation_token")
+  // ID do evento espelhado no Google Agenda do profissional (integração
+  // Fase 8, MVP de exportação) — null se o profissional não tem Google
+  // Agenda conectada ou se a chamada à API falhou (best-effort: nunca
+  // bloqueia o agendamento em si, ver appointments.service.ts).
+  googleEventId String? @map("google_event_id")
 
   // Preço efetivamente cobrado quando um plano de assinatura do cliente foi
   // aplicado (desconto ou benefício incluído) — null significa "preço de
@@ -267,12 +311,58 @@ model TimeBlock {
   endTime        String    @map("end_time")
   recurring      Boolean   @default(false)
   createdAt      DateTime  @default(now()) @map("created_at")
+  // "manual" (padrão, criado no painel) ou "ical_import" (criado
+  // automaticamente a partir de Business.icalImportUrl). Distinção existe
+  // pra o job de import saber quais bloqueios são "dele" e possa recriar
+  // a cada varredura sem duplicar nem apagar bloqueios manuais do dono.
+  source String @default("manual")
 
   business     Business      @relation(fields: [businessId], references: [id])
   professional Professional? @relation(fields: [professionalId], references: [id])
 
   @@index([businessId])
   @@map("time_blocks")
+}
+
+// Campanha de reativação em massa (aba Campanhas). O texto livre em
+// messageTemplate é guardado só pra exibição/auditoria — o envio de verdade
+// reaproveita o template WhatsApp já aprovado (come_back_message, ver
+// sendComeBackMessage em jobs/reminders.ts), porque a Cloud API só aceita
+// texto livre dentro da janela de 24h da última mensagem do cliente, e
+// esses clientes são justamente os inativos há mais tempo — mandar o texto
+// digitado pelo dono direto falharia silenciosamente fora dessa janela.
+model Campaign {
+  id                    Int      @id @default(autoincrement())
+  businessId            Int      @map("business_id")
+  name                  String
+  messageTemplate       String   @map("message_template")
+  inactiveDaysThreshold Int      @map("inactive_days_threshold")
+  createdAt             DateTime @default(now()) @map("created_at")
+  sentCount             Int      @default(0) @map("sent_count")
+
+  business Business       @relation(fields: [businessId], references: [id])
+  sends    CampaignSend[]
+
+  @@index([businessId])
+  @@map("campaigns")
+}
+
+// Um cliente só pode receber QUALQUER campanha (não só a mesma) uma vez a
+// cada 90 dias — businessId direto aqui (não só via campaign.businessId)
+// porque Client é entidade global entre barbearias, então a janela de 90
+// dias precisa ser isolada por barbearia.
+model CampaignSend {
+  id         Int      @id @default(autoincrement())
+  campaignId Int      @map("campaign_id")
+  clientId   Int      @map("client_id")
+  businessId Int      @map("business_id")
+  sentAt     DateTime @default(now()) @map("sent_at")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+  client   Client   @relation(fields: [clientId], references: [id])
+
+  @@index([businessId, clientId, sentAt])
+  @@map("campaign_sends")
 }
 
 model Review {
@@ -400,6 +490,16 @@ model ChatSession {
   businessId Int      @map("business_id")
   messages   Json
   updatedAt  DateTime @updatedAt @map("updated_at")
+  // true quando a tool escalar_atendimento_humano é chamada (ver Escalation)
+  // ou quando ainda não houve resposta humana a uma escalação pendente —
+  // usado pra mostrar o selo "Precisa de atenção" na lista de conversas do
+  // painel (aba Mensagens). Volta pra false quando o dono/barbeiro responde
+  // manualmente ou marca a escalação como resolvida.
+  needsAttention Boolean @default(false) @map("needs_attention")
+  // Toggle "IA Ativa" da aba Mensagens — quando true, sendMessage() não gera
+  // resposta automática (só grava a mensagem do cliente e marca
+  // needsAttention), deixando o atendimento 100% manual nessa conversa.
+  aiPaused Boolean @default(false) @map("ai_paused")
 
   @@map("chat_sessions")
 }

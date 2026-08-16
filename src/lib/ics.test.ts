@@ -24,6 +24,8 @@ function makeAppointment(overrides: Partial<AppointmentDTO> = {}): AppointmentDT
     clientPhone: "11999998888",
     barbershopName: "Barbearia Vintage",
     notes: null,
+    confirmationToken: null,
+    googleEventId: null,
     ...overrides,
   };
 }

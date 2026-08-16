@@ -18,9 +18,13 @@ export const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
   {
     name: "appointment_reminder",
     category: "UTILITY",
+    // {{5}} = link de confirmação (ver src/jobs/reminders.ts,
+    // ensureConfirmationToken) — cliente clica e o agendamento vira
+    // "confirmed" (distinção agendado/confirmado, GET/POST /confirmar.html
+    // + POST /api/public/appointments/confirm).
     bodyText:
-      `Olá, {{1}}! 👋 Passando pra lembrar do seu horário hoje:\n\n${vertical.brandEmoji} {{2}} com {{3}}\n🕐 {{4}}\n\nTe esperamos! Se precisar remarcar, é só responder aqui.`,
-    paramCount: 4,
+      `Olá, {{1}}! 👋 Passando pra lembrar do seu horário hoje:\n\n${vertical.brandEmoji} {{2}} com {{3}}\n🕐 {{4}}\n\nConfirme sua presença: {{5}}\n\nSe precisar remarcar, é só responder aqui.`,
+    paramCount: 5,
   },
   {
     name: "appointment_reschedule_notice",

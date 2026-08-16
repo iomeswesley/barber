@@ -8,6 +8,7 @@ import { getBlocksFor } from "@/modules/timeBlocks/timeBlocks.repository.js";
 import { getClientByPhone } from "@/modules/clients/clients.repository.js";
 import { resolveChargedPrice } from "@/modules/clientPlans/clientPlans.service.js";
 import { decrementUsedThisPeriod } from "@/modules/clientPlans/clientPlans.repository.js";
+import { mirrorAppointmentToGoogle, removeAppointmentFromGoogle } from "@/modules/googleCalendar/googleCalendar.service.js";
 import {
   getAppointmentById,
   getAppointments,
@@ -16,8 +17,11 @@ import {
   cancelAppointment as cancelAppointmentRow,
   updateAppointmentFields,
   updateClientName,
+  setConfirmationToken,
+  confirmAppointmentByToken as confirmAppointmentByTokenRow,
 } from "./appointments.repository.js";
 import { appointmentInclude, toAppointmentDTO, type AppointmentDTO, type AppointmentWithRelations } from "./appointments.types.js";
+import { generateVerificationToken } from "@/lib/email.js";
 
 export async function getAvailableSlots(
   businessId: number,
@@ -110,7 +114,7 @@ export async function createAppointment(input: {
   // público e manual do dono/barbeiro), já que todos passam por aqui.
   const charge = await resolveChargedPrice(input.clientId, input.businessId, input.serviceId, service.priceCents);
 
-  return insertAppointment({
+  const created = await insertAppointment({
     ...input,
     endTime,
     // Sempre congela um valor concreto aqui, mesmo sem plano de assinatura
@@ -122,6 +126,11 @@ export async function createAppointment(input: {
     clientPlanSubscriptionId: charge.subscriptionId,
     planCreditConsumed: charge.creditConsumed,
   });
+  // Fire-and-forget: espelhar no Google Agenda do barbeiro (se conectado)
+  // é um "nice to have", nunca deve atrasar nem quebrar a resposta do
+  // agendamento em si (ver mirrorAppointmentToGoogle).
+  mirrorAppointmentToGoogle(created).catch(() => {});
+  return created;
 }
 
 export async function rescheduleAppointment(id: number, newDate: string, newStartTime: string): Promise<AppointmentDTO> {
@@ -145,7 +154,11 @@ export async function rescheduleAppointment(id: number, newDate: string, newStar
     where: { id },
     data: { date: new Date(`${newDate}T00:00:00`), startTime: newStartTime, endTime: newEndTime },
   });
-  return (await getAppointmentById(id))!;
+  const rescheduled = (await getAppointmentById(id))!;
+  // Se já existia evento espelhado (googleEventId), isso vira um PATCH no
+  // Google (mesmo evento, novo horário) em vez de criar um segundo.
+  mirrorAppointmentToGoogle(rescheduled).catch(() => {});
+  return rescheduled;
 }
 
 export async function cancelAppointment(id: number): Promise<AppointmentDTO> {
@@ -155,7 +168,9 @@ export async function cancelAppointment(id: number): Promise<AppointmentDTO> {
   if (cancelled.planCreditConsumed && cancelled.clientPlanSubscriptionId) {
     await decrementUsedThisPeriod(cancelled.clientPlanSubscriptionId);
   }
-  return (await getAppointmentById(id))!;
+  const result = (await getAppointmentById(id))!;
+  removeAppointmentFromGoogle(result).catch(() => {});
+  return result;
 }
 
 // Usado quando um bloqueio de última hora é criado, pra achar agendamentos já
@@ -172,7 +187,11 @@ export async function getAffectedAppointments(
   const endMin = timeToMinutes(endTime);
   const startMin = timeToMinutes(startTime);
   return all
-    .filter((a) => a.status === "confirmed")
+    // "scheduled" e "confirmed" são os dois status de agendamento válido
+    // (a diferença é só se o cliente já confirmou pelo link do lembrete) —
+    // os dois precisam ser avisados se um bloqueio de última hora cair em
+    // cima do horário deles.
+    .filter((a) => a.status === "confirmed" || a.status === "scheduled")
     .filter((a) => timeToMinutes(a.startTime) < endMin && timeToMinutes(a.endTime) > startMin)
     .filter((a) => new Date(`${a.date}T${a.startTime}:00`) > now);
 }
@@ -274,7 +293,11 @@ export async function getClientLastAppointment(clientId: number, businessId: num
     where: {
       clientId,
       businessId,
-      status: "confirmed",
+      // "scheduled" entra aqui também: a maioria dos agendamentos passados
+      // nunca chega a ser clicada no link de confirmação (o cliente só
+      // recebe o lembrete ~1 dia antes), então filtrar só "confirmed" faria
+      // "última visita" sumir pra praticamente todo mundo.
+      status: { in: ["confirmed", "scheduled"] },
       OR: [{ date: { lt: todayDate } }, { date: todayDate, endTime: { lte: nowTimeStr } }],
     },
     include: appointmentInclude,
@@ -316,6 +339,24 @@ export async function getTodaysAppointmentsForReminder(): Promise<AppointmentDTO
     include: appointmentInclude,
   });
   return appointments.map((a) => toAppointmentDTO(a as AppointmentWithRelations));
+}
+
+// Gera (ou reaproveita) o token de confirmação de um agendamento — chamado
+// ao montar o lembrete automático, pra incluir o link "confirme sua
+// presença" na mensagem. Reaproveita o token existente em reenvios (ex:
+// sendDailyReminders rodando de novo) pra não invalidar um link que o
+// cliente já recebeu.
+export async function ensureConfirmationToken(appointment: AppointmentDTO): Promise<string> {
+  if (appointment.confirmationToken) return appointment.confirmationToken;
+  const token = generateVerificationToken();
+  await setConfirmationToken(appointment.id, token);
+  return token;
+}
+
+export async function confirmAppointmentByToken(token: string): Promise<AppointmentDTO> {
+  const appointment = await confirmAppointmentByTokenRow(token);
+  if (!appointment) throw new AppError("Link de confirmação inválido ou já usado.", 404);
+  return appointment;
 }
 
 export async function getUnreviewedCompletedAppointment(clientPhone: string, businessId: number): Promise<AppointmentDTO | null> {

@@ -467,7 +467,11 @@ export function computeApptStatus(a: AppointmentDTO, now = new Date()): string {
   const end = new Date(`${a.date}T${a.endTime}:00`);
   if (now >= end) return "concluido";
   if (now >= start) return "em_andamento";
-  return "confirmado";
+  // "agendado" = status DB scheduled (criado, cliente ainda não confirmou
+  // pelo link do lembrete) vs "confirmado" = cliente clicou confirmar.
+  // Antes desses dois status existirem, todo agendamento futuro caía aqui
+  // como "confirmado" — agora só quem realmente confirmou usa essa label.
+  return a.status === "scheduled" ? "agendado" : "confirmado";
 }
 
 export async function getTodayAppointments(businessId: number) {

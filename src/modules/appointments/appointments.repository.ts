@@ -94,6 +94,25 @@ export function cancelAppointment(id: number) {
   return prisma.appointment.update({ where: { id }, data: { status: "cancelled" } });
 }
 
+export function setConfirmationToken(id: number, token: string) {
+  return prisma.appointment.update({ where: { id }, data: { confirmationToken: token } });
+}
+
+// Atômico: só confirma (scheduled -> confirmed) se o token bater E o
+// agendamento ainda estiver "scheduled" — updateMany com esse where composto
+// evita corrida (dois cliques quase simultâneos) e evita reabrir um
+// agendamento já cancelado/no_show clicando num link de lembrete antigo.
+// count === 0 cobre token inválido, já confirmado, cancelado ou no_show.
+export async function confirmAppointmentByToken(token: string): Promise<AppointmentDTO | null> {
+  const { count } = await prisma.appointment.updateMany({
+    where: { confirmationToken: token, status: "scheduled" },
+    data: { status: "confirmed" },
+  });
+  if (count === 0) return null;
+  const appointment = await prisma.appointment.findFirst({ where: { confirmationToken: token }, include: appointmentInclude });
+  return appointment ? toAppointmentDTO(appointment as AppointmentWithRelations) : null;
+}
+
 export async function updateAppointmentFields(
   id: number,
   data: { serviceId?: number; endTime?: string; status?: "confirmed" | "no_show"; notes?: string | null }

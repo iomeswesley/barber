@@ -25,6 +25,8 @@ export interface AppointmentDTO {
   clientPhone: string;
   barbershopName: string;
   notes: string | null;
+  confirmationToken: string | null;
+  googleEventId: string | null;
 }
 
 export const appointmentInclude = {
@@ -74,5 +76,7 @@ export function toAppointmentDTO(a: AppointmentWithRelations): AppointmentDTO {
     clientPhone: a.client.phone,
     barbershopName: a.business.name,
     notes: a.notes,
+    confirmationToken: a.confirmationToken,
+    googleEventId: a.googleEventId,
   };
 }

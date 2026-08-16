@@ -46,7 +46,10 @@ export async function getClientStats(businessId: number): Promise<ClientStatsRow
 
   const result: ClientStatsRow[] = [];
   for (const { client, rows } of byClient.values()) {
-    const completed = rows.filter((a) => a.status === "confirmed" && isCompleted(a.date, a.endTime));
+    // "scheduled" conta como visita concluída igual "confirmed" — a maioria
+    // dos agendamentos passados nunca teve o link do lembrete clicado, e não
+    // é isso que diz se o cliente veio ou não (quem faltou vira "no_show").
+    const completed = rows.filter((a) => (a.status === "confirmed" || a.status === "scheduled") && isCompleted(a.date, a.endTime));
     const visitCount = completed.length;
     const totalRevenueCents = completed.reduce((sum, a) => sum + a.service.priceCents, 0) + (productRevenueByClient.get(client.id) || 0);
     const dates = [...new Set(completed.map((a) => localDateStr(a.date)))].sort();

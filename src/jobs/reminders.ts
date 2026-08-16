@@ -1,10 +1,10 @@
-import { getAppointmentsNeedingReminder, getTodaysAppointmentsForReminder } from "@/modules/appointments/appointments.service.js";
+import { getAppointmentsNeedingReminder, getTodaysAppointmentsForReminder, ensureConfirmationToken } from "@/modules/appointments/appointments.service.js";
 import { markReminderSent } from "@/modules/appointments/appointments.repository.js";
 import { getBarbershop } from "@/modules/businesses/businesses.repository.js";
 import { sendWhatsappText, sendWhatsappTemplate, whatsappConfigured, resolveBarbershopAccessToken } from "@/lib/whatsapp.js";
 import { tryConsumeWhatsappTrialBudget } from "@/modules/billing/billing.service.js";
 import type { AppointmentDTO } from "@/modules/appointments/appointments.types.js";
-import { vertical } from "@/config/env.js";
+import { vertical, env } from "@/config/env.js";
 
 const CHECK_INTERVAL_MS = 60 * 1000; // varre a cada minuto
 
@@ -111,29 +111,39 @@ export async function sendComeBackMessage(
   );
 }
 
-function buildReminderText(appointment: AppointmentDTO): string {
+function confirmationUrl(token: string): string {
+  // Aponta pra rota do servidor (não direto pro confirmar.html): ela faz a
+  // confirmação e já redireciona pra /confirmar.html?status=ok|invalid —
+  // mesmo padrão de GET /api/verify-email (onboarding.routes.ts).
+  return `${env.PUBLIC_BASE_URL || ""}/api/public/appointments/confirm?token=${token}`;
+}
+
+function buildReminderText(appointment: AppointmentDTO, confirmUrl: string): string {
   return (
     `Olá, ${appointment.clientName}! 👋 Passando pra lembrar do seu horário hoje:\n\n` +
     `${vertical.brandEmoji} ${appointment.serviceName} com ${appointment.barberName}\n` +
     `🕐 ${appointment.startTime}\n` +
     `📍 ${appointment.barbershopName}\n\n` +
-    `Te esperamos! Se precisar remarcar, é só responder aqui.`
+    `Confirme sua presença: ${confirmUrl}\n\n` +
+    `Se precisar remarcar, é só responder aqui.`
   );
 }
 
-function reminderTemplateParams(appointment: AppointmentDTO): string[] {
-  return [appointment.clientName, appointment.serviceName, appointment.barberName, appointment.startTime];
+function reminderTemplateParams(appointment: AppointmentDTO, confirmUrl: string): string[] {
+  return [appointment.clientName, appointment.serviceName, appointment.barberName, appointment.startTime, confirmUrl];
 }
 
 export async function checkAndSendReminders() {
   const appointments = await getAppointmentsNeedingReminder();
   for (const appointment of appointments) {
+    const token = await ensureConfirmationToken(appointment);
+    const confirmUrl = confirmationUrl(token);
     await sendWhatsAppTemplateMessage(
       appointment.businessId,
       appointment.clientPhone,
       "appointment_reminder",
-      reminderTemplateParams(appointment),
-      buildReminderText(appointment)
+      reminderTemplateParams(appointment, confirmUrl),
+      buildReminderText(appointment, confirmUrl)
     );
     await markReminderSent(appointment.id);
   }
@@ -144,19 +154,29 @@ export async function checkAndSendReminders() {
 export async function sendDailyReminders() {
   const appointments = await getTodaysAppointmentsForReminder();
   for (const appointment of appointments) {
+    const token = await ensureConfirmationToken(appointment);
+    const confirmUrl = confirmationUrl(token);
     await sendWhatsAppTemplateMessage(
       appointment.businessId,
       appointment.clientPhone,
       "appointment_reminder",
-      reminderTemplateParams(appointment),
-      buildReminderText(appointment)
+      reminderTemplateParams(appointment, confirmUrl),
+      buildReminderText(appointment, confirmUrl)
     );
     await markReminderSent(appointment.id);
   }
 }
 
 export function startReminderScheduler() {
-  checkAndSendReminders();
-  setInterval(checkAndSendReminders, CHECK_INTERVAL_MS);
+  // .catch aqui é essencial: sem ele, qualquer erro (ex: drift de schema,
+  // banco fora do ar) vira uma rejeição de Promise não tratada e derruba o
+  // processo Node inteiro — um cron de lembrete não pode ter esse poder.
+  const runSafely = () => {
+    checkAndSendReminders().catch((err) => {
+      console.error("[LEMBRETES] Falha na varredura, tentando de novo no próximo ciclo:", (err as Error).message);
+    });
+  };
+  runSafely();
+  setInterval(runSafely, CHECK_INTERVAL_MS);
   console.log("Scheduler de lembretes de agendamento iniciado (varredura a cada 1 min).");
 }
