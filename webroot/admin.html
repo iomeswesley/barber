@@ -859,7 +859,8 @@
     </div>
   </div>
   <nav class="sidebar-nav" id="page-tabs">
-    <button data-page="overview" class="active"><span class="nav-ico"><svg class="icon"><use href="#icon-home"></use></svg></span>Visão geral</button>
+    <button data-page="overview" class="active"><span class="nav-ico"><svg class="icon"><use href="#icon-home"></use></svg></span>Atendimentos</button>
+    <button data-page="metricas"><span class="nav-ico"><svg class="icon"><use href="#icon-trending-up"></use></svg></span>Métricas</button>
     <button data-page="agenda"><span class="nav-ico"><svg class="icon"><use href="#icon-calendar"></use></svg></span>Agenda</button>
     <button data-page="tipos"><span class="nav-ico"><svg class="icon"><use href="#icon-clipboard"></use></svg></span>Serviços</button>
     <button data-page="conversas"><span class="nav-ico"><svg class="icon"><use href="#icon-chat"></use></svg></span>Mensagens</button>
@@ -947,6 +948,46 @@
     </div>
   </div>
   <div class="alert-banner" id="alert-banner" style="display:none;"></div>
+
+  <div class="grid-two overview-grid-two">
+    <div class="card panel" id="today-appts-card">
+      <h2>Agendamentos de hoje</h2>
+      <div class="hint" id="today-hint">Carregando agenda do dia...</div>
+      <div class="appt-list" id="appt-list"></div>
+    </div>
+
+    <div class="card panel" id="chat-summary-card">
+      <h2>Conversas do WhatsApp</h2>
+      <div class="hint">Últimas mensagens — abra a aba Mensagens pra responder</div>
+      <div id="chat-summary-list"><div class="empty-state" style="padding:16px 0;">Carregando...</div></div>
+    </div>
+  </div>
+
+  <div class="section-title" id="reviews-section-title">Avaliações dos clientes</div>
+  <div class="card panel" id="reviews-card">
+    <h2 id="reviews-card-title" style="display:none;">Avaliações dos clientes</h2>
+    <div class="chart-head" style="margin-bottom:12px;">
+      <div class="tabs" id="review-period-tabs">
+        <button data-period="all" class="active">Tudo</button>
+        <button data-period="week">Última semana</button>
+        <button data-period="month">Último mês</button>
+      </div>
+      <div class="form-field" style="min-width:180px;">
+        <select id="review-barber-filter"><option value="">Todos os barbeiros</option></select>
+      </div>
+    </div>
+    <div class="avg-rating-box">
+      <div class="avg-value" id="review-avg">—</div>
+      <div class="stars" id="review-avg-stars"></div>
+      <div class="hint" id="review-count" style="margin-bottom:0;"></div>
+    </div>
+    <div id="review-list"></div>
+  </div>
+
+  <footer class="meta" id="last-updated"></footer>
+  </div>
+
+  <div id="page-metricas" class="page-section" style="display:none;">
   <div class="kpi-split-grid" id="kpi-grid">
     <div class="card kpi-revenue-card">
       <div class="kpi-revenue-grid">
@@ -1029,43 +1070,12 @@
     <div class="chart-wrap"><canvas id="occupancy-chart"></canvas></div>
   </div>
 
-  <div class="grid-two overview-grid-two">
-    <div class="card panel" id="barber-analysis-card">
-      <h2>Análise por barbeiro</h2>
-      <div class="hint">Faturamento e ocupação da agenda no mês atual</div>
-      <div class="barber-bar-wrap"><canvas id="barber-chart"></canvas></div>
-      <div class="ranking-list" id="ranking-list"></div>
-    </div>
-
-    <div class="card panel" id="today-appts-card">
-      <h2>Agendamentos de hoje</h2>
-      <div class="hint" id="today-hint">Carregando agenda do dia...</div>
-      <div class="appt-list" id="appt-list"></div>
-    </div>
+  <div class="card panel" id="barber-analysis-card">
+    <h2>Análise por barbeiro</h2>
+    <div class="hint">Faturamento e ocupação da agenda no mês atual</div>
+    <div class="barber-bar-wrap"><canvas id="barber-chart"></canvas></div>
+    <div class="ranking-list" id="ranking-list"></div>
   </div>
-
-  <div class="section-title" id="reviews-section-title">Avaliações dos clientes</div>
-  <div class="card panel" id="reviews-card">
-    <h2 id="reviews-card-title" style="display:none;">Avaliações dos clientes</h2>
-    <div class="chart-head" style="margin-bottom:12px;">
-      <div class="tabs" id="review-period-tabs">
-        <button data-period="all" class="active">Tudo</button>
-        <button data-period="week">Última semana</button>
-        <button data-period="month">Último mês</button>
-      </div>
-      <div class="form-field" style="min-width:180px;">
-        <select id="review-barber-filter"><option value="">Todos os barbeiros</option></select>
-      </div>
-    </div>
-    <div class="avg-rating-box">
-      <div class="avg-value" id="review-avg">—</div>
-      <div class="stars" id="review-avg-stars"></div>
-      <div class="hint" id="review-count" style="margin-bottom:0;"></div>
-    </div>
-    <div id="review-list"></div>
-  </div>
-
-  <footer class="meta" id="last-updated"></footer>
   </div>
 
   <div id="page-agenda" class="page-section" style="display:none;">
@@ -1800,11 +1810,12 @@ const shopLabel = document.getElementById("shop-label");
 
 const ADMIN_TOUR_STEPS = [
   { selector: "#page-tabs", title: "Bem-vindo(a) ao barber.bot!", text: "Esse menu na lateral leva pra cada parte do seu negócio. Vamos passear por cada uma rapidinho." },
-  { activateSelector: '#page-tabs button[data-page="overview"]', selector: "#kpi-grid", title: "Visão geral do mês", text: "Faturamento, previsão, ticket médio, barbeiro do mês e taxa de no-show — o resumo do seu negócio de relance." },
+  { activateSelector: '#page-tabs button[data-page="overview"]', selector: "#today-appts-card", title: "Agendamentos de hoje", text: "Veja rapidinho os agendamentos do dia sem precisar entrar na agenda." },
+  { selector: "#chat-summary-card", title: "Conversas do WhatsApp", text: "Resumo das últimas conversas — clique numa pra abrir direto na aba Mensagens." },
+  { selector: "#reviews-card", title: "Avaliações dos clientes", text: "As notas e comentários que os clientes deixam depois do atendimento." },
+  { activateSelector: '#page-tabs button[data-page="metricas"]', selector: "#kpi-grid", title: "Métricas do mês", text: "Faturamento, previsão, ticket médio, barbeiro do mês e taxa de no-show — o resumo do seu negócio de relance." },
   { selector: "#revenue-chart-card", title: "Faturamento e ocupação dia a dia", text: "Acompanhe a evolução do faturamento e veja os horários mais ocupados de cada dia da semana." },
   { selector: "#barber-analysis-card", title: "Análise por barbeiro", text: "Faturamento e ocupação da agenda de cada barbeiro no mês atual, com o ranking completo." },
-  { selector: "#today-appts-card", title: "Agendamentos de hoje", text: "Veja rapidinho os agendamentos do dia sem precisar entrar na agenda." },
-  { selector: "#reviews-card", title: "Avaliações dos clientes", text: "As notas e comentários que os clientes deixam depois do atendimento." },
   { activateSelector: '#page-tabs button[data-page="agenda"]', selector: "#page-agenda", title: "Agenda", text: "Veja e crie agendamentos, filtre por barbeiro e alterne entre visão de semana ou mês." },
   { activateSelector: '#page-tabs button[data-page="tipos"]', selector: "#page-tipos", title: "Serviços", text: "Cadastre cada serviço com preço e duração — é o que a IA usa no WhatsApp pra calcular horário e valor." },
   { activateSelector: '#page-tabs button[data-page="conversas"]', selector: "#page-conversas", title: "Mensagens", text: "Acompanhe as conversas que a IA está tendo com seus clientes, pause a IA numa conversa específica e responda manualmente quando quiser assumir." },
@@ -5533,9 +5544,17 @@ document.querySelectorAll("#page-tabs button").forEach((btn) => {
     document.querySelectorAll("#page-tabs button").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     const page = btn.dataset.page;
-    ["overview", "agenda", "tipos", "conversas", "campanhas", "historico", "estoque", "configuracoes", "auditoria"].forEach((p) => {
+    ["overview", "metricas", "agenda", "tipos", "conversas", "campanhas", "historico", "estoque", "configuracoes", "auditoria"].forEach((p) => {
       document.getElementById(`page-${p}`).style.display = p === page ? "block" : "none";
     });
+    if (page === "metricas") {
+      // Sem gate de "já carregou": os gráficos (Chart.js) são criados contra
+      // canvases que ficaram em display:none até agora — o primeiro load
+      // (disparado por loadAll() na entrada do painel, com a aba ainda
+      // escondida) sempre sai com tamanho errado. Recarregar toda vez que a
+      // aba abre garante que o canvas já está visível na hora de medir.
+      await Promise.all([loadRevenueChart(), loadOccupancyChart(), loadRevenueTrend(), loadBarberPerformance()]);
+    }
     if (page === "agenda" && !agendaLoaded) {
       agendaLoaded = true;
       await renderAgenda();
@@ -5698,6 +5717,39 @@ async function loadAlerts() {
   });
 }
 
+// Resumo compacto das últimas conversas na aba Atendimentos (ex-Visão
+// geral) — versão enxuta da lista completa da aba Mensagens, só pra dar
+// uma visão rápida sem trocar de aba. Reaproveita a mesma rota.
+async function loadChatSummary() {
+  const el = document.getElementById("chat-summary-list");
+  if (!el) return;
+  const sessions = await (await fetch("/api/manage/chat-sessions")).json();
+  if (sessions.length === 0) {
+    el.innerHTML = `<div class="empty-state" style="padding:16px 0;">Nenhuma conversa ainda.</div>`;
+    return;
+  }
+  el.innerHTML = sessions
+    .slice(0, 5)
+    .map(
+      (s) => `
+    <div class="item-row" style="cursor:pointer;" data-summary-phone="${escapeHtml(s.phone)}">
+      <div class="item-info">
+        ${escapeHtml(s.clientName || s.phone)}
+        <div class="item-meta">${s.lastMessage ? escapeHtml(s.lastMessage.text.slice(0, 60)) : "Sem mensagens"} · ${timeAgo(s.updatedAt)}</div>
+      </div>
+      <span class="csi-status ${s.needsAttention ? "attention" : "ok"}"><span class="dot"></span>${s.needsAttention ? "Atenção" : "IA"}</span>
+    </div>
+  `
+    )
+    .join("");
+  el.querySelectorAll("[data-summary-phone]").forEach((row) => {
+    row.addEventListener("click", () => {
+      document.querySelector('#page-tabs button[data-page="conversas"]').click();
+      setTimeout(() => loadChatTranscript(row.dataset.summaryPhone), 300);
+    });
+  });
+}
+
 async function loadAll() {
   await Promise.all([
     loadSummary(),
@@ -5706,6 +5758,7 @@ async function loadAll() {
     loadRevenueTrend(),
     loadBarberPerformance(),
     loadTodayAppointments(),
+    loadChatSummary(),
     loadReviews(),
     loadAlerts(),
   ]);
