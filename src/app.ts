@@ -11,6 +11,7 @@ import { sendDailyReminders } from "@/jobs/reminders.js";
 import { runIcalImport } from "@/jobs/icalImport.js";
 import { resolveShortLink } from "@/lib/shortLink.js";
 import { expireOverdueTrials } from "@/modules/billing/billing.service.js";
+import { requireBillingOk } from "@/middleware/billing.js";
 import { serverlessBackupConfigured, runServerlessBackup } from "@/jobs/serverlessBackup.js";
 import { captureError } from "@/lib/errorReporting.js";
 
@@ -208,6 +209,14 @@ export function createApp() {
   });
 
   /* ---------------- Rotas da API ---------------- */
+
+  // Trava real de acesso ao painel quando a assinatura está cancelada (ver
+  // src/middleware/billing.ts) — roda antes de todas as rotas autenticadas,
+  // com uma lista de prefixos isentos (login, billing, autoatendimento
+  // público, webhooks, superadmin) pra não travar o próprio caminho de
+  // destravar. O bot de WhatsApp tem seu próprio bloqueio, dentro de
+  // chatEngine.sendMessage.
+  app.use(requireBillingOk);
 
   app.use(authRouter);
   app.use(businessesRouter);

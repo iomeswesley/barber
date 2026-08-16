@@ -12,6 +12,23 @@ export function getSubscription(businessId: number) {
   return prisma.subscription.findUnique({ where: { businessId } });
 }
 
+// Trava real de acesso (painel + bot de WhatsApp, ver requireBillingOk em
+// src/middleware/billing.ts e o check equivalente em chatEngine.sendMessage)
+// — só bloqueia "canceled" (trial vencido sem virar pagamento, ou assinatura
+// paga cancelada/com falha definitiva no Stripe). NUNCA bloqueia por falta de
+// linha de Subscription: barbearias de demonstração criadas fora do fluxo de
+// onboarding (seed/prisma/seed.ts) nunca tiveram uma Subscription criada e
+// não podem ser trancadas por isso. "past_due" (cartão recusado, Stripe ainda
+// tentando cobrar de novo) também segue liberado — período de graça padrão
+// de SaaS, só bloqueia quando o Stripe desiste de vez e o status vira
+// "canceled" (ver handleSubscriptionUpdated/handleSubscriptionDeleted).
+// Sem Stripe configurado no servidor, cobrança é só informativa — nunca bloqueia.
+export async function isBillingBlocked(businessId: number): Promise<boolean> {
+  if (!stripeConfigured) return false;
+  const sub = await getSubscription(businessId);
+  return sub?.status === "canceled";
+}
+
 // Visão de conjunto pro painel de superadmin — parte de TODAS as barbearias
 // (não só quem já tem Subscription) porque uma barbearia que nunca passou
 // por trial/checkout também é sinal útil ("sem assinatura registrada"), não

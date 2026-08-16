@@ -27,6 +27,7 @@ import { createShortLink } from "@/lib/shortLink.js";
 import { prisma } from "@/lib/prisma.js";
 import { env, vertical } from "@/config/env.js";
 import { logChatUsage } from "./chatUsage.js";
+import { isBillingBlocked } from "@/modules/billing/billing.service.js";
 import type { Business, Prisma } from "@prisma/client";
 
 const client = new Anthropic();
@@ -679,6 +680,20 @@ export async function sendMessage(
 
       const session = await loadSession(tx, sessionId, businessId);
       session.messages.push({ role: "user", content: userText });
+
+      // Assinatura cancelada (trial vencido sem virar pagamento, ou
+      // assinatura paga que o Stripe desistiu de cobrar) — mesmo critério e
+      // função do bloqueio do painel (requireBillingOk), aplicado aqui
+      // porque HTTP 402 não faz sentido pro cliente final do WhatsApp: grava
+      // a mensagem normalmente (histórico não se perde pra quando a
+      // barbearia reativar) e marca "precisa de atenção", mas responde com
+      // um aviso fixo em vez de gastar tokens chamando a IA.
+      const billingBlocked = await isBillingBlocked(businessId);
+      if (billingBlocked) {
+        await saveSession(tx, sessionId, session);
+        await tx.chatSession.update({ where: { sessionId: key }, data: { needsAttention: true } });
+        return "No momento não estamos com o atendimento automático disponível. Em breve alguém vai te responder por aqui, obrigado pela paciência!";
+      }
 
       // Toggle "IA Ativa" pausado (aba Mensagens) — grava a mensagem do
       // cliente pro histórico e marca "precisa de atenção" (ninguém

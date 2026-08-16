@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Assinatura necessária</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%231e1d1b'/><g transform='translate(16.4 16.4) scale(2.8)'><path fill='white' d='M6 6m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0'/><path fill='white' d='M6 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0'/><path fill='white' stroke='white' stroke-width='1.5' d='M20 4L8.12 15.88'/><path fill='white' stroke='white' stroke-width='1.5' d='M14.47 14.48L20 20'/><path fill='white' stroke='white' stroke-width='1.5' d='M8.12 8.12L12 12'/></g></svg>" />
+<meta name="theme-color" content="#f8f9fa" />
+<script src="/assets/theme-init.js"></script>
+<script src="/assets/icons.js" defer></script>
+<link rel="stylesheet" href="/assets/theme.css">
+<style>
+  body { display: flex; align-items: center; justify-content: center; padding: 20px; position: relative; z-index: 0; }
+  .card { width: 100%; max-width: 420px; padding: 36px 32px; text-align: center; }
+  .icon-badge {
+    width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 24px; margin: 0 auto 16px; background: var(--danger-soft); color: var(--danger);
+  }
+  h1 { font-size: 19px; margin: 0 0 8px; }
+  p.lead { color: var(--text-secondary); font-size: 13.5px; line-height: 1.55; margin: 0 0 24px; }
+  .plans { display: flex; flex-direction: column; gap: 10px; text-align: left; margin-bottom: 18px; }
+  .plan-option {
+    border: 1px solid var(--card-border); border-radius: var(--radius-sm); padding: 14px 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .plan-option .plan-label { font-size: 13.5px; font-weight: 600; }
+  .plan-option .plan-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .plan-option button {
+    flex-shrink: 0; padding: 8px 14px; border: none; border-radius: var(--radius-sm);
+    background: var(--brand); color: var(--brand-ink); font-weight: 700; font-size: 12.5px; cursor: pointer;
+    transition: background-color .2s ease;
+  }
+  .plan-option button:hover { background: var(--brand-hover); }
+  .plan-option button:disabled { opacity: .55; cursor: default; }
+  .owner-message, .professional-message { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 18px; }
+  .error-message { font-size: 12.5px; color: var(--danger); margin: -8px 0 14px; }
+  .logout-link {
+    display: inline-flex; align-items: center; gap: 6px; margin-top: 4px;
+    color: var(--text-muted); font-size: 12.5px; text-decoration: none; background: none; border: none; cursor: pointer;
+  }
+  .logout-link:hover { color: var(--brand); }
+  #loading { color: var(--text-muted); font-size: 13px; }
+</style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="icon-badge"><svg class="icon" style="width:26px;height:26px;"><use href="#icon-alert-triangle"></use></svg></div>
+    <h1>Assinatura necessária</h1>
+    <div id="content"><p id="loading">Carregando...</p></div>
+    <button class="logout-link" id="logout-btn">
+      <svg class="icon" style="width:14px;height:14px;"><use href="#icon-logout"></use></svg>
+      Sair da conta
+    </button>
+  </div>
+
+<script>
+async function boot() {
+  const content = document.getElementById("content");
+  try {
+    const [meRes, statusRes] = await Promise.all([fetch("/api/auth/me"), fetch("/api/billing/status")]);
+    if (meRes.status === 401) { location.href = "/login.html"; return; }
+    const me = await meRes.json();
+    const status = await statusRes.json();
+
+    // Já não está mais bloqueado (reativou em outra aba, ou chegou aqui por
+    // engano) — manda de volta pro painel certo em vez de segurar aqui.
+    if (status.status !== "canceled") {
+      location.href = me.role === "professional" ? "/barber.html" : "/admin.html";
+      return;
+    }
+
+    if (me.role === "professional") {
+      content.innerHTML = `
+        <p class="lead">A assinatura desta conta está cancelada.</p>
+        <p class="professional-message">Fale com o dono ou administrador pra escolher um plano e reativar o acesso ao painel.</p>
+      `;
+      return;
+    }
+
+    content.innerHTML = `
+      <p class="lead">A assinatura desta conta está cancelada. Escolha um plano pra continuar usando o painel:</p>
+      <div class="plans" id="plans"></div>
+      <p class="error-message" id="checkout-error" style="display:none;"></p>
+    `;
+    const plansEl = document.getElementById("plans");
+    (status.plans || []).forEach((plan) => {
+      const row = document.createElement("div");
+      row.className = "plan-option";
+      row.innerHTML = `
+        <div><div class="plan-label">${plan.label}</div></div>
+        <button data-plan="${plan.id}">Assinar</button>
+      `;
+      plansEl.appendChild(row);
+    });
+    plansEl.addEventListener("click", async (ev) => {
+      const btn = ev.target.closest("button[data-plan]");
+      if (!btn) return;
+      const errorEl = document.getElementById("checkout-error");
+      errorEl.style.display = "none";
+      plansEl.querySelectorAll("button").forEach((b) => (b.disabled = true));
+      btn.textContent = "Abrindo...";
+      try {
+        const res = await fetch("/api/billing/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ plan: btn.dataset.plan }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || data.error || "Erro ao abrir checkout.");
+        location.href = data.url;
+      } catch (err) {
+        errorEl.textContent = err.message || "Não foi possível abrir o checkout agora.";
+        errorEl.style.display = "block";
+        plansEl.querySelectorAll("button").forEach((b) => (b.disabled = false));
+        btn.textContent = "Assinar";
+      }
+    });
+  } catch (err) {
+    content.innerHTML = `<p class="lead">Não foi possível carregar as informações da assinatura agora. Tente recarregar a página.</p>`;
+  }
+}
+boot();
+
+document.getElementById("logout-btn").addEventListener("click", async () => {
+  await fetch("/api/auth/logout", { method: "POST" });
+  location.href = "/login.html";
+});
+</script>
+</body>
+</html>
