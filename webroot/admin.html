@@ -1211,7 +1211,7 @@
       <div class="form-field">
         <label>Mensagem (WhatsApp) *</label>
         <textarea id="campaign-message" rows="3" placeholder="Olá {nome}, sentimos sua falta! Que tal agendar um horário?"></textarea>
-        <div class="field-hint">Use {nome} para incluir o nome do cliente na mensagem. O envio de verdade usa o template já aprovado pelo WhatsApp (necessário pra alcançar clientes inativos há muito tempo) — esse texto é uma referência do tom, guardada no histórico da campanha.</div>
+        <div style="font-size:11.5px; color:var(--text-muted); line-height:1.4; margin-top:4px;">Use {nome} para incluir o nome do cliente. O envio real usa o template já aprovado pelo WhatsApp.</div>
       </div>
       <div class="form-field">
         <label>Clientes inativos há mais de (dias)</label>
@@ -4292,8 +4292,10 @@ function renderClientsTable() {
             <td>${c.avgFrequencyDays ? `A cada ${c.avgFrequencyDays} dias` : "—"}</td>
             <td>${c.last_visit_date || "—"}</td>
             <td>
-              <input type="date" id="client-birthday-${c.id}" value="${c.birthday || ""}" />
-              <button class="icon-btn" data-save-birthday="${c.id}" title="Salvar"><svg class="icon"><use href="#icon-save"></use></svg></button>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <input type="date" id="client-birthday-${c.id}" value="${c.birthday || ""}" />
+                <button class="icon-btn" data-save-birthday="${c.id}" title="Salvar"><svg class="icon"><use href="#icon-save"></use></svg></button>
+              </div>
             </td>
             <td id="client-status-${c.id}" style="white-space:nowrap;">${clientStatusBadge(c)}</td>
           </tr>
