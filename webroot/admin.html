@@ -199,6 +199,22 @@
     box-shadow: none; margin: 0;
   }
 
+  /* ---------- Personalidade da IA (4 presets fixos) ---------- */
+  .ai-personality-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 640px) { .ai-personality-grid { grid-template-columns: 1fr; } }
+  .ai-personality-card {
+    display: block; padding: 14px 16px; border-radius: 12px;
+    border: 1px solid var(--card-border); background: var(--card-bg-solid);
+    cursor: pointer; transition: border-color .15s ease, background-color .15s ease;
+  }
+  .ai-personality-card:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); }
+  .ai-personality-card input { position: absolute; opacity: 0; pointer-events: none; }
+  .ai-personality-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .ai-personality-desc { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
+  .ai-personality-example { font-size: 11.5px; color: var(--text-muted); font-style: italic; line-height: 1.5; }
+
+  #master-prompt-input { font-family: monospace, monospace; font-size: 12.5px; line-height: 1.6; }
+
   /* ---------- KPI cards ---------- */
   .kpi-grid {
     display: grid;
@@ -735,6 +751,15 @@
   .chat-session-item .csi-name { font-weight: 700; font-size: 13px; }
   .chat-session-item .csi-phone { color: var(--text-muted); font-size: 11.5px; margin-top: 2px; }
   .chat-session-item .csi-time { color: var(--text-muted); font-size: 10.5px; margin-top: 4px; }
+  .chat-session-item .csi-preview { color: var(--text-muted); font-size: 11.5px; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .csi-status {
+    display: inline-flex; align-items: center; gap: 4px; margin-top: 5px;
+    font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px;
+    padding: 2px 7px; border-radius: 999px;
+  }
+  .csi-status.ok { background: var(--surface-raise-2); color: var(--text-muted); }
+  .csi-status.attention { background: var(--danger-soft); color: var(--danger); }
+  .csi-status .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
   /* overflow-wrap:anywhere — sem isso, uma URL longa (sem espaço pra quebrar
      numa palavra) estourava a max-width do balão em vez de quebrar, e o
      container inteiro ganhava scroll lateral pra compensar. */
@@ -742,13 +767,56 @@
   .chat-bubble.customer { align-self: flex-start; background: var(--surface-raise-2); border-top-left-radius: 3px; }
   .chat-bubble.bot { align-self: flex-end; background: rgb(var(--color-primary) / 0.18); border-top-right-radius: 3px; }
 
-  .conversas-layout { padding: 0; display: grid; grid-template-columns: 280px 1fr; min-height: 480px; overflow: hidden; }
+  .conversas-layout { padding: 0; display: grid; grid-template-columns: 280px 1fr 260px; min-height: 480px; overflow: hidden; }
   .chat-list-col { border-right: 1px solid var(--card-border); overflow-y: auto; max-height: 640px; }
   .chat-detail-col { display: flex; flex-direction: column; }
   .chat-back-btn { display: none; }
   #chat-transcript-header { padding: 12px 16px; border-bottom: 1px solid var(--card-border); font-size: 13px; font-weight: 700; }
   #chat-transcript-body { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 16px; display: flex; flex-direction: column; gap: 10px; max-height: 600px; }
   #chat-reply-bar { display: none; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--card-border); align-items: flex-end; }
+  .chat-attach-btn {
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--card-border);
+    background: var(--surface-raise); color: var(--text-secondary); cursor: pointer;
+    transition: background-color .15s ease, color .15s ease;
+  }
+  .chat-attach-btn:hover { background: var(--brand-soft); color: var(--brand); }
+
+  /* ---------- Coluna de info do cliente (aba Mensagens) ---------- */
+  .chat-info-col { border-left: 1px solid var(--card-border); padding: 18px 16px; overflow-y: auto; max-height: 640px; }
+  .chat-info-avatar {
+    width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 16px; color: rgb(var(--p-white)); margin: 0 auto 10px;
+  }
+  .chat-info-name { text-align: center; font-weight: 700; font-size: 14px; }
+  .chat-info-phone { text-align: center; color: var(--text-muted); font-size: 12px; margin-top: 2px; margin-bottom: 16px; }
+  .chat-info-toggle-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 10px 12px; border-radius: 12px; background: var(--surface-raise); border: 1px solid var(--card-border);
+    margin-bottom: 14px;
+  }
+  .chat-info-toggle-row .label { font-size: 12.5px; font-weight: 600; }
+  .chat-info-toggle-row .sub { font-size: 10.5px; color: var(--text-muted); margin-top: 1px; }
+  .chat-ai-toggle-btn {
+    display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+    padding: 5px 12px; border-radius: 999px; border: 1px solid transparent;
+    font-size: 11px; font-weight: 700; cursor: pointer; transition: all .15s ease;
+  }
+  .chat-ai-toggle-btn .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .chat-ai-toggle-btn.on { background: var(--good-soft); color: var(--good); }
+  .chat-ai-toggle-btn.off { background: var(--surface-raise-2); color: var(--text-muted); }
+  .chat-info-stat { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--divider); font-size: 12.5px; }
+  .chat-info-stat:last-child { border-bottom: none; }
+  .chat-info-stat .k { color: var(--text-muted); }
+  .chat-info-stat .v { font-weight: 700; }
+
+  /* Entre 640px e 900px, a 3ª coluna (info do cliente) não cabe mais sem
+     espremer demais a lista e o chat — some, e a coluna central ganha o
+     espaço dela de volta. */
+  @media (max-width: 900px) {
+    .conversas-layout { grid-template-columns: 280px 1fr; }
+    .chat-info-col { display: none; }
+  }
 
   /* No mobile, o layout de 2 colunas lado a lado espremia demais a lista e
      a conversa — troca pra um padrão de app de chat: só a lista OU só a
@@ -794,7 +862,8 @@
     <button data-page="overview" class="active"><span class="nav-ico"><svg class="icon"><use href="#icon-home"></use></svg></span>Visão geral</button>
     <button data-page="agenda"><span class="nav-ico"><svg class="icon"><use href="#icon-calendar"></use></svg></span>Agenda</button>
     <button data-page="tipos"><span class="nav-ico"><svg class="icon"><use href="#icon-clipboard"></use></svg></span>Serviços</button>
-    <button data-page="conversas"><span class="nav-ico"><svg class="icon"><use href="#icon-chat"></use></svg></span>Conversas</button>
+    <button data-page="conversas"><span class="nav-ico"><svg class="icon"><use href="#icon-chat"></use></svg></span>Mensagens</button>
+    <button data-page="campanhas"><span class="nav-ico"><svg class="icon"><use href="#icon-rocket"></use></svg></span>Campanhas</button>
     <button data-page="historico"><span class="nav-ico"><svg class="icon"><use href="#icon-history"></use></svg></span>Histórico</button>
     <button data-page="estoque"><span class="nav-ico"><svg class="icon"><use href="#icon-inventory"></use></svg></span>Estoque</button>
     <button data-page="configuracoes"><span class="nav-ico"><svg class="icon"><use href="#icon-settings"></use></svg></span>Configurações</button>
@@ -1082,21 +1151,64 @@
   </div>
 
   <div id="page-conversas" class="page-section" style="display:none;">
-    <div class="section-title">Conversas do WhatsApp</div>
+    <div class="section-title">Mensagens</div>
     <div class="card panel conversas-layout" id="conversas-layout">
       <div class="chat-list-col" id="chat-session-list">
         <div class="empty-state" style="padding:20px;">Carregando...</div>
       </div>
       <div class="chat-detail-col">
-        <button type="button" class="chat-back-btn" id="chat-back-btn"><svg class="icon"><use href="#icon-arrow-left"></use></svg> Conversas</button>
+        <button type="button" class="chat-back-btn" id="chat-back-btn"><svg class="icon"><use href="#icon-arrow-left"></use></svg> Mensagens</button>
         <div id="chat-transcript-header">Selecione uma conversa</div>
         <div id="chat-transcript-body"></div>
         <div id="chat-reply-bar">
+          <button type="button" class="chat-attach-btn" id="chat-attach-btn" title="Anexar arquivo">
+            <svg class="icon" style="width:16px;height:16px;"><use href="#icon-document"></use></svg>
+          </button>
+          <input type="file" id="chat-attach-input" style="display:none;" accept="image/*,application/pdf" />
           <div class="form-field" style="flex:1; margin:0;">
             <input type="text" id="chat-reply-input" placeholder="Digite uma resposta..." />
           </div>
           <button class="btn-primary" id="chat-reply-send-btn">Enviar</button>
         </div>
+      </div>
+      <div class="chat-info-col" id="chat-info-col">
+        <div class="empty-state" style="padding:20px;">Selecione uma conversa</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="page-campanhas" class="page-section" style="display:none;">
+    <div class="section-title" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+      <span>Campanhas de reativação</span>
+      <button class="btn-primary" id="new-campaign-btn">+ Nova campanha</button>
+    </div>
+    <div class="card panel" style="padding:0;">
+      <div id="campaign-list"><div class="empty-state" style="padding:20px;">Carregando...</div></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="campaign-modal-overlay">
+    <div class="modal-box" style="max-width:420px; text-align:left;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+        <h3 style="margin:0; font-size:15px;">Nova campanha de reativação</h3>
+        <button type="button" id="campaign-modal-close" style="background:none; border:none; cursor:pointer; color:var(--text-muted); font-size:18px; line-height:1;">×</button>
+      </div>
+      <div class="form-field">
+        <label>Nome da campanha *</label>
+        <input type="text" id="campaign-name" placeholder="Ex: Reativação março" />
+      </div>
+      <div class="form-field">
+        <label>Mensagem (WhatsApp) *</label>
+        <textarea id="campaign-message" rows="3" placeholder="Olá {nome}, sentimos sua falta! Que tal agendar um horário?"></textarea>
+        <div class="field-hint">Use {nome} para incluir o nome do cliente na mensagem. O envio de verdade usa o template já aprovado pelo WhatsApp (necessário pra alcançar clientes inativos há muito tempo) — esse texto é uma referência do tom, guardada no histórico da campanha.</div>
+      </div>
+      <div class="form-field">
+        <label>Clientes inativos há mais de (dias)</label>
+        <input type="number" id="campaign-inactive-days" value="90" min="1" />
+      </div>
+      <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
+        <button type="button" class="btn-secondary" id="campaign-modal-cancel">Cancelar</button>
+        <button type="button" class="btn-primary" id="campaign-modal-save">Criar campanha</button>
       </div>
     </div>
   </div>
@@ -1304,6 +1416,61 @@
 
     <div class="settings-section">
       <div class="settings-section-head">
+        <h2>Personalidade da IA</h2>
+        <p>Escolha um tom de base — complementa os exemplos de tom de voz acima, que continuam valendo.</p>
+      </div>
+      <div class="card panel">
+        <div class="ai-personality-grid" id="ai-personality-grid">
+          <label class="ai-personality-card" data-personality="acolhedor">
+            <input type="radio" name="ai-personality" value="acolhedor" />
+            <div class="ai-personality-title">Profissional e Acolhedor</div>
+            <div class="ai-personality-desc">Empático, humano e confiável para recepção diária.</div>
+            <div class="ai-personality-example">"Olá! Que bom ter você aqui. A barbearia fica na Rua X, número Y. Posso ajudar com mais alguma coisa?"</div>
+          </label>
+          <label class="ai-personality-card" data-personality="formal">
+            <input type="radio" name="ai-personality" value="formal" />
+            <div class="ai-personality-title">Formal e Objetivo</div>
+            <div class="ai-personality-desc">Comunicação direta, sem rodeios e com tom institucional.</div>
+            <div class="ai-personality-example">"A barbearia está localizada na Rua X, número Y. Agende seu horário."</div>
+          </label>
+          <label class="ai-personality-card" data-personality="descontraido">
+            <input type="radio" name="ai-personality" value="descontraido" />
+            <div class="ai-personality-title">Amigável e Descontraído</div>
+            <div class="ai-personality-desc">Tom leve e próximo, ideal para relacionamento.</div>
+            <div class="ai-personality-example">"A barbearia está na Rua X, número Y. Qualquer dúvida é só chamar!"</div>
+          </label>
+          <label class="ai-personality-card" data-personality="tecnico">
+            <input type="radio" name="ai-personality" value="tecnico" />
+            <div class="ai-personality-title">Clínico e Técnico</div>
+            <div class="ai-personality-desc">Linguagem técnica para barbearias com público especializado.</div>
+            <div class="ai-personality-example">"Nossa barbearia está localizada na Rua X, número Y. Para agendamento, informe o serviço desejado."</div>
+          </label>
+        </div>
+        <div class="form-actions">
+          <button class="btn-primary" id="ai-personality-save-btn">Salvar personalidade</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-head">
+        <h2>Prompt Mestre de Atendimento</h2>
+        <p>Regras adicionais que a IA deve sempre seguir, além do comportamento padrão.</p>
+      </div>
+      <div class="card panel">
+        <div class="hint">Use este campo para adicionar regras rígidas, limitações, URLs específicas ou informações vitais sobre o comportamento da IA. Essas regras nunca substituem as proteções básicas do sistema (ex: nunca inventar preço/horário, sempre escalar reclamação séria).</div>
+        <div class="form-field" style="margin-top:12px;">
+          <textarea id="master-prompt-input" rows="8" maxlength="4000" placeholder="Ex: Se o cliente perguntar sobre estacionamento, informe que não temos. Sempre mencione que aceitamos cartão e pix."></textarea>
+        </div>
+        <div class="form-actions" style="justify-content:space-between;">
+          <button class="btn-secondary" id="master-prompt-reset-btn"><svg class="icon" style="width:14px;height:14px;"><use href="#icon-history"></use></svg> Restaurar padrão</button>
+          <button class="btn-primary" id="master-prompt-save-btn">Salvar prompt mestre</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-head">
         <h2>Horário de funcionamento</h2>
         <p>Defina os dias e horários em que sua barbearia atende.</p>
       </div>
@@ -1365,6 +1532,27 @@
       </div>
       <div style="margin-top:16px;" id="block-list"></div>
     </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-head">
+        <h2>Google Agenda e calendário externo</h2>
+        <p>Espelhe os agendamentos no Google Agenda de cada barbeiro, e importe um calendário externo (.ics) pra bloquear horários automaticamente.</p>
+      </div>
+      <div class="card panel">
+        <div class="hint">Google Agenda por barbeiro — cada um conecta a própria conta; agendamentos criados/cancelados/reagendados aparecem lá automaticamente.</div>
+        <div id="google-calendar-list" style="margin-top:12px;"><div class="empty-state" style="padding:12px 0;">Carregando...</div></div>
+        <div style="margin-top:18px; padding-top:16px; border-top:1px solid var(--divider);">
+          <div class="hint">Importar calendário externo (.ics) — bloqueia a barbearia toda nos horários desse calendário. Atualiza 1x por dia.</div>
+          <div class="form-field" style="margin-top:10px;">
+            <label>URL do calendário (.ics)</label>
+            <input type="text" id="ical-import-url-input" placeholder="https://calendar.google.com/calendar/ical/.../basic.ics" />
+          </div>
+          <div class="form-actions">
+            <button class="btn-primary" id="ical-import-url-save-btn">Salvar URL do calendário</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="settings-section">
@@ -1619,7 +1807,8 @@ const ADMIN_TOUR_STEPS = [
   { selector: "#reviews-card", title: "Avaliações dos clientes", text: "As notas e comentários que os clientes deixam depois do atendimento." },
   { activateSelector: '#page-tabs button[data-page="agenda"]', selector: "#page-agenda", title: "Agenda", text: "Veja e crie agendamentos, filtre por barbeiro e alterne entre visão de semana ou mês." },
   { activateSelector: '#page-tabs button[data-page="tipos"]', selector: "#page-tipos", title: "Serviços", text: "Cadastre cada serviço com preço e duração — é o que a IA usa no WhatsApp pra calcular horário e valor." },
-  { activateSelector: '#page-tabs button[data-page="conversas"]', selector: "#page-conversas", title: "Conversas do WhatsApp", text: "Acompanhe as conversas que a IA está tendo com seus clientes e responda manualmente quando quiser assumir." },
+  { activateSelector: '#page-tabs button[data-page="conversas"]', selector: "#page-conversas", title: "Mensagens", text: "Acompanhe as conversas que a IA está tendo com seus clientes, pause a IA numa conversa específica e responda manualmente quando quiser assumir." },
+  { activateSelector: '#page-tabs button[data-page="campanhas"]', selector: "#page-campanhas", title: "Campanhas", text: "Crie campanhas de reativação em massa pra clientes inativos há muito tempo." },
   { activateSelector: '#page-tabs button[data-page="historico"]', selector: "#page-historico", title: "Histórico", text: "Faturamento detalhado por período, participação de cada barbeiro e serviço, e o cadastro completo de clientes." },
   { activateSelector: '#page-tabs button[data-page="estoque"]', selector: "#page-estoque", title: "Estoque", text: "Controle os produtos vendidos no balcão e receba alerta quando o estoque estiver baixo." },
   { activateSelector: '#page-tabs button[data-page="configuracoes"]', selector: "#page-configuracoes", title: "Configurações", text: "Aqui fica praticamente tudo: WhatsApp, cobrança, planos pros seus clientes, horário de funcionamento, bloqueios, barbeiros e backup." },
@@ -3175,11 +3364,16 @@ let activeChatPhone = null;
 // resposta manual do dono, que também bate o updatedAt. Aceitável como aviso,
 // não é garantia.
 let chatSessionUpdatedAt = {};
+// Cache da última lista carregada, indexada por telefone — a coluna de info
+// (3ª coluna) reaproveita esses dados (nome, contagem, IA ativa/pausada) sem
+// precisar de uma chamada extra só pra isso.
+let chatSessionCache = {};
 
 async function loadChatSessionList() {
   const list = document.getElementById("chat-session-list");
   const sessions = await (await fetch("/api/manage/chat-sessions")).json();
   chatSessionUpdatedAt = Object.fromEntries(sessions.map((s) => [s.phone, s.updatedAt]));
+  chatSessionCache = Object.fromEntries(sessions.map((s) => [s.phone, s]));
   if (sessions.length === 0) {
     list.innerHTML = `<div class="empty-state" style="padding:20px;">Nenhuma conversa ainda.</div>`;
     return;
@@ -3190,7 +3384,11 @@ async function loadChatSessionList() {
     <button class="chat-session-item" data-phone="${escapeHtml(s.phone)}">
       <div class="csi-name">${escapeHtml(s.clientName || s.phone)}</div>
       ${s.clientName ? `<div class="csi-phone">${escapeHtml(s.phone)}</div>` : ""}
+      ${s.lastMessage ? `<div class="csi-preview">${s.lastMessage.role === "bot" ? "Você: " : ""}${escapeHtml(s.lastMessage.text)}</div>` : ""}
       <div class="csi-time">${timeAgo(s.updatedAt)}</div>
+      <span class="csi-status ${s.needsAttention ? "attention" : "ok"}">
+        <span class="dot"></span>${s.needsAttention ? "Precisa de atenção" : "IA respondeu"}
+      </span>
     </button>
   `
     )
@@ -3198,6 +3396,46 @@ async function loadChatSessionList() {
   list.querySelectorAll(".chat-session-item").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.phone === activeChatPhone);
     btn.addEventListener("click", () => loadChatTranscript(btn.dataset.phone));
+  });
+}
+
+function renderChatInfoCol(phone) {
+  const info = document.getElementById("chat-info-col");
+  const s = chatSessionCache[phone];
+  const name = s?.clientName || phone;
+  const aiOn = !s?.aiPaused;
+  info.innerHTML = `
+    <div class="chat-info-avatar" style="background:${avatarColor(name)};">${initials(name)}</div>
+    <div class="chat-info-name">${escapeHtml(name)}</div>
+    <div class="chat-info-phone">${escapeHtml(phone)}</div>
+    <div class="chat-info-toggle-row">
+      <div>
+        <div class="label">IA Ativa</div>
+        <div class="sub">${aiOn ? "Respondendo automaticamente" : "Pausada — só respostas manuais"}</div>
+      </div>
+      <button type="button" class="chat-ai-toggle-btn ${aiOn ? "on" : "off"}" id="chat-ai-toggle-btn">
+        <span class="dot"></span>${aiOn ? "Ativa" : "Pausada"}
+      </button>
+    </div>
+    <div class="chat-info-stat"><span class="k">Canal</span><span class="v">WhatsApp</span></div>
+    <div class="chat-info-stat"><span class="k">Mensagens</span><span class="v">${s?.messageCount ?? "—"}</span></div>
+    <div class="chat-info-stat"><span class="k">Última interação</span><span class="v">${s ? timeAgo(s.updatedAt) : "—"}</span></div>
+  `;
+  document.getElementById("chat-ai-toggle-btn").addEventListener("click", async (ev) => {
+    const btn = ev.currentTarget;
+    btn.disabled = true;
+    const nextPaused = aiOn; // clicando enquanto ativa -> pausa, e vice-versa
+    try {
+      await fetch(`/api/manage/chat-sessions/${encodeURIComponent(phone)}/ai-toggle`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paused: nextPaused }),
+      });
+      if (chatSessionCache[phone]) chatSessionCache[phone].aiPaused = nextPaused;
+      renderChatInfoCol(phone);
+    } finally {
+      btn.disabled = false;
+    }
   });
 }
 
@@ -3209,9 +3447,10 @@ async function loadChatTranscript(phone) {
   });
   const header = document.getElementById("chat-transcript-header");
   const body = document.getElementById("chat-transcript-body");
-  header.textContent = phone;
+  header.textContent = chatSessionCache[phone]?.clientName || phone;
   body.innerHTML = `<div class="empty-state">Carregando...</div>`;
   document.getElementById("chat-reply-bar").style.display = "flex";
+  renderChatInfoCol(phone);
 
   const transcript = await (await fetch(`/api/manage/chat-sessions/${encodeURIComponent(phone)}`)).json();
   if (activeChatPhone !== phone) return; // usuário já trocou de conversa antes da resposta chegar
@@ -3268,6 +3507,121 @@ document.getElementById("chat-back-btn").addEventListener("click", () => {
 document.getElementById("chat-reply-send-btn").addEventListener("click", sendChatReply);
 document.getElementById("chat-reply-input").addEventListener("keydown", (e) => {
   if (e.key === "Enter") sendChatReply();
+});
+
+document.getElementById("chat-attach-btn").addEventListener("click", () => {
+  if (!activeChatPhone) return;
+  document.getElementById("chat-attach-input").click();
+});
+document.getElementById("chat-attach-input").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  e.target.value = ""; // permite escolher o mesmo arquivo de novo depois
+  if (!file || !activeChatPhone) return;
+  if (file.size > 10 * 1024 * 1024) {
+    await showAlertModal("Arquivo muito grande (máximo 10MB).");
+    return;
+  }
+  const attachBtn = document.getElementById("chat-attach-btn");
+  attachBtn.disabled = true;
+  try {
+    const dataBase64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(",")[1] || "");
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    const res = await fetch(`/api/manage/chat-sessions/${encodeURIComponent(activeChatPhone)}/send-attachment`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fileName: file.name, mimeType: file.type || "application/octet-stream", dataBase64 }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      await showAlertModal(data.error || "Não foi possível enviar o anexo.");
+      return;
+    }
+    await loadChatTranscript(activeChatPhone);
+    await loadChatSessionList();
+  } finally {
+    attachBtn.disabled = false;
+  }
+});
+
+/* ---------------- Campanhas de reativação ---------------- */
+async function loadCampaigns() {
+  const list = document.getElementById("campaign-list");
+  const campaigns = await (await fetch("/api/manage/campaigns")).json();
+  if (campaigns.length === 0) {
+    list.innerHTML = `<div class="empty-state" style="padding:20px;">Nenhuma campanha criada ainda.</div>`;
+    return;
+  }
+  list.innerHTML = campaigns
+    .map(
+      (c) => `
+    <div class="item-row" style="padding:14px 18px; border-bottom:1px solid var(--card-border);">
+      <div class="item-info">
+        <div style="font-weight:700; font-size:13px;">${escapeHtml(c.name)}</div>
+        <div style="font-size:12px; color:var(--text-secondary); margin-top:3px;">${escapeHtml(c.message_template)}</div>
+        <div style="font-size:11px; color:var(--text-muted); margin-top:5px;">
+          Inativos há ${c.inactive_days_threshold}+ dias · ${c.sent_count} enviada(s) · ${new Date(c.created_at).toLocaleDateString("pt-BR")}
+        </div>
+      </div>
+    </div>
+  `
+    )
+    .join("");
+}
+
+function openCampaignModal() {
+  document.getElementById("campaign-name").value = "";
+  document.getElementById("campaign-message").value = "";
+  document.getElementById("campaign-inactive-days").value = "90";
+  document.getElementById("campaign-modal-overlay").classList.add("is-open");
+}
+function closeCampaignModal() {
+  document.getElementById("campaign-modal-overlay").classList.remove("is-open");
+}
+
+document.getElementById("new-campaign-btn").addEventListener("click", openCampaignModal);
+document.getElementById("campaign-modal-close").addEventListener("click", closeCampaignModal);
+document.getElementById("campaign-modal-cancel").addEventListener("click", closeCampaignModal);
+document.getElementById("campaign-modal-overlay").addEventListener("click", (e) => {
+  if (e.target.id === "campaign-modal-overlay") closeCampaignModal();
+});
+
+document.getElementById("campaign-modal-save").addEventListener("click", async () => {
+  const name = document.getElementById("campaign-name").value.trim();
+  const message = document.getElementById("campaign-message").value.trim();
+  const inactiveDays = Number(document.getElementById("campaign-inactive-days").value);
+  if (!name || !message) {
+    await showAlertModal("Preencha o nome e a mensagem da campanha.");
+    return;
+  }
+  const btn = document.getElementById("campaign-modal-save");
+  btn.disabled = true;
+  try {
+    const res = await fetch("/api/manage/campaigns", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, message, inactiveDays }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      await showAlertModal(data.error || "Não foi possível criar a campanha.");
+      return;
+    }
+    closeCampaignModal();
+    await loadCampaigns();
+    await showAlertModal(
+      `Campanha criada! ${data.sent} de ${data.targeted} cliente(s) elegível(is) receberam a mensagem` +
+        (data.skipped_no_opt_in ? ` (${data.skipped_no_opt_in} sem consentimento de marketing)` : "") +
+        (data.skipped_recently_campaigned ? ` (${data.skipped_recently_campaigned} já campanhados nos últimos 90 dias)` : "") +
+        ".",
+      { variant: "success" }
+    );
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 /* ---------------- Novo agendamento manual (dono) ---------------- */
@@ -3523,6 +3877,9 @@ function gcalMobileDayHtml(d, appts) {
       <div class="gcal-mobile-day-head">
         <span class="gcal-dow">${WEEKDAY_LABELS[d.getDay()]}</span>
         <span class="gcal-daynum ${isToday ? "today-badge" : ""}">${d.getDate()}</span>
+        <button class="gcal-block-day-btn" data-block-day="${toDateStr(d)}" title="Bloquear o dia todo" style="margin-left:auto;">
+          <svg class="icon" style="width:11px;height:11px;"><use href="#icon-block"></use></svg>
+        </button>
       </div>
       <div class="gcal-mobile-day-list">${listHtml}</div>
     </div>`;
@@ -3571,6 +3928,40 @@ function gcalNowLineHtml(days) {
   return `<div class="gcal-now-line" style="top:${top}%;"></div>`;
 }
 
+// Bloqueia o dia inteiro (00:00–23:59) de uma vez, em vez de precisar ir em
+// Configurações preencher o formulário de bloqueio manualmente. Se um filtro
+// de barbeiro estiver ativo na Agenda, bloqueia só pra ele; sem filtro,
+// bloqueia pra barbearia toda (professionalId nulo — mesmo comportamento que
+// getBlocksFor já trata como "vale pra todos os barbeiros").
+async function blockWholeDay(dateStr) {
+  const filterSelect = document.getElementById("agenda-barber-filter");
+  const who = agendaBarberId
+    ? `só pro barbeiro ${filterSelect.options[filterSelect.selectedIndex]?.textContent || ""}`
+    : `pra barbearia toda (todos os barbeiros)`;
+  const ok = await showConfirmModal(`Bloquear o dia ${dateStr} inteiro ${who}? A IA para de oferecer horários nesse dia até você desbloquear em Configurações.`);
+  if (!ok) return;
+  const res = await fetch("/api/manage/time-blocks", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      type: "outro",
+      label: "Dia bloqueado",
+      professionalId: agendaBarberId || null,
+      recurring: false,
+      date: dateStr,
+      startTime: "00:00",
+      endTime: "23:59",
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    await showAlertModal(err.error || "Erro ao bloquear o dia.");
+    return;
+  }
+  timeBlocksCache = null; // invalida o cache pra Agenda buscar os bloqueios de novo
+  await renderAgenda();
+}
+
 async function renderAgenda() {
   await populateAgendaBarberFilter();
   await ensureServicesCache();
@@ -3610,6 +4001,9 @@ async function renderAgenda() {
                 <div class="gcal-daycol-head">
                   <span class="gcal-dow">${WEEKDAY_LABELS[d.getDay()]}</span>
                   <span class="gcal-daynum ${isToday ? "today-badge" : ""}">${d.getDate()}</span>
+                  <button class="gcal-block-day-btn" data-block-day="${toDateStr(d)}" title="Bloquear o dia todo">
+                    <svg class="icon" style="width:11px;height:11px;"><use href="#icon-block"></use></svg>
+                  </button>
                 </div>`;
               })
               .join("")}
@@ -3635,6 +4029,12 @@ async function renderAgenda() {
         const appt = appts.find((a) => a.id === Number(el.dataset.calAppt));
         if (!appt) return;
         openClientApptModal(appt);
+      });
+    });
+    body.querySelectorAll("[data-block-day]").forEach((el) => {
+      el.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        blockWholeDay(el.dataset.blockDay);
       });
     });
   } else {
@@ -4295,6 +4695,175 @@ document.getElementById("tone-examples-save-btn").addEventListener("click", asyn
   }
 });
 
+/* ---------------- Personalidade da IA ---------------- */
+async function loadAiPersonality() {
+  const data = await (await fetch("/api/manage/ai-personality")).json();
+  const radio = document.querySelector(`input[name="ai-personality"][value="${data.personality || "acolhedor"}"]`);
+  if (radio) radio.checked = true;
+}
+
+document.getElementById("ai-personality-save-btn").addEventListener("click", async () => {
+  const checked = document.querySelector('input[name="ai-personality"]:checked');
+  if (!checked) return;
+  const btn = document.getElementById("ai-personality-save-btn");
+  btn.disabled = true;
+  try {
+    const res = await fetch("/api/manage/ai-personality", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ personality: checked.value }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      await showAlertModal(err.error || "Erro ao salvar personalidade.");
+      return;
+    }
+    await showAlertModal("Personalidade da IA atualizada.", { variant: "success" });
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+/* ---------------- Prompt Mestre ---------------- */
+const MASTER_PROMPT_DEFAULT = `Regras de atendimento:
+
+1. NOME DO CLIENTE: Pergunte o nome APENAS se o cliente ainda não se identificou no histórico da conversa. Se ele já disse o nome antes, USE-O naturalmente nas respostas. Fale como uma pessoa real, não como um robô.
+2. Seja cordial, acolhedora e natural nas respostas.
+3. Use o nome do cliente nas respostas para criar proximidade.
+4. Ao agendar um horário, confirme: nome completo, data, horário, barbeiro e serviço.
+5. SEMPRE mencione o nome do barbeiro ao falar sobre serviços e agendamentos.
+6. Nunca invente informações sobre preços, serviços ou disponibilidade. Se não sabe, diga que vai verificar.
+7. Após confirmar agendamento, pergunte se o cliente tem mais alguma dúvida.
+8. ANTI-REPETIÇÃO: NUNCA repita perguntas que já fez. Consulte o histórico antes de cada resposta.
+9. Quando o cliente quiser agendar, avance direto para verificar horários. Não faça perguntas desnecessárias.
+10. PERGUNTAS TÉCNICAS OU SOBRE A PLATAFORMA: Se o cliente perguntar sobre configurações, timer, sistema, tecnologia ou algo que não seja sobre a barbearia, responda educadamente: "Essa informação eu não tenho aqui, mas posso anotar sua dúvida para a equipe responsável te retornar. Posso ajudar com algo sobre nossos serviços ou agendamento?"
+11. Você é a recepcionista virtual. NÃO fale sobre como você funciona, não mencione IA, inteligência artificial ou tecnologia. Apenas atenda como uma recepcionista normal faria.`;
+
+async function loadMasterPrompt() {
+  const data = await (await fetch("/api/manage/master-prompt")).json();
+  document.getElementById("master-prompt-input").value = data.master_prompt || MASTER_PROMPT_DEFAULT;
+}
+
+document.getElementById("master-prompt-reset-btn").addEventListener("click", async () => {
+  if (!(await showConfirmModal("Restaurar o Prompt Mestre padrão? Isso substitui o texto atual (só salva de verdade se você clicar em \"Salvar prompt mestre\" depois).", { destructive: false }))) {
+    return;
+  }
+  document.getElementById("master-prompt-input").value = MASTER_PROMPT_DEFAULT;
+});
+
+document.getElementById("master-prompt-save-btn").addEventListener("click", async () => {
+  const btn = document.getElementById("master-prompt-save-btn");
+  const masterPrompt = document.getElementById("master-prompt-input").value;
+  btn.disabled = true;
+  try {
+    const res = await fetch("/api/manage/master-prompt", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ masterPrompt }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      await showAlertModal(data.error || "Erro ao salvar o Prompt Mestre.");
+      return;
+    }
+    await showAlertModal("Prompt Mestre salvo.", { variant: "success" });
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+/* ---------------- Google Agenda por barbeiro + import de iCal ---------------- */
+async function loadGoogleCalendarSection() {
+  const list = document.getElementById("google-calendar-list");
+  const config = await (await fetch("/api/manage/google-calendar/config")).json();
+  if (!config.configured) {
+    list.innerHTML = `<div class="empty-state" style="padding:12px 0;">Integração com Google Agenda ainda não configurada nesta conta — em breve.</div>`;
+    return;
+  }
+  const barbers = (await (await fetch("/api/manage/barbers")).json()).filter((b) => b.active);
+  if (barbers.length === 0) {
+    list.innerHTML = `<div class="empty-state" style="padding:12px 0;">Nenhum barbeiro ativo.</div>`;
+    return;
+  }
+  const statuses = await Promise.all(
+    barbers.map((b) => fetch(`/api/manage/google-calendar/status?professionalId=${b.id}`).then((r) => r.json()))
+  );
+  list.innerHTML = barbers
+    .map(
+      (b, i) => `
+    <div class="item-row" data-gcal-row="${b.id}">
+      <div class="item-info">${escapeHtml(b.name)}
+        <div class="item-meta">${statuses[i].connected ? "Conectado" : "Não conectado"}</div>
+      </div>
+      ${
+        statuses[i].connected
+          ? `<button class="btn-secondary" data-gcal-disconnect="${b.id}">Desconectar</button>`
+          : `<button class="btn-secondary" data-gcal-connect="${b.id}">Conectar Google Agenda</button>`
+      }
+    </div>
+  `
+    )
+    .join("");
+  list.querySelectorAll("[data-gcal-connect]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.gcalConnect;
+      const res = await fetch(`/api/manage/google-calendar/connect?professionalId=${id}`);
+      const data = await res.json();
+      if (!res.ok) {
+        await showAlertModal(data.error || "Erro ao iniciar conexão com o Google.");
+        return;
+      }
+      window.location.href = data.url;
+    });
+  });
+  list.querySelectorAll("[data-gcal-disconnect]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.gcalDisconnect;
+      if (!(await showConfirmModal("Desconectar o Google Agenda desse barbeiro? Agendamentos futuros deixam de ser espelhados lá.", { destructive: false }))) return;
+      await fetch(`/api/manage/google-calendar/disconnect?professionalId=${id}`, { method: "POST" });
+      await loadGoogleCalendarSection();
+    });
+  });
+}
+
+async function loadIcalImportUrl() {
+  const data = await (await fetch("/api/manage/ical-import-url")).json();
+  document.getElementById("ical-import-url-input").value = data.ical_import_url || "";
+}
+
+document.getElementById("ical-import-url-save-btn").addEventListener("click", async () => {
+  const btn = document.getElementById("ical-import-url-save-btn");
+  const icalImportUrl = document.getElementById("ical-import-url-input").value.trim();
+  btn.disabled = true;
+  try {
+    const res = await fetch("/api/manage/ical-import-url", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ icalImportUrl }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      await showAlertModal(data.error || "Erro ao salvar a URL do calendário.");
+      return;
+    }
+    await showAlertModal("URL do calendário salva. A importação roda automaticamente 1x por dia.", { variant: "success" });
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// Feedback do redirect de volta do Google (ver googleCalendar.routes.ts
+// callback) — este <script> já roda no fim do <body>, DOM pronto, sem
+// precisar esperar DOMContentLoaded.
+(async function handleGoogleCalendarRedirect() {
+  const params = new URLSearchParams(location.search);
+  const status = params.get("google_calendar");
+  if (!status) return;
+  history.replaceState(null, "", location.pathname);
+  if (status === "ok") await showAlertModal("Google Agenda conectada com sucesso.", { variant: "success" });
+  else if (status === "error") await showAlertModal("Não foi possível conectar o Google Agenda. Tente de novo.");
+})();
+
 async function loadWhatsappConnectStatus() {
   const hint = document.getElementById("whatsapp-connect-hint");
   const steps = document.getElementById("whatsapp-connect-steps");
@@ -4952,6 +5521,7 @@ document.getElementById("billing-portal-btn").addEventListener("click", async (e
 /* ---------------- Page-level tabs ---------------- */
 let agendaLoaded = false;
 let conversasLoaded = false;
+let campanhasLoaded = false;
 let historicoLoaded = false;
 let auditoriaLoaded = false;
 let estoqueLoaded = false;
@@ -4963,7 +5533,7 @@ document.querySelectorAll("#page-tabs button").forEach((btn) => {
     document.querySelectorAll("#page-tabs button").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     const page = btn.dataset.page;
-    ["overview", "agenda", "tipos", "conversas", "historico", "estoque", "configuracoes", "auditoria"].forEach((p) => {
+    ["overview", "agenda", "tipos", "conversas", "campanhas", "historico", "estoque", "configuracoes", "auditoria"].forEach((p) => {
       document.getElementById(`page-${p}`).style.display = p === page ? "block" : "none";
     });
     if (page === "agenda" && !agendaLoaded) {
@@ -4978,6 +5548,10 @@ document.querySelectorAll("#page-tabs button").forEach((btn) => {
       conversasLoaded = true;
       await loadChatSessionList();
     }
+    if (page === "campanhas" && !campanhasLoaded) {
+      campanhasLoaded = true;
+      await loadCampaigns();
+    }
     if (page === "historico" && !historicoLoaded) {
       historicoLoaded = true;
       await Promise.all([loadHistory(), loadClients()]);
@@ -4988,7 +5562,7 @@ document.querySelectorAll("#page-tabs button").forEach((btn) => {
     }
     if (page === "configuracoes" && !configuracoesLoaded) {
       configuracoesLoaded = true;
-      await Promise.all([loadManageBarbers(), loadTimeBlocks(), loadBusinessHours(), loadBackups(), loadBillingStatus(), loadClientPlans(), loadWhatsappConnectStatus(), loadToneExamples()]);
+      await Promise.all([loadManageBarbers(), loadTimeBlocks(), loadBusinessHours(), loadBackups(), loadBillingStatus(), loadClientPlans(), loadWhatsappConnectStatus(), loadToneExamples(), loadAiPersonality(), loadMasterPrompt(), loadGoogleCalendarSection(), loadIcalImportUrl()]);
     }
     if (page === "auditoria") {
       auditoriaLoaded = true;

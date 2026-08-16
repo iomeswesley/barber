@@ -173,6 +173,13 @@
   .cal-day { border: 1px solid var(--divider); border-radius: 14px; padding: 8px 6px; background: var(--surface-raise); min-height: 80px; overflow: hidden; }
   .cal-day.today { border-color: var(--card-border-hover); }
   .cal-day-head { font-size: 10.5px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; white-space: nowrap; }
+  .gcal-block-day-btn {
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    width: 18px; height: 18px; border-radius: 5px;
+    border: 1px solid var(--card-border); background: transparent; color: var(--text-muted);
+    cursor: pointer; transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .gcal-block-day-btn:hover { background: var(--danger-soft); color: var(--danger); border-color: var(--danger); }
   .cal-appt { font-size: 10px; padding: 4px 5px; border-radius: 7px; margin-bottom: 4px; background: var(--brand-soft); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cal-appt.nao_compareceu { background: var(--danger-soft); }
   .cal-appt.concluido { background: var(--good-soft); }
@@ -725,7 +732,12 @@ async function renderMyAgenda() {
       const dayAppts = appts.filter((a) => a.date === toDateStr(d));
       const isToday = sameDay(d, new Date());
       return `<div class="cal-day ${isToday ? "today" : ""}">
-        <div class="cal-day-head">${WEEKDAY_LABELS[d.getDay()]} ${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}</div>
+        <div class="cal-day-head" style="display:flex; align-items:center; gap:5px;">
+          <span>${WEEKDAY_LABELS[d.getDay()]} ${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}</span>
+          <button class="gcal-block-day-btn" data-block-day="${toDateStr(d)}" title="Bloquear o dia todo" style="margin-left:auto;">
+            <svg class="icon" style="width:10px;height:10px;"><use href="#icon-block"></use></svg>
+          </button>
+        </div>
         ${dayAppts.length === 0 ? `<div class="empty-state" style="padding:4px; font-size:10.5px;">Livre</div>` : dayAppts.map((a) => `<div class="cal-appt ${a.computed_status}" data-cal-appt="${a.id}">${a.start_time} ${a.client_name}</div>`).join("")}
       </div>`;
     }).join("")}</div><div id="my-agenda-detail" style="margin-top:14px;"></div>`;
@@ -738,6 +750,25 @@ async function renderMyAgenda() {
         detail.innerHTML = apptRowHtml(appt);
         wireApptEditHandlers(detail, renderMyAgenda);
         await openApptEditForm(detail, appt.id);
+      });
+    });
+    body.querySelectorAll("[data-block-day]").forEach((el) => {
+      el.addEventListener("click", async (ev) => {
+        ev.stopPropagation();
+        const dateStr = el.dataset.blockDay;
+        const ok = await showConfirmModal(`Bloquear o dia ${dateStr} inteiro? A IA para de oferecer horário nesse dia até você desbloquear em "Meus bloqueios de horário".`);
+        if (!ok) return;
+        const res = await fetch("/api/barber/time-blocks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "outro", label: "Dia bloqueado", recurring: false, date: dateStr, startTime: "00:00", endTime: "23:59" }),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          await showAlertModal(err.error || "Erro ao bloquear o dia.");
+          return;
+        }
+        await renderMyAgenda();
       });
     });
   } else {
