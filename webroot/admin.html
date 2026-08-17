@@ -5765,7 +5765,7 @@ async function loadChatSummary() {
     return;
   }
   el.innerHTML = sessions
-    .slice(0, 5)
+    .slice(0, 7)
     .map(
       (s) => `
     <div class="item-row" style="cursor:pointer;" data-summary-phone="${escapeHtml(s.phone)}">
