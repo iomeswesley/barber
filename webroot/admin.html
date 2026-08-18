@@ -1902,22 +1902,14 @@ function applyBarberModeGating() {
 
   const analysisCard = document.getElementById("barber-analysis-card");
   if (analysisCard) analysisCard.style.display = solo ? "none" : "";
-
-  // Com um único barbeiro, "Análise por barbeiro" some e "Agendamentos de
-  // hoje" fica sozinho na grade de 2 colunas, com um vazio do lado — move
-  // "Avaliações dos clientes" pra esse espaço em vez de deixá-lo em branco
-  // (e volta pro lugar de sempre, abaixo, se voltar a ter mais de um barbeiro).
-  const reviewsCard = document.getElementById("reviews-card");
-  const reviewsSectionTitle = document.getElementById("reviews-section-title");
-  const reviewsCardTitle = document.getElementById("reviews-card-title");
-  const overviewGridTwo = document.querySelector(".overview-grid-two");
-  if (reviewsCard && reviewsSectionTitle && overviewGridTwo) {
-    const isInGrid = reviewsCard.parentElement === overviewGridTwo;
-    if (solo && !isInGrid) overviewGridTwo.appendChild(reviewsCard);
-    if (!solo && isInGrid) reviewsSectionTitle.insertAdjacentElement("afterend", reviewsCard);
-    reviewsSectionTitle.style.display = solo ? "none" : "";
-    reviewsCardTitle.style.display = solo ? "" : "none";
-  }
+  // "Avaliações dos clientes" ficava realocada pra dentro de
+  // .overview-grid-two em modo solo, preenchendo o espaço que "Análise por
+  // barbeiro" deixava vago ali — desde a Fase 5 (Atendimentos/Métricas),
+  // barber-analysis-card não mora mais nessa grade (foi pra Métricas), então
+  // essa grade sempre tem os 2 slots ocupados (Agendamentos de hoje +
+  // Conversas do WhatsApp) e não sobra vaga nenhuma. Realocar o card ali
+  // agora só o espremia pra metade da largura sem necessidade — reviews-card
+  // fica sempre no lugar padrão (largura cheia), independente do modo.
 
   const histFilterField = document.getElementById("hist-barber-filter-field");
   if (histFilterField) histFilterField.style.display = solo ? "none" : "";
