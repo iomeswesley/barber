@@ -31,7 +31,7 @@ O design system é estilo **Cal.com** desde 2026-08-15 (antes era "Google style"
 - **Migrations do Prisma**: nunca rodar `prisma migrate dev` direto — ele detecta "drift" por causa da tabela `session` (criada em runtime pelo `connect-pg-simple`, fora do controle de migrations do Prisma) e tenta oferecer um **reset completo do banco de produção**. Sempre criar a pasta de migration manualmente (copiando o padrão de `prisma/migrations/*/migration.sql`) e aplicar com `npx prisma migrate deploy`, que só aplica migrations pendentes sem checar drift.
 - **Testes de integração** usam o banco real — sempre prefixar dados de teste com `[teste]` e limpar no `afterAll` (ver `src/modules/appointments/appointments.service.test.ts` como modelo). Nunca rodar ações reais (reset de senha, cobrança, envio de WhatsApp) contra contas de clientes de verdade — criar um registro `[teste]` descartável, validar, apagar.
 
-## Status (última atualização: 2026-08-16)
+## Status (última atualização: 2026-08-18)
 
 Tudo abaixo já está implementado e em produção — o README pode estar desatualizado em relação a isso, checar o código antes de assumir que algo é "próximo passo":
 
@@ -55,6 +55,11 @@ Migrations aplicadas via `prisma migrate deploy` (nunca `migrate dev`, mesma cau
 **Env vars novas, ainda não configuradas em produção**: `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` — sem elas o botão "Conectar Google Agenda" fica desligado (mensagem "ainda não configurada"), não quebra nada. Pra ativar: criar OAuth Client ID no Google Cloud Console (tipo "Web application", redirect URI `https://<domínio>/api/manage/google-calendar/callback`) e configurar as duas env vars na Vercel.
 
 **Retoques de UI pós-port (mesmo dia)**: hint da mensagem de campanha (`Nova campanha de reativação`) estava saindo grande/sem estilo porque a classe `.field-hint` nunca tinha CSS definido — trocado por `style` inline pequeno e mudo (11.5px, `--text-muted`); botão de salvar aniversário na tabela de clientes estava empilhando embaixo do campo de data — envolvido num `display:flex` pra ficar ao lado. Mesmo ajuste feito no odonto-saas.
+
+### Sessão de troubleshooting pós-port (2026-08-18)
+
+- **`VAPID_SUBJECT` configurado** — já existiam `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` em produção (não mexer nessas duas, existem inscrições de push já vinculadas a essa chave pública), só faltava o `mailto:` de contato exigido pelo protocolo Web Push. Confirmado via `GET /api/push/vapid-public-key` retornando a chave — push notifications funcionando ponta a ponta agora.
+- **Corrigido bug de largura do card "Avaliações" em modo barbeiro-único** (mesmo bug do `odonto-saas`, herdado do port de 16/08): `applyBarberModeGating()` ainda tentava realocar `reviews-card` pra dentro de `.overview-grid-two` pra preencher a vaga que `barber-analysis-card` deixava ali — mas desde a Fase 5 (split Atendimentos/Métricas) esse card não mora mais nessa grade (foi pra Métricas), então a grade sempre tem os 2 slots ocupados (Agendamentos de hoje + Conversas do WhatsApp) e a realocação só espremia "Avaliações" pra metade da largura à toa. Removida a realocação.
 
 - Onboarding self-service, LGPD (privacidade/termos/exclusão), Sentry, headers de segurança (helmet), recuperação de senha, cobrança via Stripe (Starter/Pro).
 - WhatsApp Cloud API oficial da Meta (não Baileys) — `src/lib/whatsapp.ts` + `src/modules/whatsapp/`, com Message Templates aprovados pra lembrete/reagendamento/reconquista.
