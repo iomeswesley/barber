@@ -359,7 +359,7 @@
   .panel h2 { margin: 0 0 2px; font-size: 15.5px; font-weight: 700; }
   .panel .hint { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; }
 
-  .overview-grid-two .panel { height: 640px; }
+  .overview-grid-two .panel { height: 640px; overflow: hidden; }
 
   .barber-bar-wrap { height: 190px; margin-bottom: 8px; flex-shrink: 0; }
 
@@ -482,6 +482,14 @@
   .item-row .item-meta { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; font-weight: 400; }
   .item-row.inactive { opacity: .5; }
   .item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+  /* Resumo de conversas (card de altura fixa em .overview-grid-two): sem
+     nome de cliente, o fallback é o telefone/id da sessão — às vezes bem
+     longo, e sem truncar ele quebra em 2 linhas, engordando a linha o
+     suficiente pra a 7ª conversa vazar do card fixo de 640px e sobrepor o
+     card de Avaliações logo abaixo. Trava numa linha só, com reticências. */
+  .chat-summary-row .item-info { min-width: 0; flex: 1; }
+  .chat-summary-row .chat-summary-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .icon-btn {
     border: 1px solid var(--card-border); background: var(--card-bg); color: var(--text-secondary);
@@ -5760,9 +5768,9 @@ async function loadChatSummary() {
     .slice(0, 7)
     .map(
       (s) => `
-    <div class="item-row" style="cursor:pointer;" data-summary-phone="${escapeHtml(s.phone)}">
+    <div class="item-row chat-summary-row" style="cursor:pointer;" data-summary-phone="${escapeHtml(s.phone)}">
       <div class="item-info">
-        ${escapeHtml(s.clientName || s.phone)}
+        <div class="chat-summary-name">${escapeHtml(s.clientName || s.phone)}</div>
         <div class="item-meta">${s.lastMessage ? escapeHtml(s.lastMessage.text.slice(0, 60)) : "Sem mensagens"} · ${timeAgo(s.updatedAt)}</div>
       </div>
       <span class="csi-status ${s.needsAttention ? "attention" : "ok"}"><span class="dot"></span>${s.needsAttention ? "Atenção" : "IA"}</span>
