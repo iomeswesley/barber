@@ -310,9 +310,13 @@ async function executeTool(barbershop: Business, name: string, input: any, custo
       const clientRecord = await getClientByPhone(customerPhone);
       await createEscalation(barbershop.id, { clientId: clientRecord?.id, clientPhone: customerPhone, reason: input.motivo });
       await setNeedsAttention(barbershop.id, customerPhone, true);
-      // Fire-and-forget: notificação é um "nice to have", não deve atrasar
-      // nem quebrar a resposta ao cliente se o envio falhar.
-      notifyEscalation(barbershop.id, clientRecord?.name ?? null, input.motivo).catch(() => {});
+      // Notificação é um "nice to have" — nunca deve quebrar a resposta ao
+      // cliente se o envio falhar (notifyEscalation já engole erro
+      // internamente). Precisa de `await` (não fire-and-forget) porque o
+      // processo roda como função serverless na Vercel: a execução pode ser
+      // congelada assim que este handler terminar, matando uma Promise
+      // solta antes dela completar o envio do push.
+      await notifyEscalation(barbershop.id, clientRecord?.name ?? null, input.motivo);
       return { escalado: true };
     }
     case "criar_agendamento": {
@@ -329,8 +333,9 @@ async function executeTool(barbershop: Business, name: string, input: any, custo
         date: input.data,
         startTime: input.horario,
       });
-      // Notifica barbeiros via push (fire-and-forget, não bloqueia a resposta)
-      notifyNewAppointment(barbershop.id, appointment).catch(() => {});
+      // Notifica barbeiros via push — `await` pelo mesmo motivo da
+      // escalação acima (serverless na Vercel).
+      await notifyNewAppointment(barbershop.id, appointment);
       return {
         agendamento_id: appointment.id,
         confirmado: true,
