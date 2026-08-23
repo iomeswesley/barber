@@ -126,10 +126,13 @@ export async function createAppointment(input: {
     clientPlanSubscriptionId: charge.subscriptionId,
     planCreditConsumed: charge.creditConsumed,
   });
-  // Fire-and-forget: espelhar no Google Agenda do barbeiro (se conectado)
-  // é um "nice to have", nunca deve atrasar nem quebrar a resposta do
-  // agendamento em si (ver mirrorAppointmentToGoogle).
-  mirrorAppointmentToGoogle(created).catch(() => {});
+  // Espelhar no Google Agenda do barbeiro (se conectado) nunca quebra o
+  // agendamento em si — mirrorAppointmentToGoogle engole qualquer erro
+  // internamente e só loga. Precisa de `await` (não fire-and-forget) porque
+  // o processo roda como função serverless na Vercel: assim que a resposta
+  // HTTP é enviada, a execução pode ser congelada a qualquer momento, e uma
+  // Promise solta nunca chegaria a completar a chamada de rede pro Google.
+  await mirrorAppointmentToGoogle(created);
   return created;
 }
 
@@ -157,7 +160,9 @@ export async function rescheduleAppointment(id: number, newDate: string, newStar
   const rescheduled = (await getAppointmentById(id))!;
   // Se já existia evento espelhado (googleEventId), isso vira um PATCH no
   // Google (mesmo evento, novo horário) em vez de criar um segundo.
-  mirrorAppointmentToGoogle(rescheduled).catch(() => {});
+  // `await` pelo mesmo motivo de createAppointment: serverless na Vercel
+  // pode congelar a execução assim que a resposta HTTP sai.
+  await mirrorAppointmentToGoogle(rescheduled);
   return rescheduled;
 }
 
@@ -169,7 +174,8 @@ export async function cancelAppointment(id: number): Promise<AppointmentDTO> {
     await decrementUsedThisPeriod(cancelled.clientPlanSubscriptionId);
   }
   const result = (await getAppointmentById(id))!;
-  removeAppointmentFromGoogle(result).catch(() => {});
+  // `await` pelo mesmo motivo de createAppointment (serverless na Vercel).
+  await removeAppointmentFromGoogle(result);
   return result;
 }
 
