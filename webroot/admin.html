@@ -4163,15 +4163,35 @@ async function populateHistBarberFilter() {
   histBarberFilterPopulated = true;
 }
 
-function renderPie(canvasId, existingChart, entries, { legendPosition = "bottom" } = {}) {
+// Mapa nome -> cor pro gráfico "por barbeiro": cor fixada pela posição do
+// barbeiro no elenco completo (GET /api/manage/barbers, orderBy id asc —
+// ordem de criação, nunca muda), não pela posição dele DENTRO do gráfico.
+// Sem isso, a cor vinha de colors[i % length] sobre as entries do período
+// (renderPie original) — um barbeiro sem faturamento num mês some da
+// lista e desloca a cor de todo mundo depois dele, então o mesmo barbeiro
+// trocava de cor de um mês pro outro. Por nome (não por id) porque é o
+// único identificador que a API de histórico devolve aqui (byBarber
+// agrupa por nome). Invalidado a cada troca de tema (refreshChartsTheme),
+// já que a paleta clara/escura são arrays diferentes.
+let barberColorMap = null;
+async function getBarberColorMap() {
+  if (barberColorMap) return barberColorMap;
+  const barbers = await (await fetch("/api/manage/barbers")).json();
+  const colors = isDark() ? PIE_COLORS_DARK : PIE_COLORS_LIGHT;
+  barberColorMap = new Map(barbers.map((b, i) => [b.name, colors[i % colors.length]]));
+  return barberColorMap;
+}
+
+function renderPie(canvasId, existingChart, entries, { legendPosition = "bottom", colorMap = null } = {}) {
   const ctx = document.getElementById(canvasId).getContext("2d");
   const colors = isDark() ? PIE_COLORS_DARK : PIE_COLORS_LIGHT;
+  const colorForEntry = (entry, i) => (colorMap && colorMap.get(entry.name)) || colors[i % colors.length];
   if (existingChart) existingChart.destroy();
   return new Chart(ctx, {
     type: "doughnut",
     data: {
       labels: entries.map((e) => e.name.toUpperCase()),
-      datasets: [{ data: entries.map((e) => e.revenue), backgroundColor: entries.map((_, i) => colors[i % colors.length]) }],
+      datasets: [{ data: entries.map((e) => e.revenue), backgroundColor: entries.map(colorForEntry) }],
     },
     options: {
       responsive: true,
@@ -4201,7 +4221,7 @@ async function loadHistory() {
   document.getElementById("hist-revenue").textContent = currency(data.totalRevenue);
   document.getElementById("hist-count").textContent = data.totalCount;
 
-  histBarberPie = renderPie("hist-barber-pie", histBarberPie, data.byBarber);
+  histBarberPie = renderPie("hist-barber-pie", histBarberPie, data.byBarber, { colorMap: await getBarberColorMap() });
   histServicePie = renderPie("hist-service-pie", histServicePie, data.byService, { legendPosition: "right" });
 }
 
@@ -5629,6 +5649,7 @@ document.querySelectorAll("#page-tabs button").forEach((btn) => {
 /* ---------------- Orchestration ---------------- */
 let meLoaded = false;
 function refreshChartsTheme() {
+  barberColorMap = null; // paleta clara/escura são arrays diferentes — reconstrói no próximo loadHistory()
   if (meLoaded) {
     loadRevenueChart();
     loadOccupancyChart();
