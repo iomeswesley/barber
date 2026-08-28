@@ -1,10 +1,12 @@
 import { prisma } from "@/lib/prisma.js";
 import type Anthropic from "@anthropic-ai/sdk";
 
-// Fire-and-forget: telemetria de custo não deve atrasar nem quebrar a
-// resposta ao cliente se o insert falhar.
-export function logChatUsage(businessId: number, model: string, usage: Anthropic.Usage): void {
-  prisma.chatUsageLog
+// Nunca lança (erro só é logado) e nunca bloqueia o fluxo do bot em si —
+// mas precisa ser aguardado pelo chamador: em função serverless a Promise
+// pode ser congelada assim que a resposta HTTP sai, matando o insert antes
+// de terminar (mesmo bug do fire-and-forget do Google Agenda, 2026-08-23).
+export async function logChatUsage(businessId: number, model: string, usage: Anthropic.Usage): Promise<void> {
+  await prisma.chatUsageLog
     .create({
       data: {
         businessId,

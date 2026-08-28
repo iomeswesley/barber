@@ -725,7 +725,7 @@ export async function sendMessage(
             output_config: { effort: "low" },
           });
 
-          logChatUsage(businessId, MODEL, response.usage);
+          await logChatUsage(businessId, MODEL, response.usage);
 
           session.messages.push({ role: "assistant", content: response.content });
 
