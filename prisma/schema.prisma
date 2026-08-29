@@ -65,6 +65,42 @@ enum ProfessionalPayoutStatus {
   paid
 }
 
+// Como o pagamento de um agendamento foi recebido — sem integração real com
+// nenhuma maquininha (TEF): "cartao" cobre qualquer adquirente que a
+// barbearia já tenha (Stone, Cielo, Rede etc.), o dono só registra que foi
+// no cartão pra fechar o financeiro. Ver CLAUDE.md sobre a diferença entre
+// reconciliação manual (isso aqui) e integração TEF de verdade (fora de
+// escopo por depender de virar parceiro homologado de um adquirente específico).
+enum PaymentMethod {
+  dinheiro
+  pix
+  cartao
+  outro
+}
+
+enum ExpenseStatus {
+  open
+  paid
+}
+
+enum CouponDiscountType {
+  percent
+  fixed
+}
+
+enum StockMovementType {
+  entrada
+  saida
+  ajuste
+}
+
+enum WaitlistStatus {
+  aguardando
+  notificado
+  atendido
+  expirado
+}
+
 model Business {
   id                    Int      @id @default(autoincrement())
   name                  String
@@ -134,6 +170,11 @@ model Business {
   clientPlanSubscriptions ClientPlanSubscription[]
   campaigns               Campaign[]
   professionalPayouts     ProfessionalPayout[]
+  expenses                Expense[]
+  coupons                 Coupon[]
+  suppliers               Supplier[]
+  stockMovements          StockMovement[]
+  waitlistEntries         WaitlistEntry[]
 
   @@map("businesses")
 }
@@ -161,12 +202,13 @@ model Professional {
   googleCalendarId              String?   @map("google_calendar_id")
   googleCalendarConnectedAt     DateTime? @map("google_calendar_connected_at")
 
-  business     Business             @relation(fields: [businessId], references: [id])
-  appointments Appointment[]
-  users        User[]
-  timeBlocks   TimeBlock[]
-  reviews      Review[]
-  payouts      ProfessionalPayout[]
+  business        Business             @relation(fields: [businessId], references: [id])
+  appointments    Appointment[]
+  users           User[]
+  timeBlocks      TimeBlock[]
+  reviews         Review[]
+  payouts         ProfessionalPayout[]
+  waitlistEntries WaitlistEntry[]
 
   @@index([businessId])
   @@map("professionals")
@@ -180,9 +222,10 @@ model Service {
   durationMin Int    @map("duration_min")
   active     Boolean @default(true)
 
-  business     Business      @relation(fields: [businessId], references: [id])
-  appointments Appointment[]
-  clientPlans  ClientPlan[]
+  business        Business        @relation(fields: [businessId], references: [id])
+  appointments    Appointment[]
+  clientPlans     ClientPlan[]
+  waitlistEntries WaitlistEntry[]
 
   @@index([businessId])
   @@map("services")
@@ -207,6 +250,7 @@ model Client {
   escalations             Escalation[]
   clientPlanSubscriptions ClientPlanSubscription[]
   campaignSends           CampaignSend[]
+  waitlistEntries         WaitlistEntry[]
 
   @@map("clients")
 }
@@ -245,6 +289,18 @@ model Appointment {
   clientPlanSubscriptionId Int?    @map("client_plan_subscription_id")
   planCreditConsumed       Boolean @default(false) @map("plan_credit_consumed")
 
+  // Como o cliente pagou — registrado manualmente pelo dono/barbeiro (ver
+  // enum PaymentMethod). Null até alguém marcar; não é preenchido
+  // automaticamente pelo bot (o WhatsApp não sabe como o cliente vai pagar
+  // na hora, só o próprio atendimento sabe).
+  paymentMethod PaymentMethod? @map("payment_method")
+  // Cupom aplicado nesse agendamento (desconto manual do painel — o bot do
+  // WhatsApp não oferece cupom sozinho, evita a IA "inventar" desconto).
+  // priceChargedCents já reflete o preço com desconto quando um cupom é usado
+  // (mesmo campo que clientPlan já usa pra isso — um agendamento não tem os
+  // dois ao mesmo tempo na v1).
+  couponId Int? @map("coupon_id")
+
   // Nota livre e opcional sobre o atendimento (ex: preferência de corte,
   // produto que o cliente reagiu mal, pedido especial) — não é um
   // prontuário estruturado, só um registro rápido pra consultar no
@@ -257,6 +313,7 @@ model Appointment {
   service                Service                 @relation(fields: [serviceId], references: [id])
   client                 Client                  @relation(fields: [clientId], references: [id])
   clientPlanSubscription ClientPlanSubscription? @relation(fields: [clientPlanSubscriptionId], references: [id])
+  coupon                 Coupon?                 @relation(fields: [couponId], references: [id])
   review                 Review?
   productSales           ProductSale[]
 
@@ -428,6 +485,84 @@ model ProfessionalPayout {
   @@map("professional_payouts")
 }
 
+// Contas a pagar — despesa avulsa da barbearia (aluguel, produto de
+// fornecedor, conta de luz...), sem vínculo com agendamento/cliente. Só o
+// básico pra o dono saber o que tem vencendo, não é um módulo contábil
+// completo (sem recorrência automática, sem categoria fixa — category é
+// texto livre de propósito, pra não travar o dono num enum fechado antes de
+// saber quais categorias ele realmente usa).
+model Expense {
+  id          Int           @id @default(autoincrement())
+  businessId  Int           @map("business_id")
+  description String
+  amountCents Int           @map("amount_cents")
+  dueDate     DateTime      @db.Date @map("due_date")
+  status      ExpenseStatus @default(open)
+  paidAt      DateTime?     @map("paid_at")
+  category    String?
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@index([businessId])
+  @@map("expenses")
+}
+
+// Cupom de desconto aplicado manualmente pelo dono/barbeiro ao fechar um
+// agendamento (ver Appointment.couponId) — o bot de WhatsApp não oferece
+// cupom sozinho de propósito, pra não abrir brecha da IA "inventar" desconto
+// numa conversa. discountValue é percentual (1-100) quando discountType é
+// "percent", ou centavos quando é "fixed" — mesmo padrão de
+// ClientPlan.benefitValue (contextual ao type ao lado).
+model Coupon {
+  id            Int                @id @default(autoincrement())
+  businessId    Int                @map("business_id")
+  code          String
+  discountType  CouponDiscountType @map("discount_type")
+  discountValue Int                @map("discount_value")
+  validFrom     DateTime?          @db.Date @map("valid_from")
+  validTo       DateTime?          @db.Date @map("valid_to")
+  usageLimit    Int?               @map("usage_limit")
+  usedCount     Int                @default(0) @map("used_count")
+  active        Boolean            @default(true)
+  createdAt     DateTime           @default(now()) @map("created_at")
+
+  business     Business      @relation(fields: [businessId], references: [id])
+  appointments Appointment[]
+
+  @@unique([businessId, code])
+  @@index([businessId])
+  @@map("coupons")
+}
+
+// Cliente que pediu (ou o bot ofereceu) pra ser avisado se abrir horário
+// dentro de um período que hoje não tem vaga — ver a tool
+// entrar_lista_espera em chatEngine.ts. desiredDateStart/End é o período que
+// o cliente aceita (pode ser um único dia). professionalId/serviceId nulos
+// = qualquer profissional/o profissional já combinado antes, dependendo do
+// fluxo; resolvido em código, não aqui.
+model WaitlistEntry {
+  id               Int            @id @default(autoincrement())
+  businessId       Int            @map("business_id")
+  clientId         Int            @map("client_id")
+  professionalId   Int?           @map("professional_id")
+  serviceId        Int?           @map("service_id")
+  desiredDateStart DateTime       @db.Date @map("desired_date_start")
+  desiredDateEnd   DateTime       @db.Date @map("desired_date_end")
+  status           WaitlistStatus @default(aguardando)
+  notifiedAt       DateTime?      @map("notified_at")
+  createdAt        DateTime       @default(now()) @map("created_at")
+
+  business     Business      @relation(fields: [businessId], references: [id])
+  client       Client        @relation(fields: [clientId], references: [id])
+  professional Professional? @relation(fields: [professionalId], references: [id])
+  service      Service?      @relation(fields: [serviceId], references: [id])
+
+  @@index([businessId])
+  @@index([status])
+  @@map("waitlist_entries")
+}
+
 model Product {
   id                Int     @id @default(autoincrement())
   businessId        Int     @map("business_id")
@@ -436,12 +571,61 @@ model Product {
   active            Boolean @default(true)
   stockQuantity     Int     @default(0) @map("stock_quantity")
   lowStockThreshold Int     @default(5) @map("low_stock_threshold")
+  // Opcional — quem fornece esse produto (ver Supplier). Null é normal pra
+  // barbearia que nunca cadastrou fornecedor, não é obrigatório preencher.
+  supplierId        Int?    @map("supplier_id")
 
-  business     Business      @relation(fields: [businessId], references: [id])
-  productSales ProductSale[]
+  business       Business        @relation(fields: [businessId], references: [id])
+  supplier       Supplier?       @relation(fields: [supplierId], references: [id])
+  productSales   ProductSale[]
+  stockMovements StockMovement[]
 
   @@index([businessId])
   @@map("products")
+}
+
+// Fornecedor de produto (Meu Estabelecimento → Estoque). Cadastro simples de
+// propósito — sem CNPJ obrigatório, sem pedido de compra estruturado, só
+// "de quem eu compro isso" pra saber quem contatar quando o estoque baixar.
+model Supplier {
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
+  name       String
+  phone      String?
+  document   String? // CNPJ/CPF, opcional
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  business Business  @relation(fields: [businessId], references: [id])
+  products Product[]
+
+  @@index([businessId])
+  @@map("suppliers")
+}
+
+// Histórico de toda mudança de stockQuantity de um produto — hoje
+// Product.stockQuantity só guarda o número atual, sem rastro de como chegou
+// lá. Toda venda (ProductSale), edição manual de estoque e contagem de
+// inventário passam a gravar uma linha aqui, dando auditoria de verdade em
+// vez de só o saldo corrente. quantity é sempre positivo — o sinal vem do
+// `type` (entrada soma, saida/ajuste negativo subtrai — ajuste positivo
+// também é possível, ex: sobra encontrada na contagem).
+model StockMovement {
+  id         Int               @id @default(autoincrement())
+  businessId Int               @map("business_id")
+  productId  Int               @map("product_id")
+  type       StockMovementType
+  quantity   Int
+  reason     String?
+  createdBy  String            @map("created_by")
+  createdAt  DateTime          @default(now()) @map("created_at")
+
+  business Business @relation(fields: [businessId], references: [id])
+  product  Product  @relation(fields: [productId], references: [id])
+
+  @@index([businessId])
+  @@index([productId])
+  @@map("stock_movements")
 }
 
 model ProductSale {

@@ -4,6 +4,7 @@ export function getProducts(businessId: number, { includeInactive = false } = {}
   return prisma.product.findMany({
     where: { businessId, ...(includeInactive ? {} : { active: true }) },
     orderBy: { id: "asc" },
+    include: { supplier: { select: { name: true } } },
   });
 }
 
@@ -11,35 +12,80 @@ export function getProduct(id: number) {
   return prisma.product.findUnique({ where: { id } });
 }
 
-export function createProduct(
+// Grava uma linha de histórico pra toda mudança de stockQuantity — ver
+// comentário do model StockMovement no schema. createdBy default "sistema"
+// cobre chamadores internos que não têm sessão de usuário (nenhum hoje, mas
+// evita quebrar se algum job futuro mexer em estoque direto).
+export function logStockMovement(
   businessId: number,
-  { name, priceCents, stockQuantity, lowStockThreshold }: { name: string; priceCents: number; stockQuantity?: number; lowStockThreshold?: number }
+  productId: number,
+  type: "entrada" | "saida" | "ajuste",
+  quantity: number,
+  reason: string | null,
+  createdBy = "sistema"
 ) {
-  return prisma.product.create({
+  if (quantity <= 0) return Promise.resolve(null);
+  return prisma.stockMovement.create({ data: { businessId, productId, type, quantity, reason, createdBy } });
+}
+
+export async function createProduct(
+  businessId: number,
+  {
+    name,
+    priceCents,
+    stockQuantity,
+    lowStockThreshold,
+    supplierId,
+  }: { name: string; priceCents: number; stockQuantity?: number; lowStockThreshold?: number; supplierId?: number | null },
+  createdBy = "sistema"
+) {
+  const product = await prisma.product.create({
     data: {
       businessId,
       name,
       priceCents,
       stockQuantity: stockQuantity || 0,
       lowStockThreshold: lowStockThreshold ?? 5,
+      supplierId: supplierId ?? null,
     },
   });
+  if (product.stockQuantity > 0) {
+    await logStockMovement(businessId, product.id, "entrada", product.stockQuantity, "Estoque inicial", createdBy);
+  }
+  return product;
 }
 
 export async function updateProduct(
   id: number,
-  { name, priceCents, stockQuantity, lowStockThreshold }: { name: string; priceCents: number; stockQuantity?: number; lowStockThreshold?: number }
+  {
+    name,
+    priceCents,
+    stockQuantity,
+    lowStockThreshold,
+    supplierId,
+  }: { name: string; priceCents: number; stockQuantity?: number; lowStockThreshold?: number; supplierId?: number | null },
+  createdBy = "sistema"
 ) {
   const current = await prisma.product.findUniqueOrThrow({ where: { id } });
-  return prisma.product.update({
+  const newStock = stockQuantity !== undefined ? stockQuantity : current.stockQuantity;
+  const updated = await prisma.product.update({
     where: { id },
     data: {
       name,
       priceCents,
-      stockQuantity: stockQuantity !== undefined ? stockQuantity : current.stockQuantity,
+      stockQuantity: newStock,
       lowStockThreshold: lowStockThreshold !== undefined ? lowStockThreshold : current.lowStockThreshold,
+      supplierId: supplierId !== undefined ? supplierId : current.supplierId,
     },
   });
+  // Ajuste manual do estoque atual (não venda) — só loga se o número
+  // realmente mudou, senão toda edição de nome/preço geraria um movimento
+  // fantasma de quantidade zero.
+  const delta = newStock - current.stockQuantity;
+  if (delta !== 0) {
+    await logStockMovement(current.businessId, id, "ajuste", Math.abs(delta), delta > 0 ? "Ajuste manual (entrada)" : "Ajuste manual (saída)", createdBy);
+  }
+  return updated;
 }
 
 export function setProductActive(id: number, active: boolean) {
@@ -57,7 +103,8 @@ export async function getStockOverview(businessId: number) {
 
 export async function createProductSale(
   businessId: number,
-  { clientId, productId, quantity, date, appointmentId }: { clientId: number; productId: number; quantity?: number; date: string; appointmentId?: number | null }
+  { clientId, productId, quantity, date, appointmentId }: { clientId: number; productId: number; quantity?: number; date: string; appointmentId?: number | null },
+  createdBy = "sistema"
 ) {
   const qty = quantity || 1;
   const sale = await prisma.productSale.create({
@@ -72,6 +119,7 @@ export async function createProductSale(
     include: { product: { select: { name: true, priceCents: true } } },
   });
   await adjustProductStock(productId, -qty);
+  await logStockMovement(businessId, productId, "saida", qty, "Venda", createdBy);
   return { ...sale, productName: sale.product.name, priceCents: sale.product.priceCents };
 }
 
@@ -89,12 +137,16 @@ export async function getProductSalesForAppointment(appointmentId: number) {
 // o que foi registrado antes — senão re-salvar o mesmo agendamento sem mudanças
 // duplicaria a venda. O estoque é restaurado antes de deduzir de novo, então
 // editar um agendamento nunca drena silenciosamente estoque que nunca foi vendido.
+// A restauração em si não gera StockMovement (é reversão de um reenvio de
+// formulário, não um evento de negócio novo) — só a venda final registrada
+// de novo via createProductSale entra no histórico.
 export async function replaceAppointmentProductSales(
   businessId: number,
   clientId: number,
   appointmentId: number,
   date: string,
-  sales: { productId: number; quantity: number }[]
+  sales: { productId: number; quantity: number }[],
+  createdBy = "sistema"
 ) {
   const old = await getProductSalesForAppointment(appointmentId);
   for (const o of old) {
@@ -103,13 +155,17 @@ export async function replaceAppointmentProductSales(
   await prisma.productSale.deleteMany({ where: { appointmentId } });
   for (const s of sales) {
     if (!s.productId) continue;
-    await createProductSale(businessId, {
-      clientId,
-      productId: s.productId,
-      quantity: s.quantity || 1,
-      date,
-      appointmentId,
-    });
+    await createProductSale(
+      businessId,
+      {
+        clientId,
+        productId: s.productId,
+        quantity: s.quantity || 1,
+        date,
+        appointmentId,
+      },
+      createdBy
+    );
   }
   return getProductSalesForAppointment(appointmentId);
 }
@@ -163,4 +219,34 @@ export async function getProductSalesWithAppointment(
     appointmentId: s.appointmentId as number,
     amountCents: s.quantity * s.product.priceCents,
   }));
+}
+
+/* ---------------- Fornecedores ---------------- */
+
+export function getSuppliers(businessId: number, { includeInactive = false } = {}) {
+  return prisma.supplier.findMany({ where: { businessId, ...(includeInactive ? {} : { active: true }) }, orderBy: { name: "asc" } });
+}
+
+export function getSupplier(id: number) {
+  return prisma.supplier.findUnique({ where: { id } });
+}
+
+export function createSupplier(businessId: number, data: { name: string; phone?: string | null; document?: string | null }) {
+  return prisma.supplier.create({ data: { businessId, name: data.name, phone: data.phone || null, document: data.document || null } });
+}
+
+export function setSupplierActive(id: number, active: boolean) {
+  return prisma.supplier.update({ where: { id }, data: { active } });
+}
+
+/* ---------------- Movimentação de estoque ---------------- */
+
+export async function getStockMovements(businessId: number, { productId, limit = 50 }: { productId?: number; limit?: number } = {}) {
+  const movements = await prisma.stockMovement.findMany({
+    where: { businessId, ...(productId ? { productId } : {}) },
+    include: { product: { select: { name: true } } },
+    orderBy: { id: "desc" },
+    take: limit,
+  });
+  return movements.map((m) => ({ ...m, productName: m.product.name }));
 }

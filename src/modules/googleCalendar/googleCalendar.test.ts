@@ -56,6 +56,9 @@ function fakeAppointmentDTO(overrides: Partial<AppointmentDTO> & Pick<Appointmen
     notes: null,
     confirmationToken: null,
     googleEventId: null,
+    paymentMethod: null,
+    couponId: null,
+    clientPlanSubscriptionId: null,
     ...overrides,
   };
 }

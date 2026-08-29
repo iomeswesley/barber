@@ -27,6 +27,9 @@ export interface AppointmentDTO {
   notes: string | null;
   confirmationToken: string | null;
   googleEventId: string | null;
+  paymentMethod: string | null;
+  couponId: number | null;
+  clientPlanSubscriptionId: number | null;
 }
 
 export const appointmentInclude = {
@@ -78,5 +81,8 @@ export function toAppointmentDTO(a: AppointmentWithRelations): AppointmentDTO {
     notes: a.notes,
     confirmationToken: a.confirmationToken,
     googleEventId: a.googleEventId,
+    paymentMethod: a.paymentMethod,
+    couponId: a.couponId,
+    clientPlanSubscriptionId: a.clientPlanSubscriptionId,
   };
 }

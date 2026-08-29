@@ -115,7 +115,15 @@ export async function confirmAppointmentByToken(token: string): Promise<Appointm
 
 export async function updateAppointmentFields(
   id: number,
-  data: { serviceId?: number; endTime?: string; status?: "confirmed" | "no_show"; notes?: string | null }
+  data: {
+    serviceId?: number;
+    endTime?: string;
+    status?: "confirmed" | "no_show";
+    notes?: string | null;
+    paymentMethod?: "dinheiro" | "pix" | "cartao" | "outro" | null;
+    couponId?: number | null;
+    priceChargedCents?: number | null;
+  }
 ) {
   return prisma.appointment.update({ where: { id }, data });
 }

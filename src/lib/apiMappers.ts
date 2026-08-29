@@ -10,7 +10,7 @@
 // então cada mapeador espelha o shape exato observado no server.js/db.js originais.
 
 import type { AppointmentDTO } from "@/modules/appointments/appointments.types.js";
-import type { Professional, Service, Product, TimeBlock, Escalation, AuditLog, BusinessHours, Business, ClientPlan, ProfessionalPayout } from "@prisma/client";
+import type { Professional, Service, Product, TimeBlock, Escalation, AuditLog, BusinessHours, Business, ClientPlan, ProfessionalPayout, Expense, Coupon, Supplier, StockMovement, WaitlistEntry } from "@prisma/client";
 import type { ClientStatsRow } from "@/modules/dashboard/clientStats.service.js";
 import { localDateStr } from "@/lib/time.js";
 
@@ -48,6 +48,8 @@ export function toApiAppointment(a: AppointmentDTO & { computedStatus?: string }
     client_phone: a.clientPhone,
     barbershop_name: a.barbershopName,
     notes: a.notes,
+    payment_method: a.paymentMethod,
+    coupon_id: a.couponId,
     ...(a.computedStatus !== undefined ? { computed_status: a.computedStatus } : {}),
   };
 }
@@ -88,7 +90,7 @@ export function toApiClientPlan(p: ClientPlan) {
   };
 }
 
-export function toApiProduct(p: Product) {
+export function toApiProduct(p: Product & { supplier?: { name: string } | null }) {
   return {
     id: p.id,
     barbershop_id: p.businessId,
@@ -97,6 +99,8 @@ export function toApiProduct(p: Product) {
     active: p.active,
     stock_quantity: p.stockQuantity,
     low_stock_threshold: p.lowStockThreshold,
+    supplier_id: p.supplierId,
+    supplier_name: p.supplier?.name ?? null,
   };
 }
 
@@ -127,6 +131,81 @@ export function toApiPayout(p: ProfessionalPayout & { professional: { name: stri
     note: p.note,
     created_by: p.createdBy,
     created_at: p.createdAt,
+  };
+}
+
+export function toApiExpense(e: Expense) {
+  return {
+    id: e.id,
+    barbershop_id: e.businessId,
+    description: e.description,
+    amount_cents: e.amountCents,
+    due_date: dbDateToStr(e.dueDate),
+    status: e.status,
+    paid_at: e.paidAt,
+    category: e.category,
+    created_at: e.createdAt,
+  };
+}
+
+export function toApiCoupon(c: Coupon) {
+  return {
+    id: c.id,
+    barbershop_id: c.businessId,
+    code: c.code,
+    discount_type: c.discountType,
+    discount_value: c.discountValue,
+    valid_from: c.validFrom ? dbDateToStr(c.validFrom) : null,
+    valid_to: c.validTo ? dbDateToStr(c.validTo) : null,
+    usage_limit: c.usageLimit,
+    used_count: c.usedCount,
+    active: c.active,
+    created_at: c.createdAt,
+  };
+}
+
+export function toApiSupplier(s: Supplier) {
+  return {
+    id: s.id,
+    barbershop_id: s.businessId,
+    name: s.name,
+    phone: s.phone,
+    document: s.document,
+    active: s.active,
+    created_at: s.createdAt,
+  };
+}
+
+export function toApiStockMovement(m: StockMovement & { productName?: string }) {
+  return {
+    id: m.id,
+    barbershop_id: m.businessId,
+    product_id: m.productId,
+    product_name: m.productName,
+    type: m.type,
+    quantity: m.quantity,
+    reason: m.reason,
+    created_by: m.createdBy,
+    created_at: m.createdAt,
+  };
+}
+
+export function toApiWaitlistEntry(w: WaitlistEntry & { clientName?: string; clientPhone?: string; professionalName?: string | null; serviceName?: string | null }) {
+  return {
+    id: w.id,
+    barbershop_id: w.businessId,
+    client_id: w.clientId,
+    client_name: w.clientName,
+    client_phone: w.clientPhone,
+    professional_id: w.professionalId,
+    professional_name: w.professionalName,
+    service_id: w.serviceId,
+    service_name: w.serviceName,
+    desired_date_start: dbDateToStr(w.desiredDateStart),
+    desired_date_end: dbDateToStr(w.desiredDateEnd),
+    status: w.status,
+    notified_at: w.notifiedAt,
+    created_at: w.createdAt,
   };
 }
 

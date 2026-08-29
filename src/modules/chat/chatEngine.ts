@@ -22,6 +22,7 @@ import {
   createClientPlanCheckoutSession,
 } from "@/modules/clientPlans/clientPlans.service.js";
 import { notifyNewAppointment, notifyEscalation } from "@/modules/push/push.service.js";
+import { createWaitlistEntry } from "@/modules/waitlist/waitlist.repository.js";
 import { sendWhatsappText, whatsappConfigured, resolveBarbershopAccessToken, uploadWhatsappMedia, sendWhatsappMedia } from "@/lib/whatsapp.js";
 import { createShortLink } from "@/lib/shortLink.js";
 import { prisma } from "@/lib/prisma.js";
@@ -100,6 +101,10 @@ Seu objetivo é conduzir uma conversa natural e breve. Você pode: agendar um no
 4. Quando o ${client} escolher um horário, confirme os detalhes (${svc}, ${prof}, data, horário e preço) — NÃO peça nome nem telefone de novo, você já sabe quem é o ${client} (veja o contexto abaixo). Inclua também, de forma breve e natural (não como um termo legal formal), que ao confirmar o ${client} concorda em receber lembretes e mensagens futuras da ${biz} por aqui — ex: "Confirma? (ao confirmar, você topa receber lembretes e novidades nossas por aqui 😉)".
 5. Só depois de confirmação explícita do ${client}, use a ferramenta criar_agendamento para gravar o agendamento.
 6. Depois de agendar com sucesso, informe o ${client} que o agendamento foi confirmado e inclua na sua resposta, de forma clara, o link para adicionar ao calendário que virá no resultado da ferramenta (campo ics_url) — escreva a URL completa como veio, sem alterar.
+
+Lista de espera:
+- Se verificar_horarios_disponiveis ou buscar_proximo_horario_disponivel não encontrar NENHUM horário livre dentro do período que o ${client} realmente queria (ex: só aceita um dia específico, ou uma semana específica, e não tem nada nela), ofereça entrar na lista de espera antes de desistir — algo como "não tenho horário nesse período, mas posso te avisar se abrir uma vaga, quer entrar na lista de espera?". NÃO ofereça isso se o ${client} ainda nem tentou um horário específico, ou se ele só ainda não escolheu entre as opções livres que você já mostrou.
+- Só chame entrar_lista_espera depois que o ${client} confirmar explicitamente que quer. Peça (ou use o que já sabe) o ${prof} de preferência (ou "qualquer um"), o ${svc}, e o período de datas que ele aceita.
 
 Para cancelar ou reagendar:
 - Se o ${client} quiser ver, cancelar ou remarcar um agendamento, use listar_meus_agendamentos primeiro para saber quais existem e pegar o ID correto — nunca invente um ID.
@@ -228,6 +233,21 @@ const tools: Anthropic.Tool[] = [
     },
   },
   {
+    name: "entrar_lista_espera",
+    description: `Coloca o ${vertical.client} na lista de espera de um período sem horário livre — avisa por WhatsApp automaticamente se abrir uma vaga (ex: cancelamento) nesse período. Só chame depois que verificar_horarios_disponiveis ou buscar_proximo_horario_disponivel não encontrar nada no período desejado E o ${vertical.client} confirmar que quer entrar na lista.`,
+    input_schema: {
+      type: "object",
+      properties: {
+        barbeiro_id: { type: "integer", description: `ID do ${vertical.professional} de preferência (obtido de listar_barbeiros) — omita se aceitar qualquer um` },
+        servico_id: { type: "integer", description: "ID do serviço (obtido de listar_servicos)" },
+        data_inicial: { type: "string", description: "Início do período aceito, YYYY-MM-DD" },
+        data_final: { type: "string", description: "Fim do período aceito, YYYY-MM-DD (igual a data_inicial se for um único dia)" },
+        nome_cliente: { type: "string", description: `Nome do ${vertical.client} (já conhecido pelo contexto — use-o diretamente)` },
+      },
+      required: ["servico_id", "data_inicial", "data_final", "nome_cliente"],
+    },
+  },
+  {
     name: "listar_meus_agendamentos",
     description: `Lista os agendamentos futuros deste ${vertical.client} (identificado pelo telefone automaticamente). Use antes de cancelar ou reagendar, para saber o ID correto.`,
     input_schema: { type: "object", properties: {}, required: [] },
@@ -343,6 +363,18 @@ async function executeTool(barbershop: Business, name: string, input: any, custo
         preco: formatPrice(appointment.priceCents),
         ics_url: icsUrl(appointment.id, customerPhone),
       };
+    }
+    case "entrar_lista_espera": {
+      if (String(input.data_inicial) > String(input.data_final)) throw new Error("data_inicial não pode ser depois de data_final.");
+      const clientRecord = await findOrCreateClient(input.nome_cliente, customerPhone);
+      const entry = await createWaitlistEntry(barbershop.id, {
+        clientId: clientRecord.id,
+        professionalId: input.barbeiro_id || null,
+        serviceId: input.servico_id,
+        desiredDateStart: input.data_inicial,
+        desiredDateEnd: input.data_final,
+      });
+      return { entrou_na_lista_espera: true, lista_espera_id: entry.id };
     }
     case "listar_meus_agendamentos": {
       const appointments = await getAppointmentsByClientPhone(customerPhone, barbershop.id);

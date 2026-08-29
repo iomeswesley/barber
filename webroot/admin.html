@@ -876,6 +876,7 @@
     <button data-page="campanhas"><span class="nav-ico"><svg class="icon"><use href="#icon-rocket"></use></svg></span>Campanhas</button>
     <button data-page="clientes"><span class="nav-ico"><svg class="icon"><use href="#icon-users"></use></svg></span>Clientes</button>
     <button data-page="historico"><span class="nav-ico"><svg class="icon"><use href="#icon-history"></use></svg></span>Histórico</button>
+    <button data-page="financeiro"><span class="nav-ico"><svg class="icon"><use href="#icon-coin"></use></svg></span>Financeiro</button>
     <button data-page="estoque"><span class="nav-ico"><svg class="icon"><use href="#icon-inventory"></use></svg></span>Estoque</button>
     <button data-page="configuracoes"><span class="nav-ico"><svg class="icon"><use href="#icon-settings"></use></svg></span>Configurações</button>
     <button data-page="auditoria"><span class="nav-ico"><svg class="icon"><use href="#icon-shield"></use></svg></span>Auditoria</button>
@@ -1286,6 +1287,52 @@
 
   </div>
 
+  <div id="page-financeiro" class="page-section" style="display:none;">
+    <div class="section-title">Contas a pagar</div>
+    <div class="card panel">
+      <div class="hint">Despesas da barbearia (aluguel, fornecedor, contas) — controle simples de vencimento, sem contabilidade completa.</div>
+      <div id="expenses-list" style="margin-top:12px;"></div>
+      <span class="add-toggle" id="toggle-add-expense">+ Adicionar despesa</span>
+      <div class="inline-form" id="add-expense-form">
+        <div class="form-grid">
+          <div class="form-field" style="grid-column: 1 / -1;"><label>Descrição</label><input type="text" id="new-expense-description" placeholder="Ex: Aluguel de agosto" /></div>
+          <div class="form-field"><label>Valor (R$)</label><input type="number" step="0.01" id="new-expense-amount" /></div>
+          <div class="form-field"><label>Vencimento</label><input type="date" id="new-expense-due-date" /></div>
+          <div class="form-field"><label>Categoria (opcional)</label><input type="text" id="new-expense-category" placeholder="Ex: Fixo, Fornecedor..." /></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-primary" id="save-expense-btn">Salvar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">Cupons de desconto</div>
+    <div class="card panel">
+      <div class="hint">Aplicados manualmente ao fechar um agendamento (aba Agenda) — o bot de WhatsApp não oferece cupom sozinho.</div>
+      <div id="coupons-list" style="margin-top:12px;"></div>
+      <span class="add-toggle" id="toggle-add-coupon">+ Adicionar cupom</span>
+      <div class="inline-form" id="add-coupon-form">
+        <div class="form-grid">
+          <div class="form-field"><label>Código</label><input type="text" id="new-coupon-code" placeholder="Ex: VOLTA10" style="text-transform:uppercase;" /></div>
+          <div class="form-field">
+            <label>Tipo de desconto</label>
+            <select id="new-coupon-type">
+              <option value="percent">Percentual (%)</option>
+              <option value="fixed">Valor fixo (R$)</option>
+            </select>
+          </div>
+          <div class="form-field"><label>Valor do desconto</label><input type="number" step="0.01" id="new-coupon-value" placeholder="Ex: 10" /></div>
+          <div class="form-field"><label>Limite de usos (opcional)</label><input type="number" min="1" id="new-coupon-limit" /></div>
+          <div class="form-field"><label>Válido a partir de (opcional)</label><input type="date" id="new-coupon-from" /></div>
+          <div class="form-field"><label>Válido até (opcional)</label><input type="date" id="new-coupon-to" /></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-primary" id="save-coupon-btn">Salvar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="page-clientes" class="page-section" style="display:none;">
     <div class="section-title">Clientes</div>
     <div class="card panel" style="padding:0;">
@@ -1305,6 +1352,12 @@
         </div>
       </div>
       <div id="clients-table"></div>
+    </div>
+
+    <div class="section-title">Lista de espera</div>
+    <div class="card panel">
+      <div class="hint">Clientes que o bot de WhatsApp colocou na lista de espera de um período sem horário livre — avisados automaticamente por WhatsApp se abrir vaga.</div>
+      <div id="waitlist-list" style="margin-top:12px;"></div>
     </div>
   </div>
 
@@ -1326,11 +1379,35 @@
           <div class="form-field"><label>Preço (R$)</label><input type="number" step="0.01" id="new-product-price" /></div>
           <div class="form-field"><label>Estoque inicial</label><input type="number" min="0" id="new-product-stock" value="0" /></div>
           <div class="form-field"><label>Alerta de estoque baixo</label><input type="number" min="0" id="new-product-threshold" value="5" /></div>
+          <div class="form-field"><label>Fornecedor (opcional)</label><select id="new-product-supplier"><option value="">Nenhum</option></select></div>
         </div>
         <div class="form-actions">
           <button class="btn-primary" id="save-product-btn">Salvar</button>
         </div>
       </div>
+    </div>
+
+    <div class="section-title">Fornecedores</div>
+    <div class="card panel">
+      <div class="hint">De quem você compra os produtos — só pra saber quem contatar quando o estoque baixar.</div>
+      <div id="suppliers-list" style="margin-top:12px;"></div>
+      <span class="add-toggle" id="toggle-add-supplier">+ Adicionar fornecedor</span>
+      <div class="inline-form" id="add-supplier-form">
+        <div class="form-grid">
+          <div class="form-field" style="grid-column: 1 / -1;"><label>Nome</label><input type="text" id="new-supplier-name" /></div>
+          <div class="form-field"><label>Telefone (opcional)</label><input type="text" id="new-supplier-phone" /></div>
+          <div class="form-field"><label>CNPJ/CPF (opcional)</label><input type="text" id="new-supplier-document" /></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-primary" id="save-supplier-btn">Salvar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">Movimentação de estoque</div>
+    <div class="card panel">
+      <div class="hint">Últimas 50 entradas, saídas e ajustes — gerado automaticamente por venda e por edição manual de estoque.</div>
+      <div id="stock-movements-list" style="margin-top:12px;"></div>
     </div>
   </div>
 
@@ -1848,6 +1925,7 @@ const ADMIN_TOUR_STEPS = [
   { activateSelector: '#page-tabs button[data-page="campanhas"]', selector: "#page-campanhas", title: "Campanhas", text: "Crie campanhas de reativação em massa pra clientes inativos há muito tempo." },
   { activateSelector: '#page-tabs button[data-page="clientes"]', selector: "#page-clientes", title: "Clientes", text: "Cadastro completo de clientes, com filtro por status (novo, ativo, inativo, retorno)." },
   { activateSelector: '#page-tabs button[data-page="historico"]', selector: "#page-historico", title: "Histórico", text: "Faturamento detalhado por período e participação de cada barbeiro e serviço." },
+  { activateSelector: '#page-tabs button[data-page="financeiro"]', selector: "#page-financeiro", title: "Financeiro", text: "Contas a pagar e cupons de desconto — controle simples, sem virar um módulo contábil." },
   { activateSelector: '#page-tabs button[data-page="estoque"]', selector: "#page-estoque", title: "Estoque", text: "Controle os produtos vendidos no balcão e receba alerta quando o estoque estiver baixo." },
   { activateSelector: '#page-tabs button[data-page="configuracoes"]', selector: "#page-configuracoes", title: "Configurações", text: "Aqui fica praticamente tudo: WhatsApp, cobrança, planos pros seus clientes, horário de funcionamento, bloqueios, barbeiros e backup." },
   { activateSelector: '#page-tabs button[data-page="auditoria"]', selector: "#page-auditoria", title: "Auditoria", text: "Um histórico de todas as ações feitas no painel — quem fez o quê e quando." },
@@ -2637,6 +2715,20 @@ function apptRowHtml(a, { editable = true } = {}) {
           <option value="no_show" ${a.status === "no_show" ? "selected" : ""}>Não compareceu</option>
         </select>
       </div>
+      <div class="form-field">
+        <label>Forma de pagamento (opcional)</label>
+        <select id="edit-appt-payment-${a.id}">
+          <option value="">Não registrado</option>
+          <option value="dinheiro" ${a.payment_method === "dinheiro" ? "selected" : ""}>Dinheiro</option>
+          <option value="pix" ${a.payment_method === "pix" ? "selected" : ""}>Pix</option>
+          <option value="cartao" ${a.payment_method === "cartao" ? "selected" : ""}>Cartão (maquininha)</option>
+          <option value="outro" ${a.payment_method === "outro" ? "selected" : ""}>Outro</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Cupom de desconto (opcional)</label>
+        <input type="text" id="edit-appt-coupon-${a.id}" placeholder="${a.coupon_id ? "Cupom já aplicado" : "Código do cupom"}" ${a.coupon_id ? "disabled" : ""} style="text-transform:uppercase;" />
+      </div>
       <div class="form-field" style="grid-column:1/-1;">
         <label>Notas do atendimento (opcional)</label>
         <textarea id="edit-appt-notes-${a.id}" rows="2" placeholder="Preferência de corte, observação sobre o cliente...">${escapeHtml(a.notes || "")}</textarea>
@@ -2818,6 +2910,9 @@ function wireApptEditHandlers(container, onSaved) {
       const serviceId = container.querySelector(`#edit-appt-service-${id}`).value;
       const status = container.querySelector(`#edit-appt-status-${id}`).value;
       const notes = container.querySelector(`#edit-appt-notes-${id}`).value;
+      const paymentMethod = container.querySelector(`#edit-appt-payment-${id}`).value;
+      const couponInput = container.querySelector(`#edit-appt-coupon-${id}`);
+      const couponCode = couponInput && !couponInput.disabled ? couponInput.value.trim() : "";
 
       const productsDiv = container.querySelector(`#edit-appt-products-${id}`);
       const rows = productsDiv ? productsDiv.querySelectorAll(".product-sale-row") : [];
@@ -2831,7 +2926,7 @@ function wireApptEditHandlers(container, onSaved) {
       const res = await fetch(`/api/appointments/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientName, serviceId, status, productSales, notes }),
+        body: JSON.stringify({ clientName, serviceId, status, productSales, notes, paymentMethod, couponCode }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -4503,6 +4598,38 @@ async function loadClients() {
   renderClientsTable();
 }
 
+const WAITLIST_STATUS_LABEL = { aguardando: "Aguardando", notificado: "Avisado", atendido: "Atendido", expirado: "Removido" };
+async function loadWaitlist() {
+  const entries = await (await fetch("/api/manage/waitlist?status=aguardando")).json();
+  const list = document.getElementById("waitlist-list");
+  if (entries.length === 0) {
+    list.innerHTML = `<div class="empty-state">Ninguém na lista de espera no momento.</div>`;
+    return;
+  }
+  list.innerHTML = entries
+    .map(
+      (w) => `
+    <div class="item-row">
+      <div>
+        <div class="item-info">${w.client_name}${w.service_name ? ` · ${w.service_name}` : ""}</div>
+        <div class="item-meta">${w.desired_date_start === w.desired_date_end ? w.desired_date_start : `${w.desired_date_start} a ${w.desired_date_end}`}${w.professional_name ? ` · com ${w.professional_name}` : " · qualquer profissional"} · ${WAITLIST_STATUS_LABEL[w.status]}</div>
+      </div>
+      <div class="item-actions">
+        <button class="icon-btn danger" data-remove-waitlist="${w.id}" title="Remover"><svg class="icon"><use href="#icon-trash"></use></svg></button>
+      </div>
+    </div>
+  `
+    )
+    .join("");
+
+  list.querySelectorAll("[data-remove-waitlist]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      await fetch(`/api/manage/waitlist/${btn.dataset.removeWaitlist}`, { method: "DELETE" });
+      loadWaitlist();
+    });
+  });
+}
+
 document.getElementById("client-search-name").addEventListener("input", renderClientsTable);
 
 document.querySelectorAll("#client-status-filter button").forEach((btn) => {
@@ -4649,6 +4776,7 @@ async function loadProducts() {
       });
       loadProducts();
       loadStockOverview();
+      loadStockMovements();
     });
   });
 }
@@ -4662,6 +4790,7 @@ document.getElementById("save-product-btn").addEventListener("click", async () =
   const stock = document.getElementById("new-product-stock");
   const threshold = document.getElementById("new-product-threshold");
   if (!name.value.trim() || !price.value) return;
+  const supplierId = document.getElementById("new-product-supplier").value;
   await fetch("/api/manage/products", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -4670,15 +4799,252 @@ document.getElementById("save-product-btn").addEventListener("click", async () =
       priceCents: Math.round(Number(price.value) * 100),
       stockQuantity: Number(stock.value) || 0,
       lowStockThreshold: Number(threshold.value) || 5,
+      supplierId: supplierId || null,
     }),
   });
   name.value = "";
   price.value = "";
   stock.value = "0";
   threshold.value = "5";
+  document.getElementById("new-product-supplier").value = "";
   document.getElementById("add-product-form").classList.remove("open");
   loadProducts();
   loadStockOverview();
+  loadStockMovements();
+});
+
+/* ---------------- Fornecedores ---------------- */
+async function loadSuppliers() {
+  const suppliers = await (await fetch("/api/manage/suppliers")).json();
+  const list = document.getElementById("suppliers-list");
+  if (suppliers.length === 0) {
+    list.innerHTML = `<div class="empty-state">Nenhum fornecedor cadastrado ainda.</div>`;
+  } else {
+    list.innerHTML = suppliers
+      .map(
+        (s) => `
+      <div class="item-row ${s.active ? "" : "inactive"}">
+        <div>
+          <div class="item-info">${s.name}${s.active ? "" : " (inativo)"}</div>
+          <div class="item-meta">${[s.phone, s.document].filter(Boolean).join(" · ") || "Sem contato cadastrado"}</div>
+        </div>
+        <div class="item-actions">
+          <button class="icon-btn ${s.active ? "danger" : ""}" data-toggle-supplier="${s.id}" data-active="${s.active}" title="${s.active ? "Desativar" : "Ativar"}">${s.active ? '<svg class="icon"><use href="#icon-block"></use></svg>' : '<svg class="icon"><use href="#icon-check-circle"></use></svg>'}</button>
+        </div>
+      </div>
+    `
+      )
+      .join("");
+  }
+  list.querySelectorAll("[data-toggle-supplier]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const active = btn.dataset.active === "true";
+      await fetch(`/api/manage/suppliers/${btn.dataset.toggleSupplier}/active`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: !active }),
+      });
+      loadSuppliers();
+    });
+  });
+
+  // Popula o select de fornecedor no formulário de novo produto — só com os ativos.
+  const select = document.getElementById("new-product-supplier");
+  const current = select.value;
+  select.innerHTML = `<option value="">Nenhum</option>${suppliers.filter((s) => s.active).map((s) => `<option value="${s.id}">${s.name}</option>`).join("")}`;
+  select.value = current;
+}
+
+document.getElementById("toggle-add-supplier").addEventListener("click", () => {
+  document.getElementById("add-supplier-form").classList.toggle("open");
+});
+document.getElementById("save-supplier-btn").addEventListener("click", async () => {
+  const name = document.getElementById("new-supplier-name");
+  const phone = document.getElementById("new-supplier-phone");
+  const document_ = document.getElementById("new-supplier-document");
+  if (!name.value.trim()) return;
+  await fetch("/api/manage/suppliers", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: name.value.trim(), phone: phone.value.trim() || null, document: document_.value.trim() || null }),
+  });
+  name.value = "";
+  phone.value = "";
+  document_.value = "";
+  document.getElementById("add-supplier-form").classList.remove("open");
+  loadSuppliers();
+});
+
+/* ---------------- Movimentação de estoque ---------------- */
+const STOCK_MOVEMENT_LABEL = { entrada: "Entrada", saida: "Saída", ajuste: "Ajuste" };
+async function loadStockMovements() {
+  const movements = await (await fetch("/api/manage/stock-movements")).json();
+  const list = document.getElementById("stock-movements-list");
+  if (movements.length === 0) {
+    list.innerHTML = `<div class="empty-state">Nenhuma movimentação registrada ainda.</div>`;
+    return;
+  }
+  list.innerHTML = movements
+    .map(
+      (m) => `
+    <div class="item-row">
+      <div>
+        <div class="item-info">${m.product_name} · ${STOCK_MOVEMENT_LABEL[m.type] || m.type}</div>
+        <div class="item-meta">${m.type === "entrada" ? "+" : "-"}${m.quantity} · ${m.reason || "sem motivo registrado"} · ${m.created_by} · ${timeAgoFull(m.created_at)}</div>
+      </div>
+    </div>
+  `
+    )
+    .join("");
+}
+
+/* ---------------- Financeiro: Contas a pagar ---------------- */
+async function loadExpenses() {
+  const expenses = await (await fetch("/api/manage/expenses")).json();
+  const list = document.getElementById("expenses-list");
+  if (expenses.length === 0) {
+    list.innerHTML = `<div class="empty-state">Nenhuma despesa cadastrada ainda.</div>`;
+    return;
+  }
+  list.innerHTML = expenses
+    .map(
+      (e) => `
+    <div class="item-row ${e.status === "paid" ? "inactive" : ""}">
+      <div>
+        <div class="item-info">${e.description}${e.category ? ` · ${e.category}` : ""}</div>
+        <div class="item-meta">${currency(e.amount_cents / 100)} · vence ${e.due_date} · ${e.status === "paid" ? "Paga" : "Em aberto"}</div>
+      </div>
+      <div class="item-actions">
+        <button class="btn-secondary" data-toggle-expense-paid="${e.id}" data-paid="${e.status === "paid"}">${e.status === "paid" ? "Reabrir" : "Marcar paga"}</button>
+        <button class="icon-btn danger" data-delete-expense="${e.id}" title="Excluir"><svg class="icon"><use href="#icon-trash"></use></svg></button>
+      </div>
+    </div>
+  `
+    )
+    .join("");
+
+  list.querySelectorAll("[data-toggle-expense-paid]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const paid = btn.dataset.paid === "true";
+      await fetch(`/api/manage/expenses/${btn.dataset.toggleExpensePaid}/pay`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paid: !paid }),
+      });
+      loadExpenses();
+    });
+  });
+  list.querySelectorAll("[data-delete-expense]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Excluir esta despesa?")) return;
+      await fetch(`/api/manage/expenses/${btn.dataset.deleteExpense}`, { method: "DELETE" });
+      loadExpenses();
+    });
+  });
+}
+
+document.getElementById("toggle-add-expense").addEventListener("click", () => {
+  document.getElementById("add-expense-form").classList.toggle("open");
+});
+document.getElementById("save-expense-btn").addEventListener("click", async () => {
+  const description = document.getElementById("new-expense-description");
+  const amount = document.getElementById("new-expense-amount");
+  const dueDate = document.getElementById("new-expense-due-date");
+  const category = document.getElementById("new-expense-category");
+  if (!description.value.trim() || !amount.value || !dueDate.value) return;
+  await fetch("/api/manage/expenses", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      description: description.value.trim(),
+      amountCents: Math.round(Number(amount.value) * 100),
+      dueDate: dueDate.value,
+      category: category.value.trim() || null,
+    }),
+  });
+  description.value = "";
+  amount.value = "";
+  dueDate.value = "";
+  category.value = "";
+  document.getElementById("add-expense-form").classList.remove("open");
+  loadExpenses();
+});
+
+/* ---------------- Financeiro: Cupons ---------------- */
+async function loadCoupons() {
+  const coupons = await (await fetch("/api/manage/coupons")).json();
+  const list = document.getElementById("coupons-list");
+  if (coupons.length === 0) {
+    list.innerHTML = `<div class="empty-state">Nenhum cupom cadastrado ainda.</div>`;
+    return;
+  }
+  list.innerHTML = coupons
+    .map((c) => {
+      const discount = c.discount_type === "percent" ? `${c.discount_value}%` : currency(c.discount_value / 100);
+      const usage = c.usage_limit ? `${c.used_count}/${c.usage_limit} usos` : `${c.used_count} uso${c.used_count === 1 ? "" : "s"}`;
+      return `
+    <div class="item-row ${c.active ? "" : "inactive"}">
+      <div>
+        <div class="item-info">${c.code}${c.active ? "" : " (inativo)"}</div>
+        <div class="item-meta">${discount} de desconto · ${usage}${c.valid_to ? ` · válido até ${c.valid_to}` : ""}</div>
+      </div>
+      <div class="item-actions">
+        <button class="icon-btn ${c.active ? "danger" : ""}" data-toggle-coupon="${c.id}" data-active="${c.active}" title="${c.active ? "Desativar" : "Ativar"}">${c.active ? '<svg class="icon"><use href="#icon-block"></use></svg>' : '<svg class="icon"><use href="#icon-check-circle"></use></svg>'}</button>
+      </div>
+    </div>
+  `;
+    })
+    .join("");
+
+  list.querySelectorAll("[data-toggle-coupon]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const active = btn.dataset.active === "true";
+      await fetch(`/api/manage/coupons/${btn.dataset.toggleCoupon}/active`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: !active }),
+      });
+      loadCoupons();
+    });
+  });
+}
+
+document.getElementById("toggle-add-coupon").addEventListener("click", () => {
+  document.getElementById("add-coupon-form").classList.toggle("open");
+});
+document.getElementById("save-coupon-btn").addEventListener("click", async () => {
+  const code = document.getElementById("new-coupon-code");
+  const type = document.getElementById("new-coupon-type");
+  const value = document.getElementById("new-coupon-value");
+  const limit = document.getElementById("new-coupon-limit");
+  const from = document.getElementById("new-coupon-from");
+  const to = document.getElementById("new-coupon-to");
+  if (!code.value.trim() || !value.value) return;
+  const discountValue = type.value === "fixed" ? Math.round(Number(value.value) * 100) : Number(value.value);
+  const res = await fetch("/api/manage/coupons", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      code: code.value.trim(),
+      discountType: type.value,
+      discountValue,
+      usageLimit: limit.value ? Number(limit.value) : null,
+      validFrom: from.value || null,
+      validTo: to.value || null,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    alert(err.error || "Não foi possível criar o cupom.");
+    return;
+  }
+  code.value = "";
+  value.value = "";
+  limit.value = "";
+  from.value = "";
+  to.value = "";
+  document.getElementById("add-coupon-form").classList.remove("open");
+  loadCoupons();
 });
 
 /* ---------------- Log de auditoria ---------------- */
@@ -5734,13 +6100,14 @@ let auditoriaLoaded = false;
 let estoqueLoaded = false;
 let configuracoesLoaded = false;
 let tiposLoaded = false;
+let financeiroLoaded = false;
 
 document.querySelectorAll("#page-tabs button").forEach((btn) => {
   btn.addEventListener("click", async () => {
     document.querySelectorAll("#page-tabs button").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     const page = btn.dataset.page;
-    ["overview", "metricas", "agenda", "tipos", "conversas", "campanhas", "clientes", "historico", "estoque", "configuracoes", "auditoria"].forEach((p) => {
+    ["overview", "metricas", "agenda", "tipos", "conversas", "campanhas", "clientes", "historico", "financeiro", "estoque", "configuracoes", "auditoria"].forEach((p) => {
       document.getElementById(`page-${p}`).style.display = p === page ? "block" : "none";
     });
     if (page === "metricas") {
@@ -5769,15 +6136,19 @@ document.querySelectorAll("#page-tabs button").forEach((btn) => {
     }
     if (page === "clientes" && !clientesLoaded) {
       clientesLoaded = true;
-      await loadClients();
+      await Promise.all([loadClients(), loadWaitlist()]);
     }
     if (page === "historico" && !historicoLoaded) {
       historicoLoaded = true;
       await loadHistory();
     }
+    if (page === "financeiro" && !financeiroLoaded) {
+      financeiroLoaded = true;
+      await Promise.all([loadExpenses(), loadCoupons()]);
+    }
     if (page === "estoque" && !estoqueLoaded) {
       estoqueLoaded = true;
-      await Promise.all([loadProducts(), loadStockOverview()]);
+      await Promise.all([loadProducts(), loadStockOverview(), loadSuppliers(), loadStockMovements()]);
     }
     if (page === "configuracoes" && !configuracoesLoaded) {
       configuracoesLoaded = true;

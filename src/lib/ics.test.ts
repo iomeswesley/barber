@@ -26,6 +26,9 @@ function makeAppointment(overrides: Partial<AppointmentDTO> = {}): AppointmentDT
     notes: null,
     confirmationToken: null,
     googleEventId: null,
+    paymentMethod: null,
+    couponId: null,
+    clientPlanSubscriptionId: null,
     ...overrides,
   };
 }

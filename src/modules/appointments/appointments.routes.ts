@@ -238,7 +238,7 @@ appointmentsRouter.put("/api/appointments/:id", requireAuth, async (req, res, ne
     if (req.session.user!.role === "professional" && appointment!.professionalId !== req.session.user!.professionalId) {
       throw new AppError("Você só pode editar seus próprios agendamentos", 403);
     }
-    const { clientName, serviceId, status, productSales, notes } = req.body || {};
+    const { clientName, serviceId, status, productSales, notes, paymentMethod, couponCode } = req.body || {};
     if (status && !["confirmed", "no_show"].includes(status)) throw new AppError("status inválido");
 
     const sales = Array.isArray(productSales) ? productSales : [];
@@ -248,13 +248,14 @@ appointmentsRouter.put("/api/appointments/:id", requireAuth, async (req, res, ne
       if (!belongsToSession(req, product)) throw new AppError("Produto inválido");
     }
 
-    const updated = await updateAppointmentDetails(Number(req.params.id), { clientName, serviceId, status, notes });
+    const updated = await updateAppointmentDetails(Number(req.params.id), { clientName, serviceId, status, notes, paymentMethod, couponCode });
     const soldProducts = await replaceAppointmentProductSales(
       req.session.user!.businessId,
       updated.clientId,
       updated.id,
       updated.date,
-      sales.map((s: any) => ({ productId: Number(s.productId), quantity: Number(s.quantity) || 1 }))
+      sales.map((s: any) => ({ productId: Number(s.productId), quantity: Number(s.quantity) || 1 })),
+      req.session.user!.name
     );
     const productsSummary = soldProducts.map((s) => `${s.quantity}x ${s.productName}`).join(", ");
     await logAudit(

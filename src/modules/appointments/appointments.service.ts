@@ -8,6 +8,8 @@ import { getBlocksFor } from "@/modules/timeBlocks/timeBlocks.repository.js";
 import { getClientByPhone } from "@/modules/clients/clients.repository.js";
 import { resolveChargedPrice } from "@/modules/clientPlans/clientPlans.service.js";
 import { decrementUsedThisPeriod } from "@/modules/clientPlans/clientPlans.repository.js";
+import { getCouponByCode, couponIsValidNow, incrementCouponUsage } from "@/modules/coupons/coupons.repository.js";
+import { notifyWaitlistForFreedSlot } from "@/modules/waitlist/waitlist.service.js";
 import { mirrorAppointmentToGoogle, removeAppointmentFromGoogle } from "@/modules/googleCalendar/googleCalendar.service.js";
 import {
   getAppointmentById,
@@ -176,6 +178,15 @@ export async function cancelAppointment(id: number): Promise<AppointmentDTO> {
   const result = (await getAppointmentById(id))!;
   // `await` pelo mesmo motivo de createAppointment (serverless na Vercel).
   await removeAppointmentFromGoogle(result);
+  // Best-effort: nunca deve impedir o cancelamento em si de completar, mesmo
+  // se o envio de WhatsApp falhar — notifyWaitlistForFreedSlot já engole erro
+  // de envio internamente, isso aqui só protege contra qualquer outra falha
+  // inesperada (ex: erro de banco ao buscar a lista).
+  try {
+    await notifyWaitlistForFreedSlot(result.businessId, result.professionalId, result.serviceId, result.date, result.startTime);
+  } catch (err) {
+    console.error("[WAITLIST] Falha ao processar lista de espera após cancelamento:", (err as Error).message);
+  }
   return result;
 }
 
@@ -204,7 +215,21 @@ export async function getAffectedAppointments(
 
 export async function updateAppointmentDetails(
   id: number,
-  { clientName, serviceId, status, notes }: { clientName?: string; serviceId?: number | string; status?: string; notes?: string }
+  {
+    clientName,
+    serviceId,
+    status,
+    notes,
+    paymentMethod,
+    couponCode,
+  }: {
+    clientName?: string;
+    serviceId?: number | string;
+    status?: string;
+    notes?: string;
+    paymentMethod?: string;
+    couponCode?: string;
+  }
 ): Promise<AppointmentDTO> {
   const appointment = await getAppointmentById(id);
   if (!appointment) throw new AppError("Agendamento não encontrado", 404);
@@ -228,6 +253,35 @@ export async function updateAppointmentDetails(
   // distinguindo "sem nota" de payload incompleto.
   if (notes !== undefined) {
     await updateAppointmentFields(id, { notes: notes.trim() || null });
+  }
+
+  if (paymentMethod !== undefined) {
+    const allowed = ["dinheiro", "pix", "cartao", "outro"];
+    if (paymentMethod && !allowed.includes(paymentMethod)) throw new AppError("Forma de pagamento inválida");
+    await updateAppointmentFields(id, { paymentMethod: (paymentMethod || null) as any });
+  }
+
+  // Cupom só pode ser aplicado uma vez por agendamento (evita empilhar
+  // desconto reenviando o mesmo código em edições sucessivas) — reenviar o
+  // mesmo agendamento com couponCode depois de já ter cupom é ignorado
+  // silenciosamente, não é erro (o formulário do painel manda o campo em
+  // branco depois de aplicado, então isso raramente dispara).
+  if (couponCode && couponCode.trim() && !appointment.clientPlanSubscriptionId && appointment.couponId == null) {
+    const coupon = await getCouponByCode(appointment.businessId, couponCode.trim().toUpperCase());
+    if (!coupon) throw new AppError("Cupom não encontrado");
+    const check = couponIsValidNow(coupon);
+    if (!check.valid) throw new AppError(check.reason || "Cupom inválido");
+
+    const currentServiceId = serviceId ? Number(serviceId) : appointment.serviceId;
+    const service = await getService(currentServiceId);
+    if (!service) throw new AppError("Serviço não encontrado");
+    const basePriceCents = service.priceCents;
+    const discountCents =
+      coupon.discountType === "percent" ? Math.round((basePriceCents * coupon.discountValue) / 100) : coupon.discountValue;
+    const finalPriceCents = Math.max(0, basePriceCents - discountCents);
+
+    await updateAppointmentFields(id, { couponId: coupon.id, priceChargedCents: finalPriceCents });
+    await incrementCouponUsage(coupon.id);
   }
 
   return (await getAppointmentById(id))!;
