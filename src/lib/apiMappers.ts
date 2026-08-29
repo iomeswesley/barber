@@ -10,7 +10,7 @@
 // então cada mapeador espelha o shape exato observado no server.js/db.js originais.
 
 import type { AppointmentDTO } from "@/modules/appointments/appointments.types.js";
-import type { Professional, Service, Product, TimeBlock, Escalation, AuditLog, BusinessHours, Business, ClientPlan } from "@prisma/client";
+import type { Professional, Service, Product, TimeBlock, Escalation, AuditLog, BusinessHours, Business, ClientPlan, ProfessionalPayout } from "@prisma/client";
 import type { ClientStatsRow } from "@/modules/dashboard/clientStats.service.js";
 import { localDateStr } from "@/lib/time.js";
 
@@ -97,6 +97,36 @@ export function toApiProduct(p: Product) {
     active: p.active,
     stock_quantity: p.stockQuantity,
     low_stock_threshold: p.lowStockThreshold,
+  };
+}
+
+// periodStart/periodEnd são colunas @db.Date (meia-noite UTC) — precisam do
+// mesmo dateToStr (ISO, sem conversão de fuso) que appointments.types.ts usa
+// pro mesmo tipo de coluna. localDateStr é pra Date "agora" (hora local);
+// usá-lo aqui deslocaria a data um dia pra trás em fuso negativo (Brasil).
+function dbDateToStr(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+export function toApiPayout(p: ProfessionalPayout & { professional: { name: string } }) {
+  const totalCents = p.serviceCommissionCents + p.productCommissionCents + p.adjustmentCents;
+  return {
+    id: p.id,
+    barbershop_id: p.businessId,
+    professional_id: p.professionalId,
+    professional_name: p.professional.name,
+    period_start: dbDateToStr(p.periodStart),
+    period_end: dbDateToStr(p.periodEnd),
+    service_commission_cents: p.serviceCommissionCents,
+    product_commission_cents: p.productCommissionCents,
+    adjustment_cents: p.adjustmentCents,
+    adjustment_reason: p.adjustmentReason,
+    total_cents: totalCents,
+    status: p.status,
+    paid_at: p.paidAt,
+    note: p.note,
+    created_by: p.createdBy,
+    created_at: p.createdAt,
   };
 }
 

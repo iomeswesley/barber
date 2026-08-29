@@ -60,6 +60,11 @@ enum ClientPlanSubscriptionStatus {
   canceled
 }
 
+enum ProfessionalPayoutStatus {
+  open
+  paid
+}
+
 model Business {
   id                    Int      @id @default(autoincrement())
   name                  String
@@ -128,6 +133,7 @@ model Business {
   clientPlans             ClientPlan[]
   clientPlanSubscriptions ClientPlanSubscription[]
   campaigns               Campaign[]
+  professionalPayouts     ProfessionalPayout[]
 
   @@map("businesses")
 }
@@ -155,11 +161,12 @@ model Professional {
   googleCalendarId              String?   @map("google_calendar_id")
   googleCalendarConnectedAt     DateTime? @map("google_calendar_connected_at")
 
-  business     Business      @relation(fields: [businessId], references: [id])
+  business     Business             @relation(fields: [businessId], references: [id])
   appointments Appointment[]
   users        User[]
   timeBlocks   TimeBlock[]
   reviews      Review[]
+  payouts      ProfessionalPayout[]
 
   @@index([businessId])
   @@map("professionals")
@@ -382,6 +389,43 @@ model Review {
 
   @@index([businessId])
   @@map("reviews")
+}
+
+// Fechamento e pagamento de comissão por profissional (dono fecha um período —
+// normalmente o mês corrente — congelando o valor calculado a partir de
+// Appointment/ProductSale, e depois marca como pago quando efetivamente
+// transferir/entregar o valor). Antes disso a comissão só existia como leitura
+// no dashboard (dashboardStats.service.ts); este model é o que vira essa
+// leitura numa ação com histórico. Sem gorjeta de propósito (fora de escopo).
+model ProfessionalPayout {
+  id             Int      @id @default(autoincrement())
+  businessId     Int      @map("business_id")
+  professionalId Int      @map("professional_id")
+  periodStart    DateTime @db.Date @map("period_start")
+  periodEnd      DateTime @db.Date @map("period_end")
+  // Snapshot em centavos no momento do fechamento — não recalcula depois,
+  // mesmo que um agendamento do período seja editado retroativamente (senão
+  // o valor "fechado" mudaria sozinho debaixo do dono).
+  serviceCommissionCents Int @map("service_commission_cents")
+  productCommissionCents Int @map("product_commission_cents")
+  // Ajuste manual (positivo ou negativo) aplicado só na hora de marcar como
+  // pago — cobre correção de erro, desconto combinado à parte etc. — sem
+  // mexer no snapshot calculado acima, pra manter os dois valores auditáveis
+  // separadamente (quanto o sistema calculou vs. quanto foi ajustado).
+  adjustmentCents  Int     @default(0) @map("adjustment_cents")
+  adjustmentReason String? @map("adjustment_reason")
+  status           ProfessionalPayoutStatus @default(open)
+  paidAt           DateTime?                @map("paid_at")
+  note             String?
+  createdBy        String   @map("created_by")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  business     Business     @relation(fields: [businessId], references: [id])
+  professional Professional @relation(fields: [professionalId], references: [id])
+
+  @@index([businessId])
+  @@index([professionalId])
+  @@map("professional_payouts")
 }
 
 model Product {

@@ -22,6 +22,7 @@ import { servicesRouter } from "@/modules/services/services.routes.js";
 import { timeBlocksRouter } from "@/modules/timeBlocks/timeBlocks.routes.js";
 import { appointmentsRouter } from "@/modules/appointments/appointments.routes.js";
 import { productsRouter } from "@/modules/products/products.routes.js";
+import { payoutsRouter } from "@/modules/payouts/payouts.routes.js";
 import { escalationsRouter } from "@/modules/escalations/escalations.routes.js";
 import { auditLogRouter } from "@/modules/auditLog/auditLog.routes.js";
 import { pushRouter } from "@/modules/push/push.routes.js";
@@ -225,6 +226,7 @@ export function createApp() {
   app.use(timeBlocksRouter);
   app.use(appointmentsRouter);
   app.use(productsRouter);
+  app.use(payoutsRouter);
   app.use(escalationsRouter);
   app.use(auditLogRouter);
   app.use(pushRouter);

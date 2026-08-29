@@ -1086,6 +1086,14 @@
     <div class="barber-bar-wrap"><canvas id="barber-chart"></canvas></div>
     <div class="ranking-list" id="ranking-list"></div>
   </div>
+
+  <div class="card panel" id="commission-payouts-card">
+    <h2>Comissão dos barbeiros</h2>
+    <div class="hint">Comissão calculada no mês atual (serviço + produto) — feche pra registrar o pagamento</div>
+    <div class="ranking-list" id="payouts-pending-list"></div>
+    <div class="hint" style="margin-top:16px;">Histórico de fechamentos</div>
+    <div class="ranking-list" id="payouts-history-list"></div>
+  </div>
   </div>
 
   <div id="page-agenda" class="page-section" style="display:none;">
@@ -1833,6 +1841,7 @@ const ADMIN_TOUR_STEPS = [
   { activateSelector: '#page-tabs button[data-page="metricas"]', selector: "#kpi-grid", title: "Métricas do mês", text: "Faturamento, previsão, ticket médio, barbeiro do mês e taxa de no-show — o resumo do seu negócio de relance." },
   { selector: "#revenue-chart-card", title: "Faturamento e ocupação dia a dia", text: "Acompanhe a evolução do faturamento e veja os horários mais ocupados de cada dia da semana." },
   { selector: "#barber-analysis-card", title: "Análise por barbeiro", text: "Faturamento e ocupação da agenda de cada barbeiro no mês atual, com o ranking completo." },
+  { selector: "#commission-payouts-card", title: "Comissão dos barbeiros", text: "Feche a comissão do mês de cada barbeiro e marque como pago quando transferir — fica registrado no histórico." },
   { activateSelector: '#page-tabs button[data-page="agenda"]', selector: "#page-agenda", title: "Agenda", text: "Veja e crie agendamentos, filtre por barbeiro e alterne entre visão de semana ou mês." },
   { activateSelector: '#page-tabs button[data-page="tipos"]', selector: "#page-tipos", title: "Serviços", text: "Cadastre cada serviço com preço e duração — é o que a IA usa no WhatsApp pra calcular horário e valor." },
   { activateSelector: '#page-tabs button[data-page="conversas"]', selector: "#page-conversas", title: "Mensagens", text: "Acompanhe as conversas que a IA está tendo com seus clientes, pause a IA numa conversa específica e responda manualmente quando quiser assumir." },
@@ -1851,7 +1860,9 @@ const ADMIN_TOUR_STEPS = [
 // canto). Centralizado aqui pra valer tanto no tour automático do primeiro
 // login (loadMe) quanto no botão manual "Tour guiado" do menu de ajuda.
 function visibleTourSteps() {
-  return isSoloMode() ? ADMIN_TOUR_STEPS.filter((s) => s.selector !== "#barber-analysis-card") : ADMIN_TOUR_STEPS;
+  return isSoloMode()
+    ? ADMIN_TOUR_STEPS.filter((s) => s.selector !== "#barber-analysis-card" && s.selector !== "#commission-payouts-card")
+    : ADMIN_TOUR_STEPS;
 }
 
 document.getElementById("help-tour-btn").addEventListener("click", () => {
@@ -1910,6 +1921,11 @@ function applyBarberModeGating() {
 
   const analysisCard = document.getElementById("barber-analysis-card");
   if (analysisCard) analysisCard.style.display = solo ? "none" : "";
+  // Comissão só faz sentido comparando/pagando barbeiros diferentes do dono —
+  // no modo solo o "barbeiro" é o próprio dono (via "Esse barbeiro sou eu"),
+  // então fechar comissão pra si mesmo não agrega nada.
+  const payoutsCard = document.getElementById("commission-payouts-card");
+  if (payoutsCard) payoutsCard.style.display = solo ? "none" : "";
   // "Avaliações dos clientes" ficava realocada pra dentro de
   // .overview-grid-two em modo solo, preenchendo o espaço que "Análise por
   // barbeiro" deixava vago ali — desde a Fase 5 (Atendimentos/Métricas),
@@ -2428,6 +2444,134 @@ async function loadBarberPerformance() {
       <div class="rank-revenue">${currency(b.revenue)}</div>
     </div>
   `).join("");
+}
+
+/* ---------------- Comissão / pagamento de profissionais ---------------- */
+const PAYOUT_STATUS_LABEL = { open: "Aberto", paid: "Pago" };
+
+async function loadPayouts() {
+  if (isSoloMode()) return; // card fica escondido via applyBarberModeGating(); evita a requisição à toa
+  await Promise.all([loadPendingPayouts(), loadPayoutHistory()]);
+}
+
+async function loadPendingPayouts() {
+  const rows = await (await fetch("/api/manage/payouts/summary")).json();
+  const list = document.getElementById("payouts-pending-list");
+  if (rows.length === 0) {
+    list.innerHTML = `<div class="empty-state">Nenhum barbeiro cadastrado.</div>`;
+    return;
+  }
+  list.innerHTML = rows
+    .map((r) => {
+      const totalCents = r.serviceCommissionCents + r.productCommissionCents;
+      const closed = !!r.existingPayout;
+      return `
+    <div class="item-row">
+      <div>
+        <div class="item-info">${r.professionalName}</div>
+        <div class="item-meta">${currency(totalCents / 100)} de comissão no período (${r.periodStart} a ${r.periodEnd})${closed ? ` · já fechado (${PAYOUT_STATUS_LABEL[r.existingPayout.status]})` : ""}</div>
+      </div>
+      <div class="item-actions">
+        ${closed ? "" : `<button class="btn-primary" data-close-payout="${r.professionalId}" data-period-start="${r.periodStart}" data-period-end="${r.periodEnd}" ${totalCents === 0 ? "disabled" : ""}>Fechar comissão do mês</button>`}
+      </div>
+    </div>
+  `;
+    })
+    .join("");
+
+  list.querySelectorAll("[data-close-payout]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      try {
+        const res = await fetch("/api/manage/payouts/close", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            professionalId: Number(btn.dataset.closePayout),
+            periodStart: btn.dataset.periodStart,
+            periodEnd: btn.dataset.periodEnd,
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          alert(err.error || "Não foi possível fechar a comissão.");
+          btn.disabled = false;
+          return;
+        }
+        await loadPayouts();
+      } catch {
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+async function loadPayoutHistory() {
+  const payouts = await (await fetch("/api/manage/payouts")).json();
+  const list = document.getElementById("payouts-history-list");
+  if (payouts.length === 0) {
+    list.innerHTML = `<div class="empty-state">Nenhum fechamento ainda.</div>`;
+    return;
+  }
+  list.innerHTML = payouts
+    .map(
+      (p) => `
+    <div class="item-row">
+      <div>
+        <div class="item-info">${p.professional_name} · ${currency(p.total_cents / 100)}</div>
+        <div class="item-meta">${p.period_start} a ${p.period_end} · ${PAYOUT_STATUS_LABEL[p.status]}${p.adjustment_cents ? ` · ajuste ${currency(p.adjustment_cents / 100)}` : ""}</div>
+      </div>
+      <div class="item-actions">
+        ${p.status === "open" ? `<button class="btn-secondary" data-toggle-pay="${p.id}">Marcar como pago</button><button class="icon-btn danger" data-delete-payout="${p.id}" title="Excluir"><svg class="icon"><use href="#icon-block"></use></svg></button>` : ""}
+      </div>
+    </div>
+    ${p.status === "open" ? `
+    <div class="inline-form" id="pay-payout-form-${p.id}">
+      <div class="form-grid">
+        <div class="form-field"><label>Ajuste (R$, opcional — negativo pra desconto)</label><input type="number" step="0.01" id="pay-adjustment-${p.id}" value="0" /></div>
+        <div class="form-field"><label>Motivo do ajuste</label><input type="text" id="pay-adjustment-reason-${p.id}" placeholder="Deixe em branco se não houve ajuste" /></div>
+      </div>
+      <div class="form-actions">
+        <button class="btn-secondary" data-cancel-pay="${p.id}">Cancelar</button>
+        <button class="btn-primary" data-confirm-pay="${p.id}">Confirmar pagamento</button>
+      </div>
+    </div>
+    ` : ""}
+  `
+    )
+    .join("");
+
+  list.querySelectorAll("[data-toggle-pay]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.getElementById(`pay-payout-form-${btn.dataset.togglePay}`).classList.toggle("open");
+    });
+  });
+  list.querySelectorAll("[data-cancel-pay]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.getElementById(`pay-payout-form-${btn.dataset.cancelPay}`).classList.remove("open");
+    });
+  });
+  list.querySelectorAll("[data-confirm-pay]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.confirmPay;
+      const adjustmentCents = Math.round((Number(document.getElementById(`pay-adjustment-${id}`).value.replace(",", ".")) || 0) * 100);
+      const adjustmentReason = document.getElementById(`pay-adjustment-reason-${id}`).value.trim();
+      btn.disabled = true;
+      await fetch(`/api/manage/payouts/${id}/pay`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adjustmentCents, adjustmentReason }),
+      });
+      await loadPayouts();
+    });
+  });
+  list.querySelectorAll("[data-delete-payout]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Excluir este fechamento? A comissão volta a aparecer como pendente.")) return;
+      await fetch(`/api/manage/payouts/${btn.dataset.deletePayout}`, { method: "DELETE" });
+      await loadPayouts();
+    });
+  });
 }
 
 /* ---------------- Today's appointments ---------------- */
@@ -5605,7 +5749,7 @@ document.querySelectorAll("#page-tabs button").forEach((btn) => {
       // (disparado por loadAll() na entrada do painel, com a aba ainda
       // escondida) sempre sai com tamanho errado. Recarregar toda vez que a
       // aba abre garante que o canvas já está visível na hora de medir.
-      await Promise.all([loadRevenueChart(), loadOccupancyChart(), loadRevenueTrend(), loadBarberPerformance()]);
+      await Promise.all([loadRevenueChart(), loadOccupancyChart(), loadRevenueTrend(), loadBarberPerformance(), loadPayouts()]);
     }
     if (page === "agenda" && !agendaLoaded) {
       agendaLoaded = true;
