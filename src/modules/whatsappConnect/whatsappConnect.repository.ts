@@ -8,6 +8,7 @@ export function getWhatsappConnection(businessId: number) {
       whatsappPhoneNumberId: true,
       whatsappDisplayPhone: true,
       whatsappConnectionStatus: true,
+      whatsappCoexistence: true,
     },
   });
 }
@@ -18,9 +19,10 @@ export function saveWhatsappConnection(
     wabaId: string;
     phoneNumberId: string;
     accessTokenEnc: string;
-    pinEnc: string;
+    pinEnc: string | null;
     displayPhone: string | null;
     status: string;
+    coexistence: boolean;
   }
 ) {
   return prisma.business.update({
@@ -32,6 +34,7 @@ export function saveWhatsappConnection(
       whatsappPinEnc: data.pinEnc,
       whatsappDisplayPhone: data.displayPhone,
       whatsappConnectionStatus: data.status,
+      whatsappCoexistence: data.coexistence,
     },
   });
 }
@@ -54,6 +57,7 @@ export function clearWhatsappConnection(businessId: number) {
       whatsappPinEnc: null,
       whatsappDisplayPhone: null,
       whatsappConnectionStatus: "not_connected",
+      whatsappCoexistence: false,
     },
   });
 }

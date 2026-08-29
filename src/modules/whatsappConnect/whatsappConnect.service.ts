@@ -8,14 +8,6 @@ const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 
 export const whatsappConnectConfigured = !!(env.WHATSAPP_APP_ID && env.WHATSAPP_CONFIG_ID && env.WHATSAPP_APP_SECRET);
 
-// TODO(coexistence): quando a Meta aprovar a conta como Tech Provider (WHATSAPP_APP_ID/
-// WHATSAPP_CONFIG_ID deixarem de estar vazios), implementar o modo "Coexistence" — dono
-// mantém o WhatsApp Business App normal no número enquanto a Cloud API roda em paralelo,
-// sem precisar migrar/perder o app. Ver TODO equivalente no botão de conexão em admin.html
-// (webroot/admin.html, ~linha 3628) pra onde entra o featureType diferente e o passo de QR
-// Code. exchangeCodeForToken/registerPhoneNumber/subscribeAppToWaba abaixo devem valer sem
-// mudança nesse fluxo — a diferença é só na etapa de FB.login do frontend.
-
 function requireConfigured() {
   if (!whatsappConnectConfigured) {
     throw new AppError("Conexão self-service de WhatsApp ainda não configurada no servidor.", 503);
@@ -68,6 +60,11 @@ async function setTwoStepPin(phoneNumberId: string, accessToken: string, pin: st
   }
 }
 
+// Registra o número na Cloud API — só chamado no fluxo normal (não
+// Coexistence). Num número em modo Coexistence ele já está registrado pelo
+// próprio WhatsApp Business App; chamar /register de novo é desnecessário e
+// arriscado (poderia derrubar a sessão do app no celular do dono) — ver o
+// branch condicional em whatsappConnect.routes.ts.
 export async function registerPhoneNumber(phoneNumberId: string, accessToken: string, pin: string): Promise<void> {
   await setTwoStepPin(phoneNumberId, accessToken, pin);
   const res = await fetch(`${GRAPH_BASE}/${phoneNumberId}/register`, {

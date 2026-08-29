@@ -1324,7 +1324,6 @@
 
     <div class="section-title">Contas a pagar</div>
     <div class="card panel">
-    <div class="card panel">
       <div class="hint">Despesas da barbearia (aluguel, fornecedor, contas) — controle simples de vencimento, sem contabilidade completa.</div>
       <div id="expenses-list" style="margin-top:12px;"></div>
       <span class="add-toggle" id="toggle-add-expense">+ Adicionar despesa</span>
@@ -1454,12 +1453,26 @@
       </div>
     <div class="card panel" id="whatsapp-connect-card">
       <div class="hint" id="whatsapp-connect-hint">Carregando...</div>
-      <ol id="whatsapp-connect-steps" style="margin:14px 0 16px; padding-left:20px; font-size:12.5px; color: var(--text-secondary); line-height:1.7; display:none;">
-        <li>Você vai fazer login com a conta do Facebook/Meta Business da sua barbearia (ou criar uma, se ainda não tiver).</li>
-        <li>Escolha ou crie o número de WhatsApp que vai usar pra atender os clientes por aqui.</li>
-        <li>Confirme o código de verificação que a Meta manda por SMS ou ligação pro número escolhido.</li>
-        <li>Pronto — a plataforma finaliza a conexão sozinha e libera lembretes, reagendamento e o atendimento automático nesse número.</li>
-      </ol>
+
+      <div id="whatsapp-connect-mode-field" style="margin-top:14px; display:none;">
+        <div class="hint" style="margin-bottom:8px; font-weight:600; color:var(--text-primary);">Como você quer conectar?</div>
+        <label class="whatsapp-mode-option" style="display:flex; align-items:flex-start; gap:10px; padding:12px; border:1px solid var(--card-border); border-radius:var(--radius-sm); margin-bottom:8px; cursor:pointer;">
+          <input type="radio" name="whatsapp-connect-mode" value="coexistence" checked style="margin-top:3px;" />
+          <span>
+            <span style="display:block; font-weight:600; font-size:13px;">Manter meu WhatsApp Business App (recomendado)</span>
+            <span class="hint" style="display:block; margin-top:2px;">Seu número continua funcionando normalmente no celular — histórico, Status, grupos, tudo — e a IA passa a responder em paralelo, no mesmo número.</span>
+          </span>
+        </label>
+        <label class="whatsapp-mode-option" style="display:flex; align-items:flex-start; gap:10px; padding:12px; border:1px solid var(--card-border); border-radius:var(--radius-sm); cursor:pointer;">
+          <input type="radio" name="whatsapp-connect-mode" value="migrate" style="margin-top:3px;" />
+          <span>
+            <span style="display:block; font-weight:600; font-size:13px;">Conectar um número novo (ou migrar um existente)</span>
+            <span class="hint" style="display:block; margin-top:2px;">Esse número passa a ser usado só pela IA — deixa de funcionar no WhatsApp Business App do celular.</span>
+          </span>
+        </label>
+      </div>
+
+      <ol id="whatsapp-connect-steps" style="margin:14px 0 16px; padding-left:20px; font-size:12.5px; color: var(--text-secondary); line-height:1.7; display:none;"></ol>
       <div class="form-actions" id="whatsapp-connect-actions" style="display:none;">
         <button class="btn-primary" id="whatsapp-connect-btn">Conectar meu WhatsApp</button>
       </div>
@@ -5336,6 +5349,37 @@ const WHATSAPP_STATUS_LABEL = {
   error: "Algo deu errado na conexão ou na aprovação dos modelos de mensagem. Tente conectar de novo — se persistir, fale com o suporte.",
 };
 
+function getWhatsappConnectMode() {
+  const checked = document.querySelector('input[name="whatsapp-connect-mode"]:checked');
+  return checked ? checked.value : "coexistence";
+}
+
+const WHATSAPP_CONNECT_STEPS = {
+  coexistence: [
+    "Seu número precisa já estar ativo no WhatsApp Business App (celular) há pelo menos 7 dias, numa versão recente do app.",
+    "Você vai fazer login com a conta do Facebook/Meta Business da sua barbearia (ou criar uma, se ainda não tiver).",
+    "Digite o número que já usa no WhatsApp Business App — não crie um número novo aqui.",
+    "Confirme direto no seu celular, dentro do próprio WhatsApp Business App, escaneando o código que aparece na tela.",
+    "Pronto — a IA passa a responder em paralelo no mesmo número, sem tirar o app do seu celular do ar.",
+  ],
+  migrate: [
+    "Você vai fazer login com a conta do Facebook/Meta Business da sua barbearia (ou criar uma, se ainda não tiver).",
+    "Escolha ou crie o número de WhatsApp que vai usar pra atender os clientes por aqui.",
+    "Confirme o código de verificação que a Meta manda por SMS ou ligação pro número escolhido.",
+    "Pronto — a plataforma finaliza a conexão sozinha e libera lembretes, reagendamento e o atendimento automático nesse número. Esse número deixa de funcionar no WhatsApp Business App do celular.",
+  ],
+};
+
+function renderWhatsappConnectSteps() {
+  const steps = document.getElementById("whatsapp-connect-steps");
+  const mode = getWhatsappConnectMode();
+  steps.innerHTML = WHATSAPP_CONNECT_STEPS[mode].map((s) => `<li>${s}</li>`).join("");
+}
+
+document.querySelectorAll('input[name="whatsapp-connect-mode"]').forEach((input) => {
+  input.addEventListener("change", renderWhatsappConnectSteps);
+});
+
 let fbSdkLoadPromise = null;
 function loadFacebookSdk(appId) {
   if (fbSdkLoadPromise) return fbSdkLoadPromise;
@@ -5371,6 +5415,7 @@ function loadFacebookSdk(appId) {
 // (como o código fazia antes) dispara um erro falso no meio do fluxo normal.
 let whatsappSignupData = null;
 let whatsappSignupCancelled = false;
+let whatsappSignupIsCoexistence = false;
 let finalizeWhatsappSignup = null; // setado enquanto uma tentativa de conexão está em andamento
 let whatsappCancelFinalizeTimer = null; // debounce do CANCEL falso, ver comentário abaixo
 
@@ -5383,7 +5428,11 @@ window.addEventListener("message", (event) => {
   try {
     const data = JSON.parse(event.data);
     if (data.type !== "WA_EMBEDDED_SIGNUP") return;
-    if (data.event === "FINISH") {
+    // Coexistence usa um evento de finalização próprio (o número já está
+    // registrado no app, então o fluxo não é idêntico ao FINISH normal) —
+    // ver https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users/
+    if (data.event === "FINISH" || data.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING") {
+      whatsappSignupIsCoexistence = data.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING";
       whatsappSignupData = { wabaId: data.data.waba_id, phoneNumberId: data.data.phone_number_id };
       // Um FINISH sempre vence um CANCEL anterior: a Meta manda um CANCEL
       // "falso" no meio do fluxo (ex.: ao trocar de passo, tipicamente com
@@ -5663,13 +5712,19 @@ async function loadWhatsappConnectStatus() {
 
   const status = await (await fetch("/api/manage/whatsapp/connect/status")).json();
   hint.textContent = WHATSAPP_STATUS_LABEL[status.status] || WHATSAPP_STATUS_LABEL.not_connected;
-  if (status.status === "connected" && status.display_phone) {
+  if ((status.status === "connected" || status.status === "pending_templates") && status.display_phone) {
     hint.textContent += ` Número: ${status.display_phone}`;
+  }
+  if ((status.status === "connected" || status.status === "pending_templates") && status.coexistence) {
+    hint.textContent += " Modo Coexistência ativo — seu WhatsApp Business App continua funcionando normalmente no celular.";
   }
 
   const showConnectFlow = status.status === "not_connected" || status.status === "error";
+  const modeField = document.getElementById("whatsapp-connect-mode-field");
+  modeField.style.display = showConnectFlow ? "block" : "none";
   steps.style.display = showConnectFlow ? "block" : "none";
   actions.style.display = showConnectFlow ? "flex" : "none";
+  if (showConnectFlow) renderWhatsappConnectSteps();
 
   const disconnectActions = document.getElementById("whatsapp-disconnect-actions");
   disconnectActions.style.display = showConnectFlow ? "none" : "flex";
@@ -5701,8 +5756,10 @@ async function loadWhatsappConnectStatus() {
     btn.textContent = "Abrindo conexão...";
     try {
       await loadFacebookSdk(config.app_id);
+      const connectMode = getWhatsappConnectMode();
       whatsappSignupData = null;
       whatsappSignupCancelled = false;
+      whatsappSignupIsCoexistence = false; // definitivo só quando o evento FINISH_* chegar
       if (whatsappCancelFinalizeTimer) {
         clearTimeout(whatsappCancelFinalizeTimer);
         whatsappCancelFinalizeTimer = null;
@@ -5749,7 +5806,12 @@ async function loadWhatsappConnectStatus() {
           const res = await fetch("/api/manage/whatsapp/connect/callback", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ code: whatsappSignupCode, waba_id: whatsappSignupData.wabaId, phone_number_id: whatsappSignupData.phoneNumberId }),
+            body: JSON.stringify({
+              code: whatsappSignupCode,
+              waba_id: whatsappSignupData.wabaId,
+              phone_number_id: whatsappSignupData.phoneNumberId,
+              is_coexistence: whatsappSignupIsCoexistence,
+            }),
           });
           const body = await res.json();
           if (!res.ok) {
@@ -5784,17 +5846,12 @@ async function loadWhatsappConnectStatus() {
           config_id: config.config_id,
           response_type: "code",
           override_default_response_type: true,
-          // TODO(coexistence): oferecer também o modo "Coexistence" (dono mantém o
-          // WhatsApp Business App normal no celular e a Cloud API no mesmo número, sem
-          // migrar/perder o app). Depende de aprovação como Tech Provider pela Meta
-          // (pendente — ver WHATSAPP_APP_ID/WHATSAPP_CONFIG_ID em whatsappConnect.service.ts).
-          // Muda featureType pra "whatsapp_business_app_onboarding" nesse extras, o dono
-          // digita o número já ativo no app (7+ dias de uso, versão recente do app) e
-          // confirma escaneando um QR Code dentro do próprio WhatsApp Business App —
-          // dali em diante o fluxo de callback abaixo é o mesmo. Detalhes exatos (e se a
-          // config_id do dashboard da Meta precisa de flag própria pra isso) só dá pra
-          // confirmar depois que a aprovação sair: https://developers.facebook.com/docs/whatsapp/embedded-signup/custom-flows/onboarding-business-app-users/
-          extras: { setup: {}, featureType: "", sessionInfoVersion: "3" },
+          // Coexistence (dono mantém o WhatsApp Business App normal no celular e a
+          // Cloud API no mesmo número): featureType "whatsapp_business_app_onboarding"
+          // faz a Meta pedir o número já ativo no app (7+ dias de uso) e confirmar por
+          // QR Code/código dentro do próprio app — dali em diante o callback é o mesmo.
+          // Ver https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users/
+          extras: { setup: {}, featureType: connectMode === "coexistence" ? "whatsapp_business_app_onboarding" : "", sessionInfoVersion: "3" },
         }
       );
     } catch (err) {

@@ -134,6 +134,12 @@ model Business {
   whatsappPinEnc           String? @map("whatsapp_pin_enc")
   whatsappDisplayPhone     String? @map("whatsapp_display_phone")
   whatsappConnectionStatus String  @default("not_connected") @map("whatsapp_connection_status")
+  // Conectado no modo Coexistence (Tech Provider) — dono mantém o WhatsApp
+  // Business App normal no celular funcionando em paralelo com a Cloud API
+  // no mesmo número, sem migrar/perder o app. Nesse modo não geramos PIN nem
+  // chamamos /register (o número já está registrado pelo próprio app —
+  // registrar de novo quebraria a app, ver whatsappConnect.service.ts).
+  whatsappCoexistence Boolean @default(false) @map("whatsapp_coexistence")
 
   // Exemplos reais de mensagens que a barbearia já mandou a clientes no
   // WhatsApp, colados pelo dono em Configurações — injetados no system

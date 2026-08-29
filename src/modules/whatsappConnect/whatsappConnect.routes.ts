@@ -31,6 +31,7 @@ whatsappConnectRouter.get("/api/manage/whatsapp/connect/status", requireAuth, re
     res.json({
       status: connection?.whatsappConnectionStatus || "not_connected",
       display_phone: connection?.whatsappDisplayPhone || null,
+      coexistence: connection?.whatsappCoexistence || false,
     });
   } catch (err) {
     next(err);
@@ -40,18 +41,33 @@ whatsappConnectRouter.get("/api/manage/whatsapp/connect/status", requireAuth, re
 whatsappConnectRouter.post("/api/manage/whatsapp/connect/callback", requireAuth, requireOwner, async (req, res, next) => {
   try {
     const businessId = req.session.user!.businessId;
-    const { code, waba_id: wabaId, phone_number_id: phoneNumberId } = req.body as {
+    const {
+      code,
+      waba_id: wabaId,
+      phone_number_id: phoneNumberId,
+      is_coexistence: isCoexistence,
+    } = req.body as {
       code?: string;
       waba_id?: string;
       phone_number_id?: string;
+      is_coexistence?: boolean;
     };
     if (!code || !wabaId || !phoneNumberId) {
       throw new AppError("Dados incompletos vindos do popup de conexão do WhatsApp.");
     }
 
     const accessToken = await exchangeCodeForToken(code);
-    const pin = generateRegistrationPin();
-    await registerPhoneNumber(phoneNumberId, accessToken, pin);
+
+    // Coexistence: o número já está registrado na Cloud API pelo próprio
+    // WhatsApp Business App do dono — não gera PIN nem chama /register (ver
+    // comentário em registerPhoneNumber, whatsappConnect.service.ts).
+    let pinEnc: string | null = null;
+    if (!isCoexistence) {
+      const pin = generateRegistrationPin();
+      await registerPhoneNumber(phoneNumberId, accessToken, pin);
+      pinEnc = encryptSecret(pin);
+    }
+
     await subscribeAppToWaba(wabaId, accessToken);
     const displayPhone = await getDisplayPhoneNumber(phoneNumberId, accessToken);
 
@@ -59,9 +75,10 @@ whatsappConnectRouter.post("/api/manage/whatsapp/connect/callback", requireAuth,
       wabaId,
       phoneNumberId,
       accessTokenEnc: encryptSecret(accessToken),
-      pinEnc: encryptSecret(pin),
+      pinEnc,
       displayPhone,
       status: "pending_templates",
+      coexistence: !!isCoexistence,
     });
 
     const templateResults = await createTemplates(wabaId, accessToken);
@@ -70,7 +87,7 @@ whatsappConnectRouter.post("/api/manage/whatsapp/connect/callback", requireAuth,
       console.error(`[WHATSAPP CONNECT] Falha ao criar templates na WABA ${wabaId}:`, failed);
     }
 
-    res.json({ status: "pending_templates", display_phone: displayPhone });
+    res.json({ status: "pending_templates", display_phone: displayPhone, coexistence: !!isCoexistence });
   } catch (err) {
     next(err);
   }
