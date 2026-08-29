@@ -1288,7 +1288,42 @@
   </div>
 
   <div id="page-financeiro" class="page-section" style="display:none;">
+    <div class="section-title">Contas financeiras</div>
+    <div class="card panel">
+      <div class="hint">Separe o dinheiro físico (caixa) de valores em conta bancária. Só o caixa tem abertura/fechamento de turno.</div>
+      <div id="financial-accounts-list" style="margin-top:12px;"></div>
+      <span class="add-toggle" id="toggle-add-financial-account">+ Adicionar conta</span>
+      <div class="inline-form" id="add-financial-account-form">
+        <div class="form-grid">
+          <div class="form-field"><label>Nome</label><input type="text" id="new-financial-account-name" placeholder="Ex: Caixa da loja" /></div>
+          <div class="form-field">
+            <label>Tipo</label>
+            <select id="new-financial-account-type">
+              <option value="caixa">Caixa (dinheiro físico)</option>
+              <option value="banco">Conta bancária</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-primary" id="save-financial-account-btn">Salvar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">Caixa</div>
+    <div class="card panel">
+      <div class="hint">"Esperado" soma agendamentos e vendas de produto marcados como "Dinheiro" desde a abertura — compare com o que você contar na gaveta ao fechar.</div>
+      <div class="form-field" style="max-width:280px; margin-top:12px;" id="cash-account-select-field">
+        <label>Conta de caixa</label>
+        <select id="cash-account-select"></select>
+      </div>
+      <div id="cash-session-panel" style="margin-top:12px;"></div>
+      <div class="hint" style="margin-top:20px;">Histórico de turnos</div>
+      <div id="cash-session-history" style="margin-top:8px;"></div>
+    </div>
+
     <div class="section-title">Contas a pagar</div>
+    <div class="card panel">
     <div class="card panel">
       <div class="hint">Despesas da barbearia (aluguel, fornecedor, contas) — controle simples de vencimento, sem contabilidade completa.</div>
       <div id="expenses-list" style="margin-top:12px;"></div>
@@ -5047,6 +5082,177 @@ document.getElementById("save-coupon-btn").addEventListener("click", async () =>
   loadCoupons();
 });
 
+/* ---------------- Financeiro: Contas financeiras + Caixa ---------------- */
+let cashAccountsCache = [];
+let selectedCashAccountId = null;
+
+async function loadFinancialAccounts() {
+  const accounts = await (await fetch("/api/manage/financial-accounts")).json();
+  cashAccountsCache = accounts;
+  const list = document.getElementById("financial-accounts-list");
+  if (accounts.length === 0) {
+    list.innerHTML = `<div class="empty-state">Nenhuma conta cadastrada ainda.</div>`;
+  } else {
+    list.innerHTML = accounts
+      .map(
+        (a) => `
+      <div class="item-row ${a.active ? "" : "inactive"}">
+        <div>
+          <div class="item-info">${a.name}${a.active ? "" : " (inativa)"}</div>
+          <div class="item-meta">${a.type === "caixa" ? "Caixa (dinheiro físico)" : "Conta bancária"}</div>
+        </div>
+        <div class="item-actions">
+          <button class="icon-btn ${a.active ? "danger" : ""}" data-toggle-financial-account="${a.id}" data-active="${a.active}" title="${a.active ? "Desativar" : "Ativar"}">${a.active ? '<svg class="icon"><use href="#icon-block"></use></svg>' : '<svg class="icon"><use href="#icon-check-circle"></use></svg>'}</button>
+        </div>
+      </div>
+    `
+      )
+      .join("");
+  }
+  list.querySelectorAll("[data-toggle-financial-account]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const active = btn.dataset.active === "true";
+      await fetch(`/api/manage/financial-accounts/${btn.dataset.toggleFinancialAccount}/active`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: !active }),
+      });
+      await loadFinancialAccounts();
+    });
+  });
+
+  const cashAccounts = accounts.filter((a) => a.active && a.type === "caixa");
+  const select = document.getElementById("cash-account-select");
+  const selectField = document.getElementById("cash-account-select-field");
+  if (cashAccounts.length === 0) {
+    selectField.style.display = "none";
+    document.getElementById("cash-session-panel").innerHTML = `<div class="empty-state">Cadastre uma conta do tipo "Caixa" acima pra abrir turno.</div>`;
+    document.getElementById("cash-session-history").innerHTML = "";
+    return;
+  }
+  selectField.style.display = "";
+  const current = cashAccounts.some((a) => a.id === selectedCashAccountId) ? selectedCashAccountId : cashAccounts[0].id;
+  selectedCashAccountId = current;
+  select.innerHTML = cashAccounts.map((a) => `<option value="${a.id}" ${a.id === current ? "selected" : ""}>${a.name}</option>`).join("");
+  await Promise.all([loadCashSessionPanel(current), loadCashSessionHistory(current)]);
+}
+
+document.getElementById("cash-account-select").addEventListener("change", async (e) => {
+  selectedCashAccountId = Number(e.target.value);
+  await Promise.all([loadCashSessionPanel(selectedCashAccountId), loadCashSessionHistory(selectedCashAccountId)]);
+});
+
+document.getElementById("toggle-add-financial-account").addEventListener("click", () => {
+  document.getElementById("add-financial-account-form").classList.toggle("open");
+});
+document.getElementById("save-financial-account-btn").addEventListener("click", async () => {
+  const name = document.getElementById("new-financial-account-name");
+  const type = document.getElementById("new-financial-account-type");
+  if (!name.value.trim()) return;
+  await fetch("/api/manage/financial-accounts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: name.value.trim(), type: type.value }),
+  });
+  name.value = "";
+  document.getElementById("add-financial-account-form").classList.remove("open");
+  await loadFinancialAccounts();
+});
+
+async function loadCashSessionPanel(accountId) {
+  const panel = document.getElementById("cash-session-panel");
+  const status = await (await fetch(`/api/manage/cash-sessions/status?financialAccountId=${accountId}`)).json();
+  if (!status.open) {
+    panel.innerHTML = `
+      <div class="form-grid">
+        <div class="form-field"><label>Valor inicial (R$)</label><input type="number" step="0.01" id="open-cash-amount" value="0" /></div>
+      </div>
+      <div class="form-actions">
+        <button class="btn-primary" id="open-cash-btn">Abrir caixa</button>
+      </div>
+    `;
+    document.getElementById("open-cash-btn").addEventListener("click", async () => {
+      const amount = document.getElementById("open-cash-amount").value;
+      const res = await fetch("/api/manage/cash-sessions/open", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ financialAccountId: accountId, openingBalanceCents: Math.round((Number(amount) || 0) * 100) }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || "Não foi possível abrir o caixa.");
+        return;
+      }
+      await Promise.all([loadCashSessionPanel(accountId), loadCashSessionHistory(accountId)]);
+    });
+    return;
+  }
+
+  panel.innerHTML = `
+    <div class="kpi-grid" style="grid-template-columns: repeat(2, 1fr);">
+      <div class="card kpi-card">
+        <div class="kpi-label">Valor de abertura</div>
+        <div class="kpi-value">${currency(status.session.opening_balance_cents / 100)}</div>
+        <div class="hint">${timeAgoFull(status.session.opened_at)} · ${status.session.opened_by}</div>
+      </div>
+      <div class="card kpi-card">
+        <div class="kpi-label">Esperado agora</div>
+        <div class="kpi-value">${currency(status.expected_now_cents / 100)}</div>
+        <div class="hint">Abertura + dinheiro recebido no período</div>
+      </div>
+    </div>
+    <div class="form-grid" style="margin-top:16px;">
+      <div class="form-field"><label>Valor contado (R$)</label><input type="number" step="0.01" id="close-cash-amount" /></div>
+      <div class="form-field" style="grid-column: 1 / -1;"><label>Observação (opcional)</label><input type="text" id="close-cash-note" placeholder="Ex: sobrou troco de outro turno" /></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn-primary" id="close-cash-btn">Fechar caixa</button>
+    </div>
+  `;
+  document.getElementById("close-cash-btn").addEventListener("click", async () => {
+    const amount = document.getElementById("close-cash-amount").value;
+    if (!amount) return;
+    const note = document.getElementById("close-cash-note").value.trim();
+    const res = await fetch(`/api/manage/cash-sessions/${status.session.id}/close`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ closingBalanceCents: Math.round(Number(amount) * 100), note: note || undefined }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || "Não foi possível fechar o caixa.");
+      return;
+    }
+    await Promise.all([loadCashSessionPanel(accountId), loadCashSessionHistory(accountId)]);
+  });
+}
+
+async function loadCashSessionHistory(accountId) {
+  const sessions = await (await fetch(`/api/manage/cash-sessions?financialAccountId=${accountId}`)).json();
+  const list = document.getElementById("cash-session-history");
+  const closed = sessions.filter((s) => s.closed_at);
+  if (closed.length === 0) {
+    list.innerHTML = `<div class="empty-state">Nenhum turno fechado ainda.</div>`;
+    return;
+  }
+  list.innerHTML = closed
+    .map((s) => {
+      const diff = s.difference_cents;
+      const diffLabel = diff === 0 ? "bateu certinho" : diff > 0 ? `sobrou ${currency(diff / 100)}` : `faltou ${currency(Math.abs(diff) / 100)}`;
+      const diffColor = diff === 0 ? "var(--good)" : diff > 0 ? "var(--warn, var(--brand))" : "var(--danger)";
+      return `
+    <div class="item-row">
+      <div>
+        <div class="item-info">${timeAgoFull(s.opened_at)} a ${timeAgoFull(s.closed_at)}</div>
+        <div class="item-meta">Abriu com ${currency(s.opening_balance_cents / 100)} · esperado ${currency(s.expected_closing_cents / 100)} · contado ${currency(s.closing_balance_cents / 100)}${s.note ? ` · ${s.note}` : ""}</div>
+      </div>
+      <div class="rank-revenue" style="color:${diffColor};">${diffLabel}</div>
+    </div>
+  `;
+    })
+    .join("");
+}
+
 /* ---------------- Log de auditoria ---------------- */
 function timeAgoFull(dateStr) {
   const then = parseServerDate(dateStr);
@@ -6144,7 +6350,7 @@ document.querySelectorAll("#page-tabs button").forEach((btn) => {
     }
     if (page === "financeiro" && !financeiroLoaded) {
       financeiroLoaded = true;
-      await Promise.all([loadExpenses(), loadCoupons()]);
+      await Promise.all([loadExpenses(), loadCoupons(), loadFinancialAccounts()]);
     }
     if (page === "estoque" && !estoqueLoaded) {
       estoqueLoaded = true;

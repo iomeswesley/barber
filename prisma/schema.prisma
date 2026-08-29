@@ -101,6 +101,11 @@ enum WaitlistStatus {
   expirado
 }
 
+enum FinancialAccountType {
+  caixa
+  banco
+}
+
 model Business {
   id                    Int      @id @default(autoincrement())
   name                  String
@@ -175,6 +180,8 @@ model Business {
   suppliers               Supplier[]
   stockMovements          StockMovement[]
   waitlistEntries         WaitlistEntry[]
+  financialAccounts       FinancialAccount[]
+  cashSessions            CashSession[]
 
   @@map("businesses")
 }
@@ -491,6 +498,55 @@ model ProfessionalPayout {
 // completo (sem recorrência automática, sem categoria fixa — category é
 // texto livre de propósito, pra não travar o dono num enum fechado antes de
 // saber quais categorias ele realmente usa).
+// "Onde o dinheiro está" — caixa físico (gaveta) ou conta bancária. V1 não
+// move saldo entre contas nem soma automaticamente o saldo bancário (não há
+// integração com banco); serve pra separar visualmente "dinheiro físico"
+// (que tem fechamento de caixa, ver CashSession) de "dinheiro em conta"
+// (só um rótulo por enquanto, sem fluxo próprio ainda).
+model FinancialAccount {
+  id         Int                  @id @default(autoincrement())
+  businessId Int                  @map("business_id")
+  name       String
+  type       FinancialAccountType
+  active     Boolean              @default(true)
+  createdAt  DateTime             @default(now()) @map("created_at")
+
+  business     Business      @relation(fields: [businessId], references: [id])
+  cashSessions CashSession[]
+
+  @@index([businessId])
+  @@map("financial_accounts")
+}
+
+// Abertura/fechamento de turno de caixa (só faz sentido pra uma conta do
+// tipo "caixa"). "Esperado" não é gravado durante a sessão — é calculado on
+// demand (ver cashSessions.service.ts: soma de Appointment/ProductSale com
+// paymentMethod "dinheiro" cuja data cai dentro do período aberto, menos
+// nada ainda — sangria/despesa em dinheiro fica pra uma próxima passada).
+// expectedClosingCents só é congelado no momento do fechamento, pra manter
+// o histórico estável mesmo que um agendamento antigo seja editado depois.
+model CashSession {
+  id                  Int       @id @default(autoincrement())
+  businessId          Int       @map("business_id")
+  financialAccountId  Int       @map("financial_account_id")
+  openedAt            DateTime  @default(now()) @map("opened_at")
+  closedAt            DateTime? @map("closed_at")
+  openingBalanceCents Int       @map("opening_balance_cents")
+  closingBalanceCents Int?      @map("closing_balance_cents")
+  expectedClosingCents Int?     @map("expected_closing_cents")
+  openedBy            String    @map("opened_by")
+  closedBy            String?   @map("closed_by")
+  note                String?
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  business         Business         @relation(fields: [businessId], references: [id])
+  financialAccount FinancialAccount @relation(fields: [financialAccountId], references: [id])
+
+  @@index([businessId])
+  @@index([financialAccountId])
+  @@map("cash_sessions")
+}
+
 model Expense {
   id          Int           @id @default(autoincrement())
   businessId  Int           @map("business_id")
@@ -637,6 +693,10 @@ model ProductSale {
   date          DateTime @db.Date
   appointmentId Int?     @map("appointment_id")
   createdAt     DateTime @default(now()) @map("created_at")
+  // Mesma paridade de Appointment.paymentMethod — venda avulsa no balcão
+  // (sem appointmentId) também precisa disso pro cálculo de caixa (ver
+  // CashSession) saber quanto dinheiro físico entrou de verdade.
+  paymentMethod PaymentMethod? @map("payment_method")
 
   business    Business     @relation(fields: [businessId], references: [id])
   client      Client       @relation(fields: [clientId], references: [id])

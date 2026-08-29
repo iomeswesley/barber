@@ -26,6 +26,8 @@ import { payoutsRouter } from "@/modules/payouts/payouts.routes.js";
 import { expensesRouter } from "@/modules/expenses/expenses.routes.js";
 import { couponsRouter } from "@/modules/coupons/coupons.routes.js";
 import { waitlistRouter } from "@/modules/waitlist/waitlist.routes.js";
+import { financialAccountsRouter } from "@/modules/financialAccounts/financialAccounts.routes.js";
+import { cashSessionsRouter } from "@/modules/cashSessions/cashSessions.routes.js";
 import { escalationsRouter } from "@/modules/escalations/escalations.routes.js";
 import { auditLogRouter } from "@/modules/auditLog/auditLog.routes.js";
 import { pushRouter } from "@/modules/push/push.routes.js";
@@ -233,6 +235,8 @@ export function createApp() {
   app.use(expensesRouter);
   app.use(couponsRouter);
   app.use(waitlistRouter);
+  app.use(financialAccountsRouter);
+  app.use(cashSessionsRouter);
   app.use(escalationsRouter);
   app.use(auditLogRouter);
   app.use(pushRouter);

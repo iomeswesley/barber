@@ -103,7 +103,21 @@ export async function getStockOverview(businessId: number) {
 
 export async function createProductSale(
   businessId: number,
-  { clientId, productId, quantity, date, appointmentId }: { clientId: number; productId: number; quantity?: number; date: string; appointmentId?: number | null },
+  {
+    clientId,
+    productId,
+    quantity,
+    date,
+    appointmentId,
+    paymentMethod,
+  }: {
+    clientId: number;
+    productId: number;
+    quantity?: number;
+    date: string;
+    appointmentId?: number | null;
+    paymentMethod?: "dinheiro" | "pix" | "cartao" | "outro" | null;
+  },
   createdBy = "sistema"
 ) {
   const qty = quantity || 1;
@@ -115,6 +129,7 @@ export async function createProductSale(
       quantity: qty,
       date: new Date(`${date}T00:00:00`),
       appointmentId: appointmentId || null,
+      paymentMethod: paymentMethod || null,
     },
     include: { product: { select: { name: true, priceCents: true } } },
   });
@@ -146,7 +161,8 @@ export async function replaceAppointmentProductSales(
   appointmentId: number,
   date: string,
   sales: { productId: number; quantity: number }[],
-  createdBy = "sistema"
+  createdBy = "sistema",
+  paymentMethod?: "dinheiro" | "pix" | "cartao" | "outro" | null
 ) {
   const old = await getProductSalesForAppointment(appointmentId);
   for (const o of old) {
@@ -163,6 +179,7 @@ export async function replaceAppointmentProductSales(
         quantity: s.quantity || 1,
         date,
         appointmentId,
+        paymentMethod,
       },
       createdBy
     );

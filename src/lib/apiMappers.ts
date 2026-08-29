@@ -10,7 +10,7 @@
 // então cada mapeador espelha o shape exato observado no server.js/db.js originais.
 
 import type { AppointmentDTO } from "@/modules/appointments/appointments.types.js";
-import type { Professional, Service, Product, TimeBlock, Escalation, AuditLog, BusinessHours, Business, ClientPlan, ProfessionalPayout, Expense, Coupon, Supplier, StockMovement, WaitlistEntry } from "@prisma/client";
+import type { Professional, Service, Product, TimeBlock, Escalation, AuditLog, BusinessHours, Business, ClientPlan, ProfessionalPayout, Expense, Coupon, Supplier, StockMovement, WaitlistEntry, FinancialAccount, CashSession } from "@prisma/client";
 import type { ClientStatsRow } from "@/modules/dashboard/clientStats.service.js";
 import { localDateStr } from "@/lib/time.js";
 
@@ -206,6 +206,35 @@ export function toApiWaitlistEntry(w: WaitlistEntry & { clientName?: string; cli
     status: w.status,
     notified_at: w.notifiedAt,
     created_at: w.createdAt,
+  };
+}
+
+export function toApiFinancialAccount(a: FinancialAccount) {
+  return {
+    id: a.id,
+    barbershop_id: a.businessId,
+    name: a.name,
+    type: a.type,
+    active: a.active,
+    created_at: a.createdAt,
+  };
+}
+
+export function toApiCashSession(s: CashSession & { financialAccount?: { name: string; type: string } }) {
+  return {
+    id: s.id,
+    barbershop_id: s.businessId,
+    financial_account_id: s.financialAccountId,
+    financial_account_name: s.financialAccount?.name,
+    opened_at: s.openedAt,
+    closed_at: s.closedAt,
+    opening_balance_cents: s.openingBalanceCents,
+    closing_balance_cents: s.closingBalanceCents,
+    expected_closing_cents: s.expectedClosingCents,
+    difference_cents: s.closingBalanceCents != null && s.expectedClosingCents != null ? s.closingBalanceCents - s.expectedClosingCents : null,
+    opened_by: s.openedBy,
+    closed_by: s.closedBy,
+    note: s.note,
   };
 }
 

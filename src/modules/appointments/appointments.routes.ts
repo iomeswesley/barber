@@ -255,7 +255,8 @@ appointmentsRouter.put("/api/appointments/:id", requireAuth, async (req, res, ne
       updated.id,
       updated.date,
       sales.map((s: any) => ({ productId: Number(s.productId), quantity: Number(s.quantity) || 1 })),
-      req.session.user!.name
+      req.session.user!.name,
+      updated.paymentMethod as "dinheiro" | "pix" | "cartao" | "outro" | null
     );
     const productsSummary = soldProducts.map((s) => `${s.quantity}x ${s.productName}`).join(", ");
     await logAudit(
