@@ -124,6 +124,33 @@ Migrations aplicadas via `prisma migrate deploy` (nunca `migrate dev`, mesma cau
 
 **Item 2b/2c implementado (29/08, commit `1e996a1`): contas financeiras + caixa.** Models `FinancialAccount` (caixa/banco) e `CashSession` — `src/modules/financialAccounts/`, `src/modules/cashSessions/`. "Esperado" ao fechar o caixa é calculado on demand (soma de `Appointment`/`ProductSale` com `paymentMethod` "dinheiro" no dia da abertura), nunca gravado até o fechamento de verdade — editar um agendamento antigo não altera retroativamente um turno já fechado. `ProductSale` ganhou `paymentMethod` nessa mesma migration (`20260829020000_financeiro_contas_caixa`), por paridade com `Appointment` — venda de produto numa visita herda a forma de pagamento escolhida pro agendamento inteiro. UI nova em Financeiro (abrir/fechar turno, esperado ao vivo, histórico com diferença). Fora de escopo: sangria/despesa dentro da sessão, transferência entre contas, saldo bancário automático.
 
+### Projeto Ponte — extensão de WhatsApp em cima de sistemas de agenda de terceiros (29/08, iniciado)
+
+Pivô comercial: um cliente atual quer só a camada de IA no WhatsApp, plugada em cima do **AppBarber** (o
+sistema que ele já usa e não quer trocar — é vitrine dele pra clientes novos), em vez do painel completo.
+Plano detalhado em [`docs/projeto-ponte.md`](docs/projeto-ponte.md) — resumo do que já foi decidido:
+
+- **AppBarber é fechado**: sem API pública, sem webhook, sem programa de parceiros documentado (contato:
+  `atendimento@appbarber.com.br`). Concorrente direto (Trinks) tem API pública + webhooks e cita
+  "agendamento via chatbot" como caso de uso oficial — valida o modelo de negócio, só não vale pro AppBarber.
+- **Achado crítico**: a tela de login do AppBarber (`sistema.appbarber.com.br/login.php`) tem reCAPTCHA
+  invisível da Google. Decisão: não tentar contornar (nem via serviço de resolução de captcha — seria burlar
+  proteção anti-abuso de terceiro). Saída escolhida: **sessão persistente** — o dono loga manualmente uma vez
+  (passa pelo captcha ele mesmo), o worker reusa a sessão salva pra automatizar o resto sem repetir login.
+- **Código mora em `worker/`**, pasta própria na raiz do repo com `package.json`/`tsconfig.json`
+  independentes do app principal — sem `workspaces` declarado, então o `npm install`/build da Vercel nem
+  toca nela (Playwright/Chromium não cabe numa function serverless). Roda fora da Vercel quando virar
+  produção (VPS/Railway/Fly.io). **Tem checagem de tipo própria** (`npm run typecheck` dentro de `worker/`) —
+  o `tsc` da raiz não cobre essa pasta, mesma armadilha que já mordeu os `scripts/*.ts` uma vez.
+- **Fase 1 (spike de viabilidade) esqueletada, ainda não validada contra conta real**: `worker/src/spike/capture-session.ts`
+  (login manual numa janela de navegador de verdade, salva a sessão) + `worker/src/spike/create-appointment.ts`
+  (headless, reusa a sessão salva, confirma que chega autenticado sem cair no login de novo — a parte de criar
+  o agendamento em si está com `TODO` marcado, esperando alguém rodar contra uma conta de teste real pra
+  descobrir os seletores da tela autenticada). Ver `worker/README.md` pro passo a passo.
+- Próximo passo depende de alguém (não da IA) rodar os dois scripts contra uma conta de **teste** do AppBarber
+  (nunca conta real de cliente) — só então dá pra confirmar se a Fase 1 realmente funciona e seguir pra Fase 2
+  (fila de jobs, cofre de credenciais/sessão criptografado no banco, alerta de quebra de seletor).
+
 ### Pendências reais
 
 1. Reescrita do frontend (`webroot/*.html` continua HTML/JS puro, não framework) — parte já migrou pro design Cal.com, falta o resto do `admin.html` (cards de plano da Cobrança, grid de cards em Serviços) e `barber.html`.

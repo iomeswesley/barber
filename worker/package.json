@@ -1,0 +1,21 @@
+{
+  "name": "@barbearia-saas/worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Serviço separado (fora da Vercel) que automatiza sistemas de agenda de terceiros sem API pública, começando pelo AppBarber. Ver docs/projeto-ponte.md (Fase 1: spike de viabilidade).",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "playwright:install": "playwright install chromium",
+    "capture-session": "tsx --env-file=../.env src/spike/capture-session.ts",
+    "spike:create-appointment": "tsx --env-file=../.env src/spike/create-appointment.ts"
+  },
+  "dependencies": {
+    "playwright": "^1.47.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
