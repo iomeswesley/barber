@@ -21,6 +21,9 @@ whatsappConnectRouter.get("/api/manage/whatsapp/connect/config", requireAuth, re
     configured: whatsappConnectConfigured,
     app_id: env.WHATSAPP_APP_ID || null,
     config_id: env.WHATSAPP_CONFIG_ID || null,
+    // Sem Configuration dedicada de Coexistence ainda, cai pro config_id
+    // padrão — mesmo comportamento de antes dessa separação existir.
+    config_id_coexistence: env.WHATSAPP_CONFIG_ID_COEXISTENCE || env.WHATSAPP_CONFIG_ID || null,
   });
 });
 

@@ -50,6 +50,15 @@ const envSchema = z.object({
   // antes de gravar no banco — nunca reaproveitar a mesma chave de outro uso.
   WHATSAPP_APP_ID: z.string().optional(),
   WHATSAPP_CONFIG_ID: z.string().optional(),
+  // Configuration ID dedicado ao fluxo de Coexistence (número que já tem
+  // WhatsApp Business App instalado, ver whatsappConnect.routes.ts) — a
+  // variação de login "WhatsApp Embedded Signup" no Configuration Builder da
+  // Meta não tem um toggle visível de Coexistence separado, então a única
+  // forma encontrada de isolar o comportamento foi criar uma Configuration
+  // nova dedicada e apontar essa env var pra ela (2026-08-29, mesmo padrão
+  // já usado no sistema-dgs). Opcional: sem ela, cai pra WHATSAPP_CONFIG_ID
+  // mesmo (comportamento de antes, sem separação).
+  WHATSAPP_CONFIG_ID_COEXISTENCE: z.string().optional(),
   WHATSAPP_TOKEN_ENCRYPTION_KEY: z.string().optional(),
   // Teto de "pontos" de uso do WhatsApp (não é R$ exato, é uma estimativa —
   // ver WHATSAPP_TEMPLATE_WEIGHTS em billing.service.ts) que uma barbearia em

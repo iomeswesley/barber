@@ -5843,7 +5843,12 @@ async function loadWhatsappConnectStatus() {
           }
         },
         {
-          config_id: config.config_id,
+          // Coexistence usa uma Configuration dedicada (ver env.ts,
+          // WHATSAPP_CONFIG_ID_COEXISTENCE) — a variação de login do
+          // Configuration Builder da Meta não tem toggle de Coexistence
+          // dentro da mesma Configuration, então precisa ser uma diferente.
+          // Sem ela configurada, cai pro config_id padrão (config.config_id).
+          config_id: connectMode === "coexistence" ? config.config_id_coexistence || config.config_id : config.config_id,
           response_type: "code",
           override_default_response_type: true,
           // Coexistence (dono mantém o WhatsApp Business App normal no celular e a
