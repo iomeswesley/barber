@@ -367,7 +367,11 @@ async function executeTool(barbershop: Business, name: string, input: any, custo
         resumo: `${appointment.serviceName} com ${appointment.barberName} em ${appointment.date} às ${appointment.startTime}`,
         preco: formatPrice(appointment.priceCents),
         ics_url: icsUrl(appointment.id, customerPhone),
-        google_calendar_url: generateGoogleCalendarUrl(appointment),
+        // URL do Google Agenda vem enorme (todos os campos do evento na
+        // query string) — encurta antes de mandar por WhatsApp, mesmo
+        // padrão já usado pro link de checkout do Stripe (ver
+        // assinar_plano_assinatura logo abaixo).
+        google_calendar_url: `${env.PUBLIC_BASE_URL || ""}/ir/${await createShortLink(generateGoogleCalendarUrl(appointment))}`,
       };
     }
     case "entrar_lista_espera": {
@@ -413,7 +417,7 @@ async function executeTool(barbershop: Business, name: string, input: any, custo
         nova_data: updated.date,
         novo_horario: updated.startTime,
         ics_url: icsUrl(updated.id, customerPhone),
-        google_calendar_url: generateGoogleCalendarUrl(updated),
+        google_calendar_url: `${env.PUBLIC_BASE_URL || ""}/ir/${await createShortLink(generateGoogleCalendarUrl(updated))}`,
       };
     }
     case "registrar_avaliacao": {
