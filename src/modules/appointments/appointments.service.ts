@@ -50,7 +50,14 @@ export async function getAvailableSlots(
   busy.push(...(await getBlocksFor(businessId, professionalId, date)));
 
   const now = new Date();
-  const isToday = date === now.toISOString().slice(0, 10);
+  const todayIso = now.toISOString().slice(0, 10);
+  // Data inteira já passada (não só "mais cedo hoje") nunca tem horário
+  // livre — sem essa checagem, um "amanhã" mal calculado pela IA (ex:
+  // confundiu com um mês anterior, achado em produção 2026-09-04) voltava
+  // a lista normal de horários do dia, como se fosse uma data futura
+  // válida, e o agendamento passava sem ninguém perceber o erro.
+  if (date < todayIso) return [];
+  const isToday = date === todayIso;
   const nowMin = now.getHours() * 60 + now.getMinutes();
 
   const slots: string[] = [];
@@ -92,6 +99,15 @@ export async function createAppointment(input: {
   date: string;
   startTime: string;
 }): Promise<AppointmentDTO> {
+  // Segunda linha de defesa (a primeira é getAvailableSlots, mas o bot
+  // também pode chamar criar_agendamento direto sem checar disponibilidade
+  // antes) — nunca aceitar uma data que já passou. Acontece na prática: a
+  // IA errou o cálculo de "amanhã" (achado em produção 2026-09-04, virou
+  // um mês inteiro pra trás) e criou um agendamento fantasma sem ninguém
+  // perceber até o dono ir olhar a agenda.
+  const todayIso = new Date().toISOString().slice(0, 10);
+  if (input.date < todayIso) throw new AppError("Não é possível agendar em uma data que já passou.");
+
   const [service, barber] = await Promise.all([getService(input.serviceId), getBarber(input.professionalId)]);
   if (!service || service.businessId !== input.businessId) throw new AppError("Serviço não encontrado", 404);
   if (!barber || barber.businessId !== input.businessId) throw new AppError("Barbeiro não encontrado", 404);

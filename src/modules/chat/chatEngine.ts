@@ -167,7 +167,11 @@ function buildDynamicContext(identity: Identity, pendingReview: Awaited<ReturnTy
     : "";
 
   return `Contexto atual:
-- Hoje é ${weekday}, ${todayIso} (formato YYYY-MM-DD).
+- Hoje é ${weekday}, ${todayIso} (formato YYYY-MM-DD). Essa é a ÚNICA referência de "hoje" válida —
+  ignore qualquer data mencionada em mensagens anteriores desta conversa ao calcular "hoje",
+  "amanhã" ou qualquer data relativa, mesmo que a conversa seja antiga ou já tenha falado de
+  outros agendamentos em datas passadas. Nunca chame verificar_horarios_disponiveis,
+  buscar_proximo_horario_disponivel ou criar_agendamento com uma data anterior a ${todayIso}.
 ${identityBlock}${reviewBlock}`;
 }
 
