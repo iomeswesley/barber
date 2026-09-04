@@ -79,4 +79,29 @@ describe("createAppointment / getAvailableSlots (isolamento entre tenants)", () 
     const slots = await getAvailableSlots(shopA.id, barberB.id, serviceA.id, "2099-01-02");
     expect(slots).toEqual([]);
   });
+
+  // Achado em produção (2026-09-04, Barbearia Vintage): a IA errou o cálculo
+  // de "amanhã" numa sessão de conversa longa/antiga e tentou agendar num
+  // dia já passado — sem essa checagem, getAvailableSlots devolvia a lista
+  // normal de horários (só filtrava horário já passado DENTRO do dia de
+  // hoje, não o dia inteiro) e createAppointment aceitava numa boa.
+  describe("data no passado (achado em produção 2026-09-04)", () => {
+    it("getAvailableSlots retorna vazio pra uma data inteira no passado", async () => {
+      const slots = await getAvailableSlots(shopA.id, barberA.id, serviceA.id, "2020-01-01");
+      expect(slots).toEqual([]);
+    });
+
+    it("createAppointment rejeita mesmo sem passar por getAvailableSlots antes", async () => {
+      await expect(
+        createAppointment({
+          businessId: shopA.id,
+          professionalId: barberA.id,
+          serviceId: serviceA.id,
+          clientId: client.id,
+          date: "2020-01-01",
+          startTime: "10:00",
+        })
+      ).rejects.toThrow("data que já passou");
+    });
+  });
 });
