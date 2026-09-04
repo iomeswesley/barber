@@ -5346,7 +5346,7 @@ const WHATSAPP_STATUS_LABEL = {
   not_connected: "Nenhum número de WhatsApp conectado ainda. Siga o passo a passo abaixo pra conectar o seu:",
   pending_templates: "Número conectado! A Meta está aprovando os modelos de mensagem (lembrete, reagendamento, reconquista) — geralmente leva poucos minutos, às vezes mais. Volte aqui depois pra conferir.",
   connected: "Conectado e funcionando.",
-  error: "Algo deu errado na conexão ou na aprovação dos modelos de mensagem. Tente conectar de novo — se persistir, fale com o suporte.",
+  error: "Número conectado, mas um ou mais modelos de mensagem automática (lembrete, reagendamento, reconquista ou código de verificação) foram rejeitados pela Meta — essas mensagens automáticas ficam pausadas até isso ser corrigido. O atendimento normal pelo WhatsApp continua funcionando. Fale com o suporte se precisar de ajuda pra revisar o motivo da rejeição.",
 };
 
 function getWhatsappConnectMode() {
@@ -5712,14 +5712,28 @@ async function loadWhatsappConnectStatus() {
 
   const status = await (await fetch("/api/manage/whatsapp/connect/status")).json();
   hint.textContent = WHATSAPP_STATUS_LABEL[status.status] || WHATSAPP_STATUS_LABEL.not_connected;
-  if ((status.status === "connected" || status.status === "pending_templates") && status.display_phone) {
+  // "error" já significa NÚMERO CONECTADO (ver comentário abaixo em
+  // showConnectFlow) — mostra telefone e selo de Coexistência aqui também,
+  // senão o dono via só o aviso de template sem saber qual número está
+  // conectado por trás.
+  if ((status.status === "connected" || status.status === "pending_templates" || status.status === "error") && status.display_phone) {
     hint.textContent += ` Número: ${status.display_phone}`;
   }
-  if ((status.status === "connected" || status.status === "pending_templates") && status.coexistence) {
+  if ((status.status === "connected" || status.status === "pending_templates" || status.status === "error") && status.coexistence) {
     hint.textContent += " Modo Coexistência ativo — seu WhatsApp Business App continua funcionando normalmente no celular.";
   }
 
-  const showConnectFlow = status.status === "not_connected" || status.status === "error";
+  // "error" NÃO é "desconectado" — é setado só quando um Message Template é
+  // rejeitado pela Meta (ver handleTemplateStatusUpdate, whatsapp.routes.ts),
+  // o que trava lembrete/reagendamento/reconquista/OTP automáticos, mas o
+  // número em si já está conectado e o bot já responde normalmente dentro
+  // da janela de 24h. Antes disso entrar aqui como showConnectFlow=true, a
+  // tela voltava a mostrar "Como você quer conectar?" como se nada tivesse
+  // sido feito — confuso pro dono, que via o WhatsApp Business App já
+  // conectado de verdade no celular. Achado em produção (Barbearia Vintage,
+  // 2026-09-04): 3 templates rejeitados por política da Meta, conexão
+  // sumiu do painel.
+  const showConnectFlow = status.status === "not_connected";
   const modeField = document.getElementById("whatsapp-connect-mode-field");
   modeField.style.display = showConnectFlow ? "block" : "none";
   steps.style.display = showConnectFlow ? "block" : "none";
