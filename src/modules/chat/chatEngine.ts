@@ -25,6 +25,7 @@ import { notifyNewAppointment, notifyEscalation } from "@/modules/push/push.serv
 import { createWaitlistEntry } from "@/modules/waitlist/waitlist.repository.js";
 import { sendWhatsappText, whatsappConfigured, resolveBarbershopAccessToken, uploadWhatsappMedia, sendWhatsappMedia } from "@/lib/whatsapp.js";
 import { createShortLink } from "@/lib/shortLink.js";
+import { generateGoogleCalendarUrl } from "@/lib/ics.js";
 import { prisma } from "@/lib/prisma.js";
 import { env, vertical } from "@/config/env.js";
 import { logChatUsage } from "./chatUsage.js";
@@ -100,7 +101,7 @@ Seu objetivo é conduzir uma conversa natural e breve. Você pode: agendar um no
 3. Pergunte o dia desejado e use verificar_horarios_disponiveis para checar horários livres. Converta datas relativas ("amanhã", "sexta-feira que vem") para o formato YYYY-MM-DD com base na data de hoje informada no contexto abaixo. Sugira 3 a 5 horários disponíveis. Se o ${client} for vago sobre o dia ("qualquer dia", "não tenho preferência", "o mais rápido possível"), NÃO fique perguntando de novo — use a ferramenta buscar_proximo_horario_disponivel a partir de hoje e já sugira os horários encontrados.
 4. Quando o ${client} escolher um horário, confirme os detalhes (${svc}, ${prof}, data, horário e preço) — NÃO peça nome nem telefone de novo, você já sabe quem é o ${client} (veja o contexto abaixo). Inclua também, de forma breve e natural (não como um termo legal formal), que ao confirmar o ${client} concorda em receber lembretes e mensagens futuras da ${biz} por aqui — ex: "Confirma? (ao confirmar, você topa receber lembretes e novidades nossas por aqui 😉)".
 5. Só depois de confirmação explícita do ${client}, use a ferramenta criar_agendamento para gravar o agendamento.
-6. Depois de agendar com sucesso, informe o ${client} que o agendamento foi confirmado e inclua na sua resposta, de forma clara, o link para adicionar ao calendário que virá no resultado da ferramenta (campo ics_url) — escreva a URL completa como veio, sem alterar.
+6. Depois de agendar com sucesso, informe o ${client} que o agendamento foi confirmado e ofereça o link pra adicionar ao calendário como uma chamada clara pra ação, não só cole a URL solta — ex: "📅 Clique aqui pra adicionar ao seu calendário: {google_calendar_url}". Use o campo google_calendar_url (abre o Google Agenda já preenchido, sem precisar baixar nada — funciona melhor pra quase todo mundo). Só mencione o link alternativo (campo ics_url) se o ${client} disser que usa outro app de calendário (Apple Calendar, Outlook, etc.). Nunca altere as URLs, copie exatamente como vieram.
 
 Lista de espera:
 - Se verificar_horarios_disponiveis ou buscar_proximo_horario_disponivel não encontrar NENHUM horário livre dentro do período que o ${client} realmente queria (ex: só aceita um dia específico, ou uma semana específica, e não tem nada nela), ofereça entrar na lista de espera antes de desistir — algo como "não tenho horário nesse período, mas posso te avisar se abrir uma vaga, quer entrar na lista de espera?". NÃO ofereça isso se o ${client} ainda nem tentou um horário específico, ou se ele só ainda não escolheu entre as opções livres que você já mostrou.
@@ -366,6 +367,7 @@ async function executeTool(barbershop: Business, name: string, input: any, custo
         resumo: `${appointment.serviceName} com ${appointment.barberName} em ${appointment.date} às ${appointment.startTime}`,
         preco: formatPrice(appointment.priceCents),
         ics_url: icsUrl(appointment.id, customerPhone),
+        google_calendar_url: generateGoogleCalendarUrl(appointment),
       };
     }
     case "entrar_lista_espera": {
@@ -405,7 +407,14 @@ async function executeTool(barbershop: Business, name: string, input: any, custo
         throw new Error(`Agendamento não encontrado para este ${vertical.client}.`);
       }
       const updated = await rescheduleAppointment(input.agendamento_id, input.nova_data, input.novo_horario);
-      return { reagendado: true, agendamento_id: updated.id, nova_data: updated.date, novo_horario: updated.startTime, ics_url: icsUrl(updated.id, customerPhone) };
+      return {
+        reagendado: true,
+        agendamento_id: updated.id,
+        nova_data: updated.date,
+        novo_horario: updated.startTime,
+        ics_url: icsUrl(updated.id, customerPhone),
+        google_calendar_url: generateGoogleCalendarUrl(updated),
+      };
     }
     case "registrar_avaliacao": {
       const appointment = await getAppointmentById(input.agendamento_id);

@@ -160,7 +160,11 @@ appointmentsRouter.get("/api/appointments/:id/ics", selfServiceRateLimiter, asyn
 
     const ics = generateIcs(appointment);
     res.setHeader("Content-Type", "text/calendar; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename="agendamento-${appointment.id}.ics"`);
+    // "inline" (não "attachment"): no iOS/Safari isso faz o navegador abrir
+    // direto a tela "Adicionar evento" do Calendário, em vez de só baixar o
+    // arquivo pra pasta de Downloads sem fazer nada com ele. Fallback pra
+    // quem não usa Google Agenda — a opção principal é generateGoogleCalendarUrl.
+    res.setHeader("Content-Disposition", `inline; filename="agendamento-${appointment.id}.ics"`);
     res.send(ics);
   } catch (err) {
     next(err);
