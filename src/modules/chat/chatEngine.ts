@@ -147,7 +147,11 @@ interface Identity {
   pushName?: string | null;
 }
 
-function buildDynamicContext(identity: Identity, pendingReview: Awaited<ReturnType<typeof getUnreviewedCompletedAppointment>>): string {
+function buildDynamicContext(
+  identity: Identity,
+  pendingReview: Awaited<ReturnType<typeof getUnreviewedCompletedAppointment>>,
+  upcomingAppointments: Awaited<ReturnType<typeof getAppointmentsByClientPhone>>
+): string {
   const now = new Date();
   const todayIso = now.toISOString().slice(0, 10);
   const weekday = WEEKDAYS[now.getDay()];
@@ -167,13 +171,97 @@ function buildDynamicContext(identity: Identity, pendingReview: Awaited<ReturnTy
     ? `\n\nATENÇÃO — pedido de avaliação pendente: este ${client} teve um atendimento (ID ${pendingReview.id}: ${pendingReview.serviceName} com ${pendingReview.barberName} em ${pendingReview.date}) que ainda não foi avaliado. Antes de tratar do assunto principal da mensagem dele (ou logo depois, o que soar mais natural), pergunte de forma breve e simpática como foi esse atendimento e peça uma nota de 1 a 5 (e um comentário curto, opcional). Se ele responder com uma nota, use a ferramenta registrar_avaliacao com agendamento_id = ${pendingReview.id} (esse é o ID real — não peça isso ao ${client}, você já sabe). Se ele ignorar ou disser que não quer avaliar, não insista — siga com o resto da conversa normalmente.`
     : "";
 
+  // Lista real e fresca (não é o que foi dito em mensagens antigas desta
+  // conversa, que pode estar desatualizado). Achado em produção
+  // (2026-09-06): sem isso, a IA às vezes repetia uma frase tipo "amanhã
+  // (05/09)" de dias atrás como se ainda fosse válida, em vez de checar o
+  // agendamento de verdade — dado errado de origem, não erro de cálculo.
+  const upcomingBlock =
+    upcomingAppointments.length > 0
+      ? `\n\nAgendamentos futuros confirmados deste ${client} — ÚNICA fonte válida, gerada agora mesmo direto do banco de dados:\n${upcomingAppointments
+          .map((a) => `- ID ${a.id}: ${a.serviceName} com ${a.barberName} em ${a.date} às ${a.startTime}`)
+          .join(
+            "\n"
+          )}\nEssa lista pode ter mudado desde a última vez que você mencionou um agendamento nesta conversa (cancelamento, reagendamento, ou o horário já passou). NUNCA cite um agendamento, data ou horário que não esteja EXATAMENTE nesta lista — mesmo que você mesmo tenha dito isso antes nesta conversa.`
+      : `\n\nIMPORTANTE — verificado agora mesmo, direto do banco de dados: este ${client} NÃO tem nenhum agendamento futuro confirmado. Mesmo que uma mensagem anterior SUA nesta conversa tenha mencionado um agendamento (ex: "amanhã às HH:MM"), isso pode estar desatualizado — o agendamento pode já ter acontecido, sido cancelado, ou a data mudou. NÃO diga "você já tem um agendamento" nem repita nenhuma data/horário de agendamento anterior desta conversa. Se perguntarem sobre agendamento existente, a resposta correta agora é que não há nenhum.`;
+
   return `Contexto atual:
 - Hoje é ${weekday}, ${todayIso} (formato YYYY-MM-DD). Essa é a ÚNICA referência de "hoje" válida —
   ignore qualquer data mencionada em mensagens anteriores desta conversa ao calcular "hoje",
   "amanhã" ou qualquer data relativa, mesmo que a conversa seja antiga ou já tenha falado de
   outros agendamentos em datas passadas. Nunca chame verificar_horarios_disponiveis,
   buscar_proximo_horario_disponivel ou criar_agendamento com uma data anterior a ${todayIso}.
-${identityBlock}${reviewBlock}`;
+${identityBlock}${reviewBlock}${upcomingBlock}`;
+}
+
+const STALE_BOOKING_TOOLS = new Set(["criar_agendamento", "reagendar_agendamento"]);
+
+// Achado em produção (2026-09-06): mesmo com "hoje é" correto e a lista de
+// agendamentos futuros (fresca, do banco) dizendo explicitamente "nenhum
+// agendamento futuro", a IA continuava afirmando "você já tem um
+// agendamento pra amanhã" dias depois — porque o tool_result antigo
+// ("confirmado":true, data, horário) e a mensagem de confirmação em texto
+// livre continuavam visíveis no histórico da conversa, e isso pesou mais
+// que qualquer instrução nova. Testado e confirmado isoladamente: só
+// deixou de acontecer quando essas trocas antigas foram removidas do que é
+// mandado pra API — nenhuma instrução em texto, por mais explícita, corrigiu
+// sozinha enquanto o tool_result antigo continuava visível.
+//
+// Esta função poda (só na cópia mandada pra API — o histórico salvo no
+// banco pro painel de Conversas continua completo) as trocas de
+// criar_agendamento/reagendar_agendamento cuja data já passou: remove o
+// par tool_use + tool_result, e qualquer mensagem de texto livre seguinte
+// que cite o link .ics daquele agendamento (é como o texto de confirmação
+// sempre referencia o ID, ver instrução 6 do prompt).
+export function pruneStaleAppointmentHistory(messages: Anthropic.MessageParam[], todayIso: string): Anthropic.MessageParam[] {
+  const staleToolUseIds = new Set<string>();
+  const staleAppointmentIds = new Set<string>();
+
+  for (const m of messages) {
+    if (m.role !== "assistant" || !Array.isArray(m.content)) continue;
+    for (const block of m.content) {
+      if (block.type !== "tool_use" || !STALE_BOOKING_TOOLS.has(block.name)) continue;
+      const input = block.input as { data?: string; nova_data?: string };
+      const date = input.data || input.nova_data;
+      if (typeof date === "string" && date < todayIso) staleToolUseIds.add(block.id);
+    }
+  }
+  if (staleToolUseIds.size === 0) return messages;
+
+  // Segunda passada: acha o agendamento_id devolvido pelos tool_result
+  // correspondentes, pra também conseguir identificar (e remover) textos
+  // livres futuros que só citam o link .ics, sem tool_use por perto.
+  for (const m of messages) {
+    if (m.role !== "user" || !Array.isArray(m.content)) continue;
+    for (const block of m.content) {
+      if (block.type !== "tool_result" || !staleToolUseIds.has(block.tool_use_id)) continue;
+      try {
+        const parsed = JSON.parse(typeof block.content === "string" ? block.content : "{}");
+        if (parsed.agendamento_id) staleAppointmentIds.add(String(parsed.agendamento_id));
+      } catch {
+        // conteúdo não era o JSON esperado — sem problema, só não filtra por ID nesse caso
+      }
+    }
+  }
+
+  return messages.filter((m) => {
+    if (Array.isArray(m.content)) {
+      const isStaleToolExchange = m.content.every(
+        (block) =>
+          (block.type === "tool_use" && staleToolUseIds.has(block.id)) ||
+          (block.type === "tool_result" && staleToolUseIds.has(block.tool_use_id))
+      );
+      if (isStaleToolExchange) return false;
+    }
+    if (m.role === "assistant" && Array.isArray(m.content)) {
+      const mentionsStaleAppointment = m.content.some(
+        (block) =>
+          block.type === "text" && [...staleAppointmentIds].some((id) => block.text.includes(`/appointments/${id}/ics`))
+      );
+      if (mentionsStaleAppointment) return false;
+    }
+    return true;
+  });
 }
 
 const tools: Anthropic.Tool[] = [
@@ -707,10 +795,20 @@ export async function sendMessage(
   // Marcado assim que é apresentado ao modelo — ganhe ou perca, uma nova conversa
   // (system prompt novo) não deve insistir no mesmo pedido de novo.
   if (pendingReview) await markReviewPrompted(pendingReview.id);
+  // Busca fresca a cada mensagem — mesmo princípio do pendingReview acima.
+  // Achado em produção (2026-09-06): sem isso, a IA "lembrava" de um
+  // agendamento mencionado em mensagens antigas da própria conversa (ex:
+  // "amanhã (05/09)") e repetia essa frase como se ainda fosse válida dias
+  // depois, mesmo com "hoje é" correto no contexto — não é erro de cálculo
+  // de data, é citar a própria fala antiga em vez de checar o dado real.
+  // Efeito confirmado independente de effort (testado com "low" e "high",
+  // mesmo erro nos dois) — a causa não é raciocínio insuficiente do modelo,
+  // é falta de dado fresco à disposição dele.
+  const upcomingAppointments = await getAppointmentsByClientPhone(customerPhone, businessId);
 
   const system: Anthropic.TextBlockParam[] = [
     { type: "text", text: buildStableSystemPrompt(barbershop), cache_control: { type: "ephemeral" } },
-    { type: "text", text: buildDynamicContext({ existingClient, pushName }, pendingReview) },
+    { type: "text", text: buildDynamicContext({ existingClient, pushName }, pendingReview, upcomingAppointments) },
   ];
 
   const key = storageKey(businessId, sessionId);
@@ -734,6 +832,11 @@ export async function sendMessage(
 
       const session = await loadSession(tx, sessionId, businessId);
       session.messages.push({ role: "user", content: userText });
+      // Cópia podada (ver pruneStaleAppointmentHistory) — só o que vai pra
+      // API. session.messages continua completo pra salvar no banco (painel
+      // de Conversas mostra o histórico real, sem essa poda).
+      const todayIsoForPruning = new Date().toISOString().slice(0, 10);
+      let apiMessages = pruneStaleAppointmentHistory(session.messages, todayIsoForPruning);
 
       // Assinatura cancelada (trial vencido sem virar pagamento, ou
       // assinatura paga que o Stripe desistiu de cobrar) — mesmo critério e
@@ -770,13 +873,14 @@ export async function sendMessage(
             max_tokens: 1024,
             system,
             tools,
-            messages: session.messages,
+            messages: apiMessages,
             output_config: { effort: "low" },
           });
 
           await logChatUsage(businessId, MODEL, response.usage);
 
           session.messages.push({ role: "assistant", content: response.content });
+          apiMessages = [...apiMessages, { role: "assistant", content: response.content }];
 
           if (response.stop_reason !== "tool_use") {
             const text = response.content
@@ -803,6 +907,7 @@ export async function sendMessage(
             }
           }
           session.messages.push({ role: "user", content: toolResults });
+          apiMessages = [...apiMessages, { role: "user", content: toolResults }];
         }
 
         return "Desculpe, tive um problema para processar seu pedido. Pode tentar novamente?";
