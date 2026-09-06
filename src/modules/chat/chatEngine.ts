@@ -238,7 +238,17 @@ export function pruneStaleAppointmentHistory(messages: Anthropic.MessageParam[],
       }
     }
   }
-  if (staleToolUseIds.size === 0) return messages;
+  // Sempre um array NOVO, nunca a mesma referência de `messages` — o
+  // chamador (sendMessage) mantém `session.messages` (histórico completo)
+  // e o retorno daqui (`apiMessages`, só o que vai pra API) como duas
+  // variáveis separadas; se aqui devolvesse a mesma referência quando não
+  // há nada pra podar, os dois apontariam pro mesmo array e um
+  // `session.messages.push(...)` mutaria os dois ao mesmo tempo — o
+  // `apiMessages = [...apiMessages, novoItem]` do chamador duplicava então
+  // a mensagem que aquele push já tinha adicionado, e a Anthropic rejeitava
+  // com "tool_use ids must be unique" (achado rodando uma conversa real de
+  // múltiplos turnos, 2026-09-06).
+  if (staleToolUseIds.size === 0) return [...messages];
 
   // Segunda passada: acha o agendamento_id devolvido pelos tool_result
   // correspondentes, pra também conseguir identificar (e remover) textos

@@ -187,4 +187,19 @@ describe("pruneStaleAppointmentHistory", () => {
     ];
     expect(pruneStaleAppointmentHistory(messages, TODAY)).toEqual(messages);
   });
+
+  // Bug real achado rodando uma conversa de múltiplos turnos de verdade
+  // (2026-09-06): nos dois "early return" (sem nada pra podar), a função
+  // devolvia a MESMA referência do array de entrada. O chamador
+  // (sendMessage) trata o retorno daqui (apiMessages) e session.messages
+  // como duas variáveis independentes — um session.messages.push(...)
+  // acabava mutando as duas ao mesmo tempo, e o apiMessages = [...apiMessages,
+  // novoItem] do chamador duplicava a mensagem que aquele push já tinha
+  // acrescentado. A Anthropic rejeitava com "tool_use ids must be unique"
+  // assim que a conversa passava do primeiro turno. Nunca deve devolver a
+  // mesma referência do array recebido, em nenhum caso.
+  it("nunca devolve a mesma referência do array recebido, mesmo sem nada pra podar", () => {
+    const messages: Anthropic.MessageParam[] = [{ role: "user", content: "Oi" }];
+    expect(pruneStaleAppointmentHistory(messages, TODAY)).not.toBe(messages);
+  });
 });
