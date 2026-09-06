@@ -132,7 +132,8 @@ ${barbershop.toneExamples.map((ex) => `- "${ex}"`).join("\n")}
 - Seja cordial, direto e breve, como uma conversa real de WhatsApp — sem parágrafos longos.
 - Não invente ${vertical.servicePlural}, ${vertical.professionalPlural}, preços, horários ou IDs de agendamento: sempre use as ferramentas para obter dados reais.
 - Se o ${client} pedir algo fora do escopo que não seja uma reclamação séria ou emergência (ex: pergunta geral), responda educadamente e redirecione para o agendamento.
-- Formatação: isto é WhatsApp, não Markdown. Para negrito use UM asterisco de cada lado (*assim*), NUNCA dois (**assim** está errado e aparece quebrado pro ${client}). Para itálico use underline (_assim_). Não use markdown de título (#), link ([]()) nem tabelas.${
+- Formatação: isto é WhatsApp, não Markdown. Para negrito use UM asterisco de cada lado (*assim*), NUNCA dois (**assim** está errado e aparece quebrado pro ${client}). Para itálico use underline (_assim_). Não use markdown de título (#), link ([]()) nem tabelas.
+- Data pro ${client}: SEMPRE no formato brasileiro DD/MM ou DD/MM/AAAA (ex: "05/09" ou "05/09/2026"). NUNCA mostre o formato AAAA-MM-DD (ex: "2026-09-05") — esse formato é só pra uso interno das ferramentas, nunca aparece numa mensagem pro ${client}.${
     barbershop.masterPrompt?.trim()
       ? `
 
@@ -445,6 +446,22 @@ async function executeTool(barbershop: Business, name: string, input: any, custo
     }
     case "verificar_horarios_disponiveis": {
       const slots = await getAvailableSlots(barbershop.id, input.barbeiro_id, input.servico_id, input.data);
+      // Achado em produção (2026-09-06): a IA às vezes chama esta ferramenta
+      // com uma data que já passou (erro de cálculo de "amanhã", residual
+      // mesmo depois de limpar o histórico contaminado — a IA não é 100%
+      // determinística). getAvailableSlots já bloqueia mecanicamente
+      // (retorna [] sem checar disponibilidade real), mas sem esse aviso a
+      // IA lia "sem horário" e concluía (errado) que o profissional estava
+      // sem vaga, em vez de perceber que a data em si estava errada e
+      // corrigir sozinha, chamando de novo com a data certa.
+      const todayIso = new Date().toISOString().slice(0, 10);
+      if (input.data < todayIso) {
+        return {
+          data: input.data,
+          horarios_disponiveis: [],
+          erro: `A data ${input.data} já passou — hoje é ${todayIso}. Isso não significa que não há horário disponível: você calculou a data errada. Recalcule "hoje"/"amanhã" a partir de ${todayIso} e chame esta ferramenta de novo com a data corrigida antes de responder ao cliente.`,
+        };
+      }
       return { data: input.data, horarios_disponiveis: slots };
     }
     case "buscar_proximo_horario_disponivel": {
