@@ -60,19 +60,31 @@ async function main() {
       input * PRICE_INPUT + output * PRICE_OUTPUT + cacheWrite * PRICE_CACHE_WRITE + cacheRead * PRICE_CACHE_READ;
     totalCost += cost;
 
+    // Proxy de "conversas" no período: sessões (telefones) que tiveram
+    // atividade na janela — ChatUsageLog não guarda sessionId, então não dá
+    // pra saber com exatidão quantas chamadas pertencem a qual conversa. Uma
+    // sessão que teve atividade fora da janela mas só 1 chamada dentro dela
+    // conta como 1 conversa aqui, então é aproximação, não exato.
+    const sessionCount = await prisma.chatSession.count({
+      where: { businessId: log.businessId, updatedAt: { gte: since } },
+    });
+
     const name = nameById.get(log.businessId) ?? `#${log.businessId}`;
     const avgPerCall = cost / log._count;
+    const avgPerConversation = sessionCount > 0 ? cost / sessionCount : null;
     console.log(
-      `${name}: ${log._count} chamadas, ${input + cacheWrite + cacheRead} tokens de entrada, ${output} de saída — US$ ${cost.toFixed(4)} (US$ ${avgPerCall.toFixed(6)}/chamada)`
+      `${name}: ${log._count} chamadas em ${sessionCount} conversas, ${input + cacheWrite + cacheRead} tokens de entrada, ${output} de saída — ` +
+        `US$ ${cost.toFixed(4)} (US$ ${avgPerCall.toFixed(6)}/chamada` +
+        (avgPerConversation !== null ? `, US$ ${avgPerConversation.toFixed(4)}/conversa)` : ")")
     );
   }
 
   const totalCalls = logs.reduce((sum, l) => sum + l._count, 0);
   console.log(`\nTotal: US$ ${totalCost.toFixed(2)} em ${totalCalls} chamadas — US$ ${(totalCost / totalCalls).toFixed(6)}/chamada em média\n`);
   console.log(
-    "Nota: \"chamada\" aqui é 1 requisição à API (1 turno do bot respondendo o cliente), não a conversa inteira —\n" +
-      "não há sessionId gravado em ChatUsageLog pra somar por conversa completa. Uma conversa real de WhatsApp\n" +
-      "costuma levar 2-4 chamadas (troca de mensagens + chamadas de ferramenta) até resolver o pedido do cliente."
+    "Nota: \"conversa\" aqui é aproximado (conta de ChatSession/telefone com atividade na janela, não um\n" +
+      "sessionId gravado por chamada em ChatUsageLog) — uma sessão ativa parcialmente fora da janela pesa\n" +
+      "menos do que devia no cálculo. Pra ficar exato precisaria gravar sessionId em ChatUsageLog."
   );
 }
 
