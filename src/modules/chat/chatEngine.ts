@@ -914,17 +914,23 @@ export async function sendMessage(
 
       try {
         for (let i = 0; i < MAX_ITERATIONS; i++) {
-          // Fluxo é mecânico (seguir passos, chamar ferramentas, textos
-          // curtos) — não precisa de raciocínio profundo. "low" corta o
-          // gasto de thinking adaptativo (ligado por padrão no Sonnet 5)
-          // sem trocar de modelo.
+          // Rodava em "low" desde 03/09 (fluxo mecânico, corta o gasto de
+          // thinking adaptativo) — mas achado real em produção (06/09,
+          // ver chatEngine.test.ts e CLAUDE.md) mostrou que "low" erra o
+          // cálculo de "amanhã" com frequência real mesmo com o histórico
+          // já limpo de contaminação (pruneStaleAppointmentHistory): 5/6 e
+          // depois 6/8 tentativas corretas repetindo a mesma pergunta real.
+          // Trocado pra "high": testado do mesmo jeito (mesmo histórico
+          // real, mesma pergunta, 8 tentativas seguidas) e deu 8/8. Custo
+          // de token/latência maior é aceitável aqui — é exatamente o
+          // passo que decide a data de um agendamento real.
           const response = await client.messages.create({
             model: MODEL,
             max_tokens: 1024,
             system,
             tools,
             messages: apiMessages,
-            output_config: { effort: "low" },
+            output_config: { effort: "high" },
           });
 
           await logChatUsage(businessId, MODEL, response.usage);
