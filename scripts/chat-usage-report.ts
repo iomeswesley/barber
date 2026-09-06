@@ -61,12 +61,19 @@ async function main() {
     totalCost += cost;
 
     const name = nameById.get(log.businessId) ?? `#${log.businessId}`;
+    const avgPerCall = cost / log._count;
     console.log(
-      `${name}: ${log._count} chamadas, ${input + cacheWrite + cacheRead} tokens de entrada, ${output} de saída — US$ ${cost.toFixed(4)}`
+      `${name}: ${log._count} chamadas, ${input + cacheWrite + cacheRead} tokens de entrada, ${output} de saída — US$ ${cost.toFixed(4)} (US$ ${avgPerCall.toFixed(6)}/chamada)`
     );
   }
 
-  console.log(`\nTotal: US$ ${totalCost.toFixed(2)}\n`);
+  const totalCalls = logs.reduce((sum, l) => sum + l._count, 0);
+  console.log(`\nTotal: US$ ${totalCost.toFixed(2)} em ${totalCalls} chamadas — US$ ${(totalCost / totalCalls).toFixed(6)}/chamada em média\n`);
+  console.log(
+    "Nota: \"chamada\" aqui é 1 requisição à API (1 turno do bot respondendo o cliente), não a conversa inteira —\n" +
+      "não há sessionId gravado em ChatUsageLog pra somar por conversa completa. Uma conversa real de WhatsApp\n" +
+      "costuma levar 2-4 chamadas (troca de mensagens + chamadas de ferramenta) até resolver o pedido do cliente."
+  );
 }
 
 main()
