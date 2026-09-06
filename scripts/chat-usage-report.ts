@@ -1,14 +1,15 @@
 // Relatório de custo real do bot de WhatsApp (Anthropic), por barbearia, a
 // partir do log gravado em ChatUsageLog (ver src/modules/chat/chatUsage.ts).
-// Preço fixo pro claude-sonnet-5 abaixo — atualizar se o modelo ou o preço
-// promocional (vigente até 2026-08-31) mudar.
+// Preço fixo pro claude-sonnet-5 abaixo — atualizar se o modelo ou a tabela
+// de preço oficial da Anthropic mudar (conferir https://claude.com/pricing).
 //
 // Uso: npx tsx --env-file=.env scripts/chat-usage-report.ts [--days=30]
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-// USD por token (preço promocional do claude-sonnet-5, vigente até 2026-08-31).
+// USD por token (tabela oficial do claude-sonnet-5, confirmada em 2026-09-06 —
+// não é mais promocional, é o preço padrão vigente do modelo).
 const PRICE_INPUT = 2.0 / 1_000_000;
 const PRICE_OUTPUT = 10.0 / 1_000_000;
 const PRICE_CACHE_WRITE = PRICE_INPUT * 1.25;
