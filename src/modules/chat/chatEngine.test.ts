@@ -129,6 +129,47 @@ describe("pruneStaleAppointmentHistory", () => {
     expect(pruned).toEqual([{ role: "user", content: "Manda dnv a confirmação" }]);
   });
 
+  // Segunda ocorrência real do bug (2026-09-06): o pedido de avaliação
+  // pendente é legítimo e cita a data em prosa, sem link — a IA alucinou
+  // "você já tem um agendamento" no mesmo texto, e essa frase (sem .ics)
+  // virou o novo ponto de ancoragem no turno seguinte.
+  it("remove texto livre que cita só a data (DD/MM) do agendamento vencido, mesmo sem o link .ics", () => {
+    const messages: Anthropic.MessageParam[] = [
+      ...toolExchange(
+        "t1",
+        "criar_agendamento",
+        { data: "2026-09-05", horario: "11:00", servico_id: 2, barbeiro_id: 2, nome_cliente: "Wesley" },
+        { agendamento_id: 2288, confirmado: true, resumo: "..." }
+      ),
+      { role: "user", content: "Tem cabelo pra amanhã?" },
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "text",
+            text: "Como foi seu último atendimento (dia 05/09)? E você já tem um agendamento pra amanhã às 11:00 com o Diego.",
+          },
+        ],
+      },
+    ];
+    const pruned = pruneStaleAppointmentHistory(messages, TODAY);
+    expect(pruned).toEqual([{ role: "user", content: "Tem cabelo pra amanhã?" }]);
+  });
+
+  it("não remove texto que menciona uma data futura só porque contém dígitos parecidos", () => {
+    const messages: Anthropic.MessageParam[] = [
+      ...toolExchange(
+        "t1",
+        "criar_agendamento",
+        { data: "2026-09-05", horario: "11:00", servico_id: 2, barbeiro_id: 2, nome_cliente: "Wesley" },
+        { agendamento_id: 2288, confirmado: true, resumo: "..." }
+      ),
+      { role: "assistant", content: [{ type: "text", text: "Show, dia 10/09 o Diego tem horário às 14h!" }] },
+    ];
+    const pruned = pruneStaleAppointmentHistory(messages, TODAY);
+    expect(pruned).toEqual([{ role: "assistant", content: [{ type: "text", text: "Show, dia 10/09 o Diego tem horário às 14h!" }] }]);
+  });
+
   it("NÃO remove um agendamento futuro (data ainda não chegou)", () => {
     const messages = toolExchange(
       "t1",

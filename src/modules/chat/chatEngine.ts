@@ -213,9 +213,18 @@ const STALE_BOOKING_TOOLS = new Set(["criar_agendamento", "reagendar_agendamento
 // par tool_use + tool_result, e qualquer mensagem de texto livre seguinte
 // que cite o link .ics daquele agendamento (é como o texto de confirmação
 // sempre referencia o ID, ver instrução 6 do prompt).
+// A partir de uma data ISO (YYYY-MM-DD), gera as variantes de texto que a
+// IA usa em respostas livres (DD/MM e DD/MM/AAAA) — precisa bater com essas
+// pra reconhecer uma frase que cita a data sem incluir o link .ics.
+function dateTextVariants(isoDate: string): string[] {
+  const [y, m, d] = isoDate.split("-");
+  return [`${d}/${m}/${y}`, `${d}/${m}`];
+}
+
 export function pruneStaleAppointmentHistory(messages: Anthropic.MessageParam[], todayIso: string): Anthropic.MessageParam[] {
   const staleToolUseIds = new Set<string>();
   const staleAppointmentIds = new Set<string>();
+  const staleDateVariants = new Set<string>();
 
   for (const m of messages) {
     if (m.role !== "assistant" || !Array.isArray(m.content)) continue;
@@ -223,7 +232,10 @@ export function pruneStaleAppointmentHistory(messages: Anthropic.MessageParam[],
       if (block.type !== "tool_use" || !STALE_BOOKING_TOOLS.has(block.name)) continue;
       const input = block.input as { data?: string; nova_data?: string };
       const date = input.data || input.nova_data;
-      if (typeof date === "string" && date < todayIso) staleToolUseIds.add(block.id);
+      if (typeof date === "string" && date < todayIso) {
+        staleToolUseIds.add(block.id);
+        dateTextVariants(date).forEach((v) => staleDateVariants.add(v));
+      }
     }
   }
   if (staleToolUseIds.size === 0) return messages;
@@ -244,6 +256,15 @@ export function pruneStaleAppointmentHistory(messages: Anthropic.MessageParam[],
     }
   }
 
+  // Achado em produção (2026-09-06, segunda ocorrência do mesmo bug): o
+  // pedido de avaliação pendente ("como foi seu último atendimento... dia
+  // 05/09?") é legítimo e cita a data em prosa, sem link nenhum — a IA
+  // "aproveitou" esse mesmo turno pra também alucinar "você já tem um
+  // agendamento pra amanhã às 11:00", texto que ENTROU no histórico sem
+  // conter o link .ics (só a versão por URL era removida antes). No turno
+  // seguinte, essa frase nova virou o novo ponto de ancoragem e o erro de
+  // data se repetiu. Por isso agora também casa pela data em si (DD/MM e
+  // DD/MM/AAAA), não só pelo link.
   return messages.filter((m) => {
     if (Array.isArray(m.content)) {
       const isStaleToolExchange = m.content.every(
@@ -256,7 +277,9 @@ export function pruneStaleAppointmentHistory(messages: Anthropic.MessageParam[],
     if (m.role === "assistant" && Array.isArray(m.content)) {
       const mentionsStaleAppointment = m.content.some(
         (block) =>
-          block.type === "text" && [...staleAppointmentIds].some((id) => block.text.includes(`/appointments/${id}/ics`))
+          block.type === "text" &&
+          ([...staleAppointmentIds].some((id) => block.text.includes(`/appointments/${id}/ics`)) ||
+            [...staleDateVariants].some((v) => block.text.includes(v)))
       );
       if (mentionsStaleAppointment) return false;
     }
