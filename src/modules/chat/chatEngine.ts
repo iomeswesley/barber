@@ -918,19 +918,18 @@ export async function sendMessage(
           // thinking adaptativo) — mas achado real em produção (06/09,
           // ver chatEngine.test.ts e CLAUDE.md) mostrou que "low" erra o
           // cálculo de "amanhã" com frequência real mesmo com o histórico
-          // já limpo de contaminação (pruneStaleAppointmentHistory): 5/6 e
-          // depois 6/8 tentativas corretas repetindo a mesma pergunta real.
-          // Trocado pra "high": testado do mesmo jeito (mesmo histórico
-          // real, mesma pergunta, 8 tentativas seguidas) e deu 8/8. Custo
-          // de token/latência maior é aceitável aqui — é exatamente o
-          // passo que decide a data de um agendamento real.
+          // já limpo de contaminação (pruneStaleAppointmentHistory): 14
+          // repetições da mesma pergunta real, 11/14 corretas (~79%).
+          // Testado "high" (14/14) e "medium" (14/14) na mesma bateria —
+          // empate de confiabilidade, então fica "medium": mesmo resultado
+          // por um custo de token/latência menor.
           const response = await client.messages.create({
             model: MODEL,
             max_tokens: 1024,
             system,
             tools,
             messages: apiMessages,
-            output_config: { effort: "high" },
+            output_config: { effort: "medium" },
           });
 
           await logChatUsage(businessId, MODEL, response.usage);
