@@ -50,7 +50,13 @@ export async function getAvailableSlots(
   busy.push(...(await getBlocksFor(businessId, professionalId, date)));
 
   const now = new Date();
-  const todayIso = now.toISOString().slice(0, 10);
+  // localDateStr (não toISOString, que é sempre UTC) — achado em produção
+  // 2026-09-06: às 22h13 em Brasília já era 01h13 UTC do dia seguinte, então
+  // "hoje" calculado em UTC virava amanhã 3h mais cedo do que deveria, todo
+  // fim de noite (21h-23h59 em Brasília). TZ=America/Sao_Paulo já é setado
+  // (src/lib/timezone.ts) mas só afeta os getters locais do Date, nunca
+  // toISOString().
+  const todayIso = localDateStr(now);
   // Data inteira já passada (não só "mais cedo hoje") nunca tem horário
   // livre — sem essa checagem, um "amanhã" mal calculado pela IA (ex:
   // confundiu com um mês anterior, achado em produção 2026-09-04) voltava
@@ -105,7 +111,7 @@ export async function createAppointment(input: {
   // IA errou o cálculo de "amanhã" (achado em produção 2026-09-04, virou
   // um mês inteiro pra trás) e criou um agendamento fantasma sem ninguém
   // perceber até o dono ir olhar a agenda.
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayIso = localDateStr(new Date()); // não usar toISOString() — ver getAvailableSlots acima
   if (input.date < todayIso) throw new AppError("Não é possível agendar em uma data que já passou.");
 
   const [service, barber] = await Promise.all([getService(input.serviceId), getBarber(input.professionalId)]);

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
 import { prisma } from "@/lib/prisma.js";
 import { createAppointment, getAvailableSlots } from "./appointments.service.js";
 
@@ -22,9 +22,15 @@ describe("createAppointment / getAvailableSlots (isolamento entre tenants)", () 
     barberB = await prisma.professional.create({ data: { businessId: shopB.id, name: "[teste] Barbeiro B", serviceCommissionPercent: 40 } });
     serviceB = await prisma.service.create({ data: { businessId: shopB.id, name: "[teste] Corte B", priceCents: 3000, durationMin: 30 } });
     client = await prisma.client.create({ data: { name: "[teste] Cliente", phone: `teste-${Date.now()}` } });
+    // Weekday 0 (domingo) até tarde da noite — 2026-09-06 é domingo, usado no
+    // teste de fuso horário abaixo. Sem isso getBusinessHoursForDate acha nada
+    // pra shopA nesse weekday e getAvailableSlots retornaria [] por esse
+    // motivo, mascarando o que o teste realmente quer provar.
+    await prisma.businessHours.create({ data: { businessId: shopA.id, weekday: 0, opensAt: "00:00", closesAt: "23:59", closed: false } });
   });
 
   afterAll(async () => {
+    await prisma.businessHours.deleteMany({ where: { businessId: shopA.id } });
     await prisma.appointment.deleteMany({ where: { clientId: client.id } });
     await prisma.client.deleteMany({ where: { id: client.id } });
     await prisma.service.deleteMany({ where: { id: { in: [serviceA.id, serviceB.id] } } });
@@ -102,6 +108,48 @@ describe("createAppointment / getAvailableSlots (isolamento entre tenants)", () 
           startTime: "10:00",
         })
       ).rejects.toThrow("data que já passou");
+    });
+  });
+
+  // Achado em produção (2026-09-06, 22h13 em Brasília): "hoje" era calculado
+  // com toISOString().slice(0,10), que é sempre UTC — às 22h13 em Brasília
+  // (UTC-3) já era 01h13 UTC do dia seguinte, então o próprio dia de hoje
+  // era rejeitado como "data que já passou" e a IA calculava "amanhã" dois
+  // dias à frente do real. Corrigido usando localDateStr (getters de Date
+  // que respeitam TZ=America/Sao_Paulo, setado em src/lib/timezone.ts).
+  describe("cálculo de 'hoje' respeita o fuso de Brasília, não UTC (achado em produção 2026-09-06)", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("createAppointment NÃO rejeita o próprio dia de hoje quando são 22h13 em Brasília (01h13 UTC do dia seguinte)", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-09-06T22:13:00-03:00"));
+
+      const appt = await createAppointment({
+        businessId: shopA.id,
+        professionalId: barberA.id,
+        serviceId: serviceA.id,
+        clientId: client.id,
+        date: "2026-09-06", // "hoje" local, mesmo já sendo 2026-09-07 em UTC
+        startTime: "23:00",
+      });
+      expect(appt.date).toBe("2026-09-06");
+
+      await prisma.appointment.delete({ where: { id: appt.id } });
+    });
+
+    it("getAvailableSlots NÃO trata o dia de hoje como passado quando são 22h13 em Brasília", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-09-06T22:13:00-03:00"));
+
+      // shopA funciona até 23:59 no domingo (ver beforeAll). Sem a correção,
+      // "date < todayIso" comparava "2026-09-06" (pedido) com "2026-09-07"
+      // (UTC, errado) e retornava [] mecanicamente — mesmo com horário livre
+      // de verdade às 22:30. Com a correção, o dia de hoje é reconhecido
+      // como hoje e o slot das 22:30 aparece normalmente.
+      const slots = await getAvailableSlots(shopA.id, barberA.id, serviceA.id, "2026-09-06");
+      expect(slots).toContain("22:30");
     });
   });
 });

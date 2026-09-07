@@ -28,6 +28,7 @@ import { createShortLink } from "@/lib/shortLink.js";
 import { generateGoogleCalendarUrl } from "@/lib/ics.js";
 import { prisma } from "@/lib/prisma.js";
 import { env, vertical } from "@/config/env.js";
+import { localDateStr } from "@/lib/time.js";
 import { logChatUsage } from "./chatUsage.js";
 import { isBillingBlocked } from "@/modules/billing/billing.service.js";
 import type { Business, Prisma } from "@prisma/client";
@@ -154,7 +155,13 @@ function buildDynamicContext(
   upcomingAppointments: Awaited<ReturnType<typeof getAppointmentsByClientPhone>>
 ): string {
   const now = new Date();
-  const todayIso = now.toISOString().slice(0, 10);
+  // localDateStr (getters locais, respeitam TZ=America/Sao_Paulo), não
+  // toISOString() — achado em produção 2026-09-06: toISOString() é sempre
+  // UTC, então das 21h às 23h59 em Brasília o "hoje" injetado no prompt já
+  // virava o dia seguinte (3h adiantado), fazendo a IA calcular "amanhã"
+  // errado com o próprio "hoje é" correto no texto — não era mais bug de
+  // prompt/histórico, o dado de entrada é que já vinha errado.
+  const todayIso = localDateStr(now);
   const weekday = WEEKDAYS[now.getDay()];
 
   const { client } = vertical;
@@ -454,7 +461,7 @@ async function executeTool(barbershop: Business, name: string, input: any, custo
       // IA lia "sem horário" e concluía (errado) que o profissional estava
       // sem vaga, em vez de perceber que a data em si estava errada e
       // corrigir sozinha, chamando de novo com a data certa.
-      const todayIso = new Date().toISOString().slice(0, 10);
+      const todayIso = localDateStr(new Date()); // não toISOString() — ver buildDynamicContext acima
       if (input.data < todayIso) {
         return {
           data: input.data,
@@ -885,7 +892,7 @@ export async function sendMessage(
       // Cópia podada (ver pruneStaleAppointmentHistory) — só o que vai pra
       // API. session.messages continua completo pra salvar no banco (painel
       // de Conversas mostra o histórico real, sem essa poda).
-      const todayIsoForPruning = new Date().toISOString().slice(0, 10);
+      const todayIsoForPruning = localDateStr(new Date()); // não toISOString() — ver buildDynamicContext acima
       let apiMessages = pruneStaleAppointmentHistory(session.messages, todayIsoForPruning);
 
       // Assinatura cancelada (trial vencido sem virar pagamento, ou
