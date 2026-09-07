@@ -2,6 +2,7 @@ import { getAppointmentsNeedingReminder, getTodaysAppointmentsForReminder, ensur
 import { markReminderSent } from "@/modules/appointments/appointments.repository.js";
 import { getBarbershop } from "@/modules/businesses/businesses.repository.js";
 import { sendWhatsappText, sendWhatsappTemplate, whatsappConfigured, resolveBarbershopAccessToken } from "@/lib/whatsapp.js";
+import { markWhatsappDisconnectedIfNeeded } from "@/modules/whatsappConnect/whatsappConnect.service.js";
 import { tryConsumeWhatsappTrialBudget } from "@/modules/billing/billing.service.js";
 import type { AppointmentDTO } from "@/modules/appointments/appointments.types.js";
 import { vertical, env } from "@/config/env.js";
@@ -22,6 +23,7 @@ export async function sendWhatsAppMessage(businessId: number, phone: string, tex
       return;
     } catch (err) {
       console.error(`[WHATSAPP] Falha ao enviar mensagem real, caindo pro stub:`, (err as Error).message);
+      await markWhatsappDisconnectedIfNeeded(businessId, err);
     }
   }
   console.log(`\n[LEMBRETE WHATSAPP - STUB] Para: ${phone}\n${text}\n`);
@@ -50,6 +52,7 @@ async function sendWhatsAppTemplateMessage(
         return;
       } catch (err) {
         console.error(`[WHATSAPP] Falha ao enviar template "${templateName}", caindo pro stub:`, (err as Error).message);
+        await markWhatsappDisconnectedIfNeeded(businessId, err);
       }
     } else {
       console.log(`[WHATSAPP] Limite de uso do trial atingido pra "${templateName}" (barbearia ${businessId}), pulando envio real.`);

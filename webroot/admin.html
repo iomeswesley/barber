@@ -5347,6 +5347,8 @@ const WHATSAPP_STATUS_LABEL = {
   pending_templates: "Número conectado! A Meta está aprovando os modelos de mensagem (lembrete, reagendamento, reconquista) — geralmente leva poucos minutos, às vezes mais. Volte aqui depois pra conferir.",
   connected: "Conectado e funcionando.",
   error: "Número conectado, mas um ou mais modelos de mensagem automática (lembrete, reagendamento, reconquista ou código de verificação) foram rejeitados pela Meta — essas mensagens automáticas ficam pausadas até isso ser corrigido. O atendimento normal pelo WhatsApp continua funcionando. Fale com o suporte se precisar de ajuda pra revisar o motivo da rejeição.",
+  disconnected:
+    "A conexão com esse número caiu (geralmente por ter sido desconectada pelo próprio celular, em Ferramentas comerciais no WhatsApp Business App) — o atendimento automático parou. Conecte de novo abaixo.",
 };
 
 function getWhatsappConnectMode() {
@@ -5733,7 +5735,12 @@ async function loadWhatsappConnectStatus() {
   // conectado de verdade no celular. Achado em produção (Barbearia Vintage,
   // 2026-09-04): 3 templates rejeitados por política da Meta, conexão
   // sumiu do painel.
-  const showConnectFlow = status.status === "not_connected";
+  // "disconnected" (diferente de "error" acima) é setado quando um envio
+  // real falha com erro de token/permissão da Meta — a conexão caiu de
+  // verdade (ex: dono desconectou pelo celular), não é só template
+  // pausado. Trata igual "not_connected": mostra o passo a passo de
+  // conectar de novo (ver markWhatsappDisconnectedIfNeeded, whatsappConnect.service.ts).
+  const showConnectFlow = status.status === "not_connected" || status.status === "disconnected";
   const modeField = document.getElementById("whatsapp-connect-mode-field");
   modeField.style.display = showConnectFlow ? "block" : "none";
   steps.style.display = showConnectFlow ? "block" : "none";

@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { AppError } from "@/middleware/errorHandler.js";
 import { hashPassword, verifyPassword } from "@/lib/auth.js";
 import { sendWhatsappAuthTemplate, resolveBarbershopAccessToken } from "@/lib/whatsapp.js";
+import { markWhatsappDisconnectedIfNeeded } from "@/modules/whatsappConnect/whatsappConnect.service.js";
 import { getBarbershop } from "@/modules/businesses/businesses.repository.js";
 import {
   upsertPhoneVerification,
@@ -30,7 +31,12 @@ export async function startPhoneVerification(businessId: number, phone: string):
   const codeHash = hashPassword(code);
   await upsertPhoneVerification(phone, codeHash, new Date(Date.now() + OTP_EXPIRY_MS));
   const accessToken = resolveBarbershopAccessToken(shop);
-  await sendWhatsappAuthTemplate(shop.whatsappPhoneNumberId, phone, "client_plan_otp", code, "pt_BR", accessToken);
+  try {
+    await sendWhatsappAuthTemplate(shop.whatsappPhoneNumberId, phone, "client_plan_otp", code, "pt_BR", accessToken);
+  } catch (err) {
+    await markWhatsappDisconnectedIfNeeded(businessId, err);
+    throw err;
+  }
 }
 
 export async function confirmPhoneVerification(phone: string, code: string): Promise<void> {

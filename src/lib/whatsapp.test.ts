@@ -11,7 +11,7 @@ process.env.WHATSAPP_TOKEN_ENCRYPTION_KEY ??= "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 process.env.NODE_ENV = "test";
 process.env.WHATSAPP_APP_SECRET = "app-secret-de-teste";
 
-const { verifyWebhookSignature, resolveBarbershopAccessToken } = await import("./whatsapp.js");
+const { verifyWebhookSignature, resolveBarbershopAccessToken, isWhatsappDisconnectionError } = await import("./whatsapp.js");
 
 function sign(body: Buffer, secret = "app-secret-de-teste"): string {
   return `sha256=${crypto.createHmac("sha256", secret).update(body).digest("hex")}`;
@@ -63,5 +63,47 @@ describe("resolveBarbershopAccessToken", () => {
   // cair pro token global em vez de derrubar o envio.
   it("volta undefined em vez de lançar quando o valor gravado não descriptografa", () => {
     expect(resolveBarbershopAccessToken({ whatsappAccessTokenEnc: "nao-e-um-payload-valido" })).toBeUndefined();
+  });
+});
+
+// Achado em produção (2026-09-07): dono desconectou o Coexistence pelo
+// celular, token continuou salvo mas perdeu acesso à WABA — confirmado numa
+// chamada de leitura direta na Meta, que voltou exatamente o corpo abaixo.
+describe("isWhatsappDisconnectionError", () => {
+  it("reconhece o erro real capturado em produção (code 100 + error_subcode 33)", () => {
+    const body = JSON.stringify({
+      error: {
+        message: "Unsupported get request. Object with ID '123' does not exist, cannot be loaded due to missing permissions...",
+        type: "GraphMethodException",
+        code: 100,
+        error_subcode: 33,
+        fbtrace_id: "abc",
+      },
+    });
+    const err = new Error(`Falha ao enviar mensagem WhatsApp (400): ${body}`);
+    expect(isWhatsappDisconnectionError(err)).toBe(true);
+  });
+
+  it("reconhece token inválido/expirado (code 190)", () => {
+    const err = new Error(`Falha ao enviar mensagem WhatsApp (401): {"error":{"code":190,"message":"Invalid OAuth access token"}}`);
+    expect(isWhatsappDisconnectionError(err)).toBe(true);
+  });
+
+  it("NÃO reconhece erro de negócio comum (ex: destinatário inválido) como desconexão", () => {
+    const err = new Error(
+      `Falha ao enviar mensagem WhatsApp (400): {"error":{"code":131030,"message":"Recipient phone number not in allowed list"}}`
+    );
+    expect(isWhatsappDisconnectionError(err)).toBe(false);
+  });
+
+  it("NÃO reconhece code 100 sozinho, sem error_subcode 33 (é genérico demais)", () => {
+    const err = new Error(`Falha ao enviar mensagem WhatsApp (400): {"error":{"code":100,"message":"Invalid parameter"}}`);
+    expect(isWhatsappDisconnectionError(err)).toBe(false);
+  });
+
+  it("volta false pra algo que não é um Error", () => {
+    expect(isWhatsappDisconnectionError("string qualquer")).toBe(false);
+    expect(isWhatsappDisconnectionError(null)).toBe(false);
+    expect(isWhatsappDisconnectionError(undefined)).toBe(false);
   });
 });

@@ -24,6 +24,7 @@ import {
 import { notifyNewAppointment, notifyEscalation } from "@/modules/push/push.service.js";
 import { createWaitlistEntry } from "@/modules/waitlist/waitlist.repository.js";
 import { sendWhatsappText, whatsappConfigured, resolveBarbershopAccessToken, uploadWhatsappMedia, sendWhatsappMedia } from "@/lib/whatsapp.js";
+import { markWhatsappDisconnectedIfNeeded } from "@/modules/whatsappConnect/whatsappConnect.service.js";
 import { createShortLink } from "@/lib/shortLink.js";
 import { generateGoogleCalendarUrl } from "@/lib/ics.js";
 import { prisma } from "@/lib/prisma.js";
@@ -736,7 +737,12 @@ export async function sendManualMessage(businessId: number, phone: string, text:
     throw new Error("Esta barbearia ainda não tem WhatsApp configurado.");
   }
 
-  await sendWhatsappText(barbershop.whatsappPhoneNumberId, phone, text);
+  try {
+    await sendWhatsappText(barbershop.whatsappPhoneNumberId, phone, text);
+  } catch (err) {
+    await markWhatsappDisconnectedIfNeeded(businessId, err);
+    throw err;
+  }
 
   const key = storageKey(businessId, phone);
   await prisma.$transaction(async (tx) => {
@@ -774,8 +780,13 @@ export async function sendManualAttachment(
     throw new Error("Esta barbearia ainda não tem WhatsApp configurado.");
   }
   const accessToken = resolveBarbershopAccessToken(barbershop);
-  const mediaId = await uploadWhatsappMedia(barbershop.whatsappPhoneNumberId, fileBuffer, mimeType, fileName, accessToken);
-  await sendWhatsappMedia(barbershop.whatsappPhoneNumberId, phone, mediaId, mimeType, fileName, accessToken);
+  try {
+    const mediaId = await uploadWhatsappMedia(barbershop.whatsappPhoneNumberId, fileBuffer, mimeType, fileName, accessToken);
+    await sendWhatsappMedia(barbershop.whatsappPhoneNumberId, phone, mediaId, mimeType, fileName, accessToken);
+  } catch (err) {
+    await markWhatsappDisconnectedIfNeeded(businessId, err);
+    throw err;
+  }
 
   const key = storageKey(businessId, phone);
   await prisma.$transaction(async (tx) => {

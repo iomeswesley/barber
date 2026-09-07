@@ -38,13 +38,15 @@ billingRouter.get("/api/billing/status", requireAuth, requireOwner, async (req, 
     // valor existe no banco mas não limita nada.
     whatsapp_trial_usage: sub?.status === "trialing" ? sub.whatsappTrialUsagePoints : null,
     whatsapp_trial_usage_limit: env.WHATSAPP_TRIAL_USAGE_LIMIT,
-    // Qualquer status diferente de "not_connected" significa que a
-    // barbearia já tem um número próprio conectado — "pending_templates"
-    // (aguardando aprovação) e "error" (algum template rejeitado, mas a
-    // conexão em si funciona) não são "sem WhatsApp próprio" (mesma
-    // correção de 2026-09-04 que tirou "error" do showConnectFlow no
-    // admin.html — os dois liam esse status como "desconectado" por engano).
-    has_own_whatsapp: !!shop && shop.whatsappConnectionStatus !== "not_connected",
+    // "pending_templates" (aguardando aprovação) e "error" (algum template
+    // rejeitado, mas a conexão em si funciona) não são "sem WhatsApp
+    // próprio" (mesma correção de 2026-09-04 que tirou "error" do
+    // showConnectFlow no admin.html — os dois liam esse status como
+    // "desconectado" por engano). "disconnected" (2026-09-07, ver
+    // markWhatsappDisconnectedIfNeeded) É desconectado de verdade — junto
+    // com "not_connected", os únicos dois que não contam como "tem
+    // WhatsApp próprio".
+    has_own_whatsapp: !!shop && shop.whatsappConnectionStatus !== "not_connected" && shop.whatsappConnectionStatus !== "disconnected",
   });
 });
 

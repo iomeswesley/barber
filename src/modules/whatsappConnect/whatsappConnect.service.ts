@@ -2,11 +2,31 @@ import crypto from "node:crypto";
 import { env } from "@/config/env.js";
 import { AppError } from "@/middleware/errorHandler.js";
 import { TEMPLATE_DEFINITIONS, OTP_TEMPLATE_NAME } from "./templates.js";
+import { isWhatsappDisconnectionError } from "@/lib/whatsapp.js";
+import { setWhatsappConnectionStatusByBusinessId } from "./whatsappConnect.repository.js";
 
 const GRAPH_API_VERSION = "v21.0";
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 
 export const whatsappConnectConfigured = !!(env.WHATSAPP_APP_ID && env.WHATSAPP_CONFIG_ID && env.WHATSAPP_APP_SECRET);
+
+// Chamar no catch de qualquer envio real pro WhatsApp (webhook, lembretes,
+// lista de espera, mensagem manual do painel...) — se o erro indicar que a
+// conexão caiu de verdade (ver isWhatsappDisconnectionError), marca a
+// barbearia como "disconnected" no banco, pra o painel parar de mostrar
+// "conectado" quando não está mais. Achado em produção (2026-09-07): antes
+// disso, uma queda real só era percebida se alguém checasse manualmente
+// direto na Meta — nada no sistema detectava sozinho. Best-effort: nunca
+// lança, só loga se a própria atualização falhar — não deve derrubar o
+// fluxo de envio que já falhou por outro motivo.
+export async function markWhatsappDisconnectedIfNeeded(businessId: number, err: unknown): Promise<void> {
+  if (!isWhatsappDisconnectionError(err)) return;
+  try {
+    await setWhatsappConnectionStatusByBusinessId(businessId, "disconnected");
+  } catch (dbErr) {
+    console.error(`[WHATSAPP CONNECT] Falha ao marcar barbearia ${businessId} como desconectada:`, (dbErr as Error).message);
+  }
+}
 
 function requireConfigured() {
   if (!whatsappConnectConfigured) {

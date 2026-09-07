@@ -6,6 +6,7 @@ import { verifyWebhookSignature, sendWhatsappText, whatsappConfigured, resolveBa
 import { getBarbershopByWhatsappPhoneNumberId } from "@/modules/businesses/businesses.repository.js";
 import { sendMessage } from "@/modules/chat/chatEngine.js";
 import { setWhatsappConnectionStatusByWabaId } from "@/modules/whatsappConnect/whatsappConnect.repository.js";
+import { markWhatsappDisconnectedIfNeeded } from "@/modules/whatsappConnect/whatsappConnect.service.js";
 
 // Registra o wamid como processado; retorna false se já tinha sido
 // registrado antes (reenvio duplicado da Meta), pra quem chamar pular o
@@ -113,12 +114,17 @@ whatsappRouter.post("/api/whatsapp/webhook", async (req, res) => {
         // sem isso, o cliente mandaria algo e não receberia resposta
         // nenhuma, parecendo que o bot travou.
         if (message.type !== "text" || !message.text?.body) {
-          await sendWhatsappText(
-            phoneNumberId,
-            from,
-            "Por enquanto só consigo entender mensagens de texto 🙏 Pode escrever o que você precisa?",
-            accessToken
-          );
+          try {
+            await sendWhatsappText(
+              phoneNumberId,
+              from,
+              "Por enquanto só consigo entender mensagens de texto 🙏 Pode escrever o que você precisa?",
+              accessToken
+            );
+          } catch (err) {
+            await markWhatsappDisconnectedIfNeeded(barbershop.id, err);
+            throw err;
+          }
           continue;
         }
 
@@ -126,7 +132,18 @@ whatsappRouter.post("/api/whatsapp/webhook", async (req, res) => {
         // null = IA pausada nessa conversa (toggle "IA Ativa" em Mensagens)
         // — a mensagem do cliente já foi salva no histórico, mas não manda
         // nada automático de volta; o dono responde manualmente.
-        if (reply) await sendWhatsappText(phoneNumberId, from, reply, accessToken);
+        if (reply) {
+          try {
+            await sendWhatsappText(phoneNumberId, from, reply, accessToken);
+          } catch (err) {
+            // Achado em produção (2026-09-07): a conexão pode cair de
+            // verdade (dono desconectou pelo celular) sem nenhum aviso
+            // prévio — sem isso, o painel continuava dizendo "conectado"
+            // até alguém checar manualmente direto na Meta.
+            await markWhatsappDisconnectedIfNeeded(barbershop.id, err);
+            throw err;
+          }
+        }
       }
     }
 

@@ -22,6 +22,23 @@ export function resolveBarbershopAccessToken(
 
 const GRAPH_API_VERSION = "v21.0";
 
+// Detecta se um erro de envio (lançado pelas funções abaixo, que embutem o
+// corpo bruto da resposta da Meta na mensagem) indica que a conexão caiu de
+// verdade — token/WABA/número perderam acesso — e não um erro de negócio
+// comum (número de destino inválido, template ainda não aprovado, etc.).
+// Achado em produção (2026-09-07): dono desconectou o Coexistence pelo
+// celular; o token continuou salvo no banco, mas a Meta passou a rejeitar
+// qualquer chamada pra aquele phone_number_id/WABA. Confirmado direto com
+// uma chamada de leitura na Graph API: "code":100 + "error_subcode":33
+// ("Object ... does not exist, cannot be loaded due to missing
+// permissions"). code 190 (token inválido/expirado) é o outro sinal clássico
+// da própria doc da Meta pro mesmo tipo de problema.
+export function isWhatsappDisconnectionError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const msg = err.message;
+  return /"code"\s*:\s*190\b/.test(msg) || (/"code"\s*:\s*100\b/.test(msg) && /"error_subcode"\s*:\s*33\b/.test(msg));
+}
+
 // Envia uma mensagem de texto via WhatsApp Cloud API. `to` é o wa_id do
 // destinatário (telefone completo com DDI, sem "+", ex: "5511999998888").
 // `accessToken` é o token da própria barbearia (WhatsApp Connect); quando
