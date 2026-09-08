@@ -866,6 +866,10 @@
   .chat-ai-toggle-btn .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
   .chat-ai-toggle-btn.on { background: var(--good-soft); color: var(--good); }
   .chat-ai-toggle-btn.off { background: var(--surface-raise-2); color: var(--text-muted); }
+  /* Interruptor GERAL (Configurações → IA) — pausado aqui para tudo de uma
+     vez, então precisa chamar mais atenção que o cinza neutro do toggle por
+     conversa: vermelho, não cinza. */
+  #ai-global-toggle-btn.off { background: var(--danger-soft); color: var(--danger); }
   .chat-info-stat { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--divider); font-size: 12.5px; }
   .chat-info-stat:last-child { border-bottom: none; }
   .chat-info-stat .k { color: var(--text-muted); }
@@ -1500,29 +1504,6 @@
   <div id="page-configuracoes" class="page-section" style="display:none;">
     <div class="settings-section">
       <div class="settings-section-head">
-        <h2>IA</h2>
-        <p>Interruptor geral — pausa a resposta automática em <strong>todas</strong> as conversas de uma vez.</p>
-      </div>
-      <div class="card panel">
-        <div class="chat-info-toggle-row" style="padding:0;">
-          <div>
-            <div class="label">IA Ativa em todas as conversas</div>
-            <div class="sub" id="ai-global-toggle-sub">Carregando...</div>
-          </div>
-          <button type="button" class="chat-ai-toggle-btn" id="ai-global-toggle-btn" disabled>
-            <span class="dot"></span><span id="ai-global-toggle-label">…</span>
-          </button>
-        </div>
-        <div class="hint" style="margin-top:10px;">
-          Diferente do toggle "IA Ativa" de cada conversa (aba Mensagens) — esse aqui pausa <strong>de uma vez só</strong>, mesmo com
-          o WhatsApp conectado. As mensagens dos clientes continuam chegando e ficam marcadas como "precisa de atenção", só não tem
-          resposta automática até você reativar.
-        </div>
-      </div>
-    </div>
-
-    <div class="settings-section">
-      <div class="settings-section-head">
         <h2>WhatsApp</h2>
         <p>Configure o número de WhatsApp que a IA usa pra atender seus clientes.</p>
       </div>
@@ -1585,6 +1566,29 @@
         <button class="btn-secondary" id="whatsapp-disconnect-btn">Desconectar este número</button>
       </div>
     </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-head">
+        <h2>IA</h2>
+        <p>Interruptor geral — pausa a resposta automática em <strong>todas</strong> as conversas de uma vez.</p>
+      </div>
+      <div class="card panel">
+        <div class="chat-info-toggle-row" style="padding:0;">
+          <div>
+            <div class="label">IA Ativa em todas as conversas</div>
+            <div class="sub" id="ai-global-toggle-sub">Carregando...</div>
+          </div>
+          <button type="button" class="chat-ai-toggle-btn" id="ai-global-toggle-btn" disabled>
+            <span class="dot"></span><span id="ai-global-toggle-label">…</span>
+          </button>
+        </div>
+        <div class="hint" style="margin-top:10px;">
+          Diferente do toggle "IA Ativa" de cada conversa (aba Mensagens) — esse aqui pausa <strong>de uma vez só</strong>, mesmo com
+          o WhatsApp conectado. As mensagens dos clientes continuam chegando e ficam marcadas como "precisa de atenção", só não tem
+          resposta automática até você reativar.
+        </div>
+      </div>
     </div>
 
     <div class="settings-section">
