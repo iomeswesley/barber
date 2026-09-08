@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import request from "supertest";
+import { randomInt } from "node:crypto";
 import { prisma } from "@/lib/prisma.js";
 import { hashPassword } from "@/lib/auth.js";
 
@@ -35,7 +36,12 @@ describe("rotas de /api/chat e /api/manage/chat-sessions", () => {
   const PASSWORD = "senha-de-teste-chat-routes";
   let business: { id: number };
   let username: string;
-  const customerPhone = `5511999${Date.now().toString().slice(-6)}`;
+  // randomInt em vez de Date.now().slice(-6): esse arquivo e o
+  // appointments.routes.test.ts geravam o telefone "único" com o mesmo
+  // esquema — carregando no mesmo milissegundo (comum com o agendamento de
+  // workers do vitest 4), os dois criavam o mesmo número e colidiam na
+  // constraint real do banco (achado 08/09).
+  const customerPhone = `5511999${randomInt(100000, 1000000)}`;
 
   beforeAll(async () => {
     business = await prisma.business.create({ data: { name: "[teste] Chat Routes HTTP" } });

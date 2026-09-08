@@ -24,5 +24,17 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    // Todo teste HTTP roda contra o banco ÚNICO de produção (sem staging,
+    // ver CLAUDE.md) — cada arquivo cria seu próprio Express app com
+    // sessão própria (connect-pg-simple) e bate no mesmo Postgres. Achado
+    // em 08/09, na migração pro vitest 4: o paralelismo padrão entre
+    // arquivos ficou agressivo o bastante pra gerar flakiness real (dois
+    // arquivos com telefone "único" gerado por Date.now() colidindo no
+    // mesmo milissegundo, sessão de um teste vazando 401 sobre outro sob
+    // concorrência) — antes não dava pra perceber com o paralelismo mais
+    // brando do vitest 2. fileParallelism: false roda os arquivos em série,
+    // exatamente o caso de uso documentado pelo próprio vitest pra "recurso
+    // externo compartilhado que não aguenta acesso concorrente".
+    fileParallelism: false,
   },
 });

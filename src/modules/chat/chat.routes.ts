@@ -75,7 +75,11 @@ chatRouter.get("/api/manage/chat-sessions", requireAuth, requireOwner, async (re
 
 chatRouter.get("/api/manage/chat-sessions/:phone", requireAuth, requireOwner, async (req, res, next) => {
   try {
-    const phone = req.params.phone;
+    // Express 5 tipa req.params como string | string[] (path-to-regexp
+    // passou a suportar segmento repetido) — essa rota nunca usa esse
+    // padrão, ":phone" é sempre um valor só, mas o tipo agora reflete o
+    // caso geral. Narrow explícito em vez de un "as string" às cegas.
+    const phone = typeof req.params.phone === "string" ? req.params.phone : undefined;
     if (!phone) throw new AppError("Telefone é obrigatório");
     const transcript = await getChatTranscript(req.session.user!.businessId, phone);
     res.json(transcript);
@@ -88,7 +92,11 @@ chatRouter.get("/api/manage/chat-sessions/:phone", requireAuth, requireOwner, as
 // automáticas dessa conversa (ver setAiPaused/sendMessage em chatEngine.ts).
 chatRouter.post("/api/manage/chat-sessions/:phone/ai-toggle", requireAuth, requireOwner, async (req, res, next) => {
   try {
-    const phone = req.params.phone;
+    // Express 5 tipa req.params como string | string[] (path-to-regexp
+    // passou a suportar segmento repetido) — essa rota nunca usa esse
+    // padrão, ":phone" é sempre um valor só, mas o tipo agora reflete o
+    // caso geral. Narrow explícito em vez de un "as string" às cegas.
+    const phone = typeof req.params.phone === "string" ? req.params.phone : undefined;
     if (!phone) throw new AppError("Telefone é obrigatório");
     const paused = !!req.body?.paused;
     await setAiPaused(req.session.user!.businessId, phone, paused);
@@ -100,7 +108,11 @@ chatRouter.post("/api/manage/chat-sessions/:phone/ai-toggle", requireAuth, requi
 
 chatRouter.post("/api/manage/chat-sessions/:phone/send", requireAuth, requireOwner, async (req, res, next) => {
   try {
-    const phone = req.params.phone;
+    // Express 5 tipa req.params como string | string[] (path-to-regexp
+    // passou a suportar segmento repetido) — essa rota nunca usa esse
+    // padrão, ":phone" é sempre um valor só, mas o tipo agora reflete o
+    // caso geral. Narrow explícito em vez de un "as string" às cegas.
+    const phone = typeof req.params.phone === "string" ? req.params.phone : undefined;
     const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
     if (!phone) throw new AppError("Telefone é obrigatório");
     if (!message) throw new AppError("Mensagem é obrigatória");
@@ -126,7 +138,11 @@ chatRouter.post("/api/manage/chat-sessions/:phone/send", requireAuth, requireOwn
 // (documento), com folga pro overhead de ~33% do base64.
 chatRouter.post("/api/manage/chat-sessions/:phone/send-attachment", requireAuth, requireOwner, async (req, res, next) => {
   try {
-    const phone = req.params.phone;
+    // Express 5 tipa req.params como string | string[] (path-to-regexp
+    // passou a suportar segmento repetido) — essa rota nunca usa esse
+    // padrão, ":phone" é sempre um valor só, mas o tipo agora reflete o
+    // caso geral. Narrow explícito em vez de un "as string" às cegas.
+    const phone = typeof req.params.phone === "string" ? req.params.phone : undefined;
     const { fileName, mimeType, dataBase64 } = req.body || {};
     if (!phone) throw new AppError("Telefone é obrigatório");
     if (!fileName || !mimeType || !dataBase64) throw new AppError("fileName, mimeType e dataBase64 são obrigatórios");

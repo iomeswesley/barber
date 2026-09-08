@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import request from "supertest";
+import { randomInt } from "node:crypto";
 import { createApp } from "@/app.js";
 import { prisma } from "@/lib/prisma.js";
 
@@ -16,7 +17,12 @@ vi.mock("@/lib/whatsapp.js", async (importOriginal) => {
 
 describe("proteção por OTP nas rotas públicas de agendamento", () => {
   const app = createApp();
-  const phone = `5511999${Date.now().toString().slice(-6)}`;
+  // randomInt em vez de Date.now().slice(-6): esse arquivo e o
+  // chat.routes.test.ts geravam o telefone "único" com o mesmo esquema —
+  // carregando no mesmo milissegundo (comum com o agendamento de workers do
+  // vitest 4), os dois criavam o mesmo número e colidiam na constraint real
+  // do banco (achado 08/09).
+  const phone = `5511999${randomInt(100000, 1000000)}`;
   let business: { id: number };
   let client: { id: number };
   let service: { id: number };
