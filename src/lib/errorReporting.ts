@@ -4,7 +4,17 @@ import { env } from "@/config/env.js";
 // Completamente opcional: sem SENTRY_DSN configurado, todas as funções aqui
 // viram no-op — não exige conta de Sentry pra rodar em dev nem em barbearias
 // que não configuraram monitoramento.
-export const errorReportingEnabled = !!env.SENTRY_DSN;
+//
+// Achado em produção (2026-09-08): testes que exercitam de propósito um
+// caminho de erro (assinatura de webhook inválida, evento sem businessId
+// etc. — ver billing.routes.test.ts) chamam captureError de verdade e
+// disparam alerta real no Sentry a cada `vitest run`, mesmo sendo o
+// comportamento esperado do teste. NODE_ENV não serve de guarda aqui — o
+// .env do projeto fixa NODE_ENV=development (não "test"), e o
+// vitest.config.ts carrega esse .env antes de qualquer teste rodar. Usa o
+// marcador que o próprio Vitest define de verdade (process.env.VITEST),
+// confiável independente do que o .env disser.
+export const errorReportingEnabled = !!env.SENTRY_DSN && !process.env.VITEST;
 
 if (errorReportingEnabled) {
   Sentry.init({
