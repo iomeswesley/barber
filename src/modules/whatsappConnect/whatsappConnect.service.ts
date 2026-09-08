@@ -41,7 +41,11 @@ export async function markWhatsappDisconnectedIfNeeded(businessId: number, err: 
     }
   } catch (dbErr) {
     console.error(`[WHATSAPP CONNECT] Falha ao marcar barbearia ${businessId} como desconectada:`, (dbErr as Error).message);
-    captureError(dbErr);
+    captureError(dbErr, {
+      descricao: `Falha ao marcar barbearia ${businessId} como desconectada após queda real do WhatsApp`,
+      area: "whatsapp-desconexao",
+      extra: { businessId },
+    });
   }
 }
 

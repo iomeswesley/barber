@@ -104,7 +104,7 @@ billingRouter.post("/api/webhooks/stripe", async (req, res) => {
     // — só um console.error que ninguém olha, enquanto pagamentos reais
     // nunca sincronizavam com o Subscription local (ver incidente Professional
     // King, 2026-07-26).
-    captureError(err);
+    captureError(err, { descricao: "Assinatura do webhook do Stripe inválida (secret desatualizado ou endpoint duplicado)", area: "stripe-webhook" });
     return res.sendStatus(400);
   }
 
@@ -126,7 +126,11 @@ billingRouter.post("/api/webhooks/stripe", async (req, res) => {
     res.sendStatus(200);
   } catch (err) {
     console.error("[STRIPE] Erro processando webhook:", err);
-    captureError(err);
+    captureError(err, {
+      descricao: `Erro processando webhook do Stripe (evento ${event.type})`,
+      area: "stripe-webhook",
+      extra: { eventType: event.type },
+    });
     // 200 mesmo em erro do nosso lado, pra evitar o Stripe reenviar
     // indefinidamente por um bug pontual — mesma decisão já tomada pro
     // webhook do WhatsApp. O Sentry acima é o que garante que o erro não

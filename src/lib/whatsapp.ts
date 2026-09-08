@@ -17,7 +17,10 @@ export function resolveBarbershopAccessToken(
     return decryptSecret(barbershop.whatsappAccessTokenEnc);
   } catch (err) {
     console.error("[WHATSAPP] Falha ao descriptografar token da barbearia, caindo pro token global:", (err as Error).message);
-    captureError(err);
+    captureError(err, {
+      descricao: "Falha ao descriptografar token de WhatsApp da barbearia (caiu pro token global da plataforma)",
+      area: "whatsapp-token",
+    });
     return undefined;
   }
 }

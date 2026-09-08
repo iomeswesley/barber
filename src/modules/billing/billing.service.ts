@@ -295,7 +295,12 @@ export async function handleCheckoutCompleted(session: Stripe.Checkout.Session):
     captureError(
       new Error(
         `checkout.session.completed sem businessId/subscription válido (session=${session.id}, metadata=${JSON.stringify(session.metadata)})`
-      )
+      ),
+      {
+        descricao: "Checkout do Stripe concluído mas sem businessId/subscription válido no metadata — pagamento real sem sincronizar",
+        area: "stripe-webhook",
+        extra: { sessionId: session.id },
+      }
     );
     return;
   }
@@ -317,7 +322,11 @@ export async function handleCheckoutCompleted(session: Stripe.Checkout.Session):
 export async function handleSubscriptionUpdated(subscription: Stripe.Subscription): Promise<void> {
   const businessId = Number(subscription.metadata?.businessId);
   if (!businessId) {
-    captureError(new Error(`customer.subscription.updated sem businessId no metadata (subscription=${subscription.id})`));
+    captureError(new Error(`customer.subscription.updated sem businessId no metadata (subscription=${subscription.id})`), {
+      descricao: "Webhook do Stripe (customer.subscription.updated) sem businessId no metadata — assinatura real sem sincronizar",
+      area: "stripe-webhook",
+      extra: { subscriptionId: subscription.id },
+    });
     return;
   }
   const priceId = subscription.items.data[0]?.price?.id;
@@ -349,7 +358,11 @@ export async function handleSubscriptionUpdated(subscription: Stripe.Subscriptio
 export async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Promise<void> {
   const businessId = Number(subscription.metadata?.businessId);
   if (!businessId) {
-    captureError(new Error(`customer.subscription.deleted sem businessId no metadata (subscription=${subscription.id})`));
+    captureError(new Error(`customer.subscription.deleted sem businessId no metadata (subscription=${subscription.id})`), {
+      descricao: "Webhook do Stripe (customer.subscription.deleted) sem businessId no metadata — cancelamento real sem sincronizar",
+      area: "stripe-webhook",
+      extra: { subscriptionId: subscription.id },
+    });
     return;
   }
   await prisma.subscription.upsert({

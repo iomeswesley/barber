@@ -14,12 +14,24 @@ export class AppError extends Error {
 // status hardcoded. Erros não esperados viram 500 sem vazar detalhes internos.
 // Só os não esperados (não-AppError) vão pro Sentry — AppError é validação
 // normal (ex: "telefone obrigatório"), não bug.
-export async function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
+export async function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction) {
   if (err instanceof AppError) {
     return res.status(err.status).json({ error: err.message });
   }
   console.error(err);
-  captureError(err);
+  const user = req.session?.user;
+  captureError(err, {
+    descricao: `Erro inesperado em ${req.method} ${req.originalUrl}`,
+    area: "http-request",
+    extra: {
+      method: req.method,
+      url: req.originalUrl,
+      businessId: user?.businessId,
+      professionalId: user?.professionalId,
+      role: user?.role,
+      superAdmin: req.session?.superAdmin,
+    },
+  });
   await flushErrorReporting();
   res.status(500).json({ error: "Erro interno do servidor" });
 }
