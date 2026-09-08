@@ -755,9 +755,10 @@
      genéricas (login → confirmar → finalizar → conectado), as mesmas nos
      dois modos (Coexistência/número novo), que a JS liga/desliga em tempo
      real conforme o FB.login() avança (ver setWhatsappProgressStep, abaixo do
-     fluxo de conexão). O passo a passo detalhado por modo (pré-requisitos,
-     como confirmar no celular etc.) continua existindo, só migrou pra um
-     bloco compacto abaixo da trilha (ver .wa-steps-detail). */
+     fluxo de conexão). O passo a passo detalhado em texto foi substituído
+     por um vídeo tutorial (2026-09-08), dentro de um <details> recolhível
+     abaixo da trilha (ver .wa-steps-detail) — some da tela até o dono
+     clicar, em vez de ocupar espaço grande sempre visível. */
   .wa-progress { display: flex; align-items: flex-start; margin: 18px 0 6px; }
   .wa-progress-step { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; }
   .wa-progress-line {
@@ -800,7 +801,6 @@
     background: var(--bg-page); border: 1px solid var(--card-border);
   }
   .wa-steps-detail summary { cursor: pointer; font-size: 12px; font-weight: 600; color: var(--text-secondary); }
-  .wa-steps-detail ol { margin: 10px 0 0; padding-left: 18px; font-size: 12.5px; color: var(--text-secondary); line-height: 1.7; }
 
   /* ---------- Conversas (histórico de chat do WhatsApp) ---------- */
   .chat-session-item {
@@ -1527,8 +1527,18 @@
       <div class="wa-progress" id="whatsapp-progress" style="display:none;"></div>
 
       <details class="wa-steps-detail" id="whatsapp-connect-steps-wrap" style="display:none;">
-        <summary>Ver o passo a passo detalhado</summary>
-        <ol id="whatsapp-connect-steps"></ol>
+        <summary>Ver como conectar (vídeo, 1min16s)</summary>
+        <div style="display:flex; justify-content:center; margin-top:10px;">
+          <video
+            id="whatsapp-connect-video"
+            controls
+            preload="metadata"
+            playsinline
+            style="width:100%; max-width:600px; border-radius:var(--radius-sm); border:1px solid var(--card-border); display:block; background:var(--bg-page);"
+          >
+            <source src="/assets/whatsapp-connect-tutorial.mp4" type="video/mp4" />
+          </video>
+        </div>
       </details>
 
       <div class="form-actions" id="whatsapp-connect-actions" style="display:none;">
@@ -5414,26 +5424,10 @@ function getWhatsappConnectMode() {
   return checked ? checked.value : "coexistence";
 }
 
-const WHATSAPP_CONNECT_STEPS = {
-  coexistence: [
-    "Seu número precisa já estar ativo no WhatsApp Business App (celular) há pelo menos 7 dias, numa versão recente do app.",
-    "Você vai fazer login com a conta do Facebook/Meta Business da sua barbearia (ou criar uma, se ainda não tiver).",
-    "Digite o número que já usa no WhatsApp Business App — não crie um número novo aqui.",
-    "Confirme direto no seu celular, dentro do próprio WhatsApp Business App, escaneando o código que aparece na tela.",
-    "Pronto — a IA passa a responder em paralelo no mesmo número, sem tirar o app do seu celular do ar.",
-  ],
-  migrate: [
-    "Você vai fazer login com a conta do Facebook/Meta Business da sua barbearia (ou criar uma, se ainda não tiver).",
-    "Escolha ou crie o número de WhatsApp que vai usar pra atender os clientes por aqui.",
-    "Confirme o código de verificação que a Meta manda por SMS ou ligação pro número escolhido.",
-    "Pronto — a plataforma finaliza a conexão sozinha e libera lembretes, reagendamento e o atendimento automático nesse número. Esse número deixa de funcionar no WhatsApp Business App do celular.",
-  ],
-};
-
+// Passo a passo em texto (por modo) foi substituído pelo vídeo tutorial
+// dentro do <details> (ver whatsapp-connect-steps-wrap) — o vídeo cobre o
+// fluxo recomendado (Coexistência) de forma mais clara que uma lista corrida.
 function renderWhatsappConnectSteps() {
-  const steps = document.getElementById("whatsapp-connect-steps");
-  const mode = getWhatsappConnectMode();
-  steps.innerHTML = WHATSAPP_CONNECT_STEPS[mode].map((s) => `<li>${s}</li>`).join("");
   document.getElementById("whatsapp-connect-steps-wrap").style.display = "block";
   renderWhatsappProgress();
 }
