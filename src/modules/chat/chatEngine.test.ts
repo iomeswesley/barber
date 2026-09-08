@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type Anthropic from "@anthropic-ai/sdk";
+import Anthropic from "@anthropic-ai/sdk";
 
 // Ver comentário em crypto.test.ts: preenche o env obrigatório antes do
 // import (chatEngine importa vários repositórios que, transitivamente,
@@ -11,7 +11,8 @@ process.env.DATABASE_URL ??= "postgresql://user:pass@localhost:5432/db";
 process.env.DIRECT_URL ??= "postgresql://user:pass@localhost:5432/db";
 process.env.SESSION_SECRET ??= "test-session-secret";
 
-const { formatPrice, describeClientPlanBenefit, normalizeWhatsappFormatting, pruneStaleAppointmentHistory } = await import("./chatEngine.js");
+const { formatPrice, describeClientPlanBenefit, normalizeWhatsappFormatting, pruneStaleAppointmentHistory, isAnthropicAuthOrCreditError } =
+  await import("./chatEngine.js");
 
 describe("formatPrice", () => {
   it("converte centavos pra reais arredondados, sem casas decimais", () => {
@@ -201,5 +202,35 @@ describe("pruneStaleAppointmentHistory", () => {
   it("nunca devolve a mesma referência do array recebido, mesmo sem nada pra podar", () => {
     const messages: Anthropic.MessageParam[] = [{ role: "user", content: "Oi" }];
     expect(pruneStaleAppointmentHistory(messages, TODAY)).not.toBe(messages);
+  });
+});
+
+// Achado em produção (2026-09-07): créditos da Anthropic zeraram e o bot
+// ficou fora do ar sem ninguém perceber — ver alertAnthropicFailureIfNeeded
+// (chatEngine.ts) e alertPlatformOperator (lib/alerts.ts).
+describe("isAnthropicAuthOrCreditError", () => {
+  it("reconhece erro de autenticação (401)", () => {
+    const err = new Anthropic.AuthenticationError(401, { message: "invalid x-api-key" }, "invalid x-api-key", new Headers());
+    expect(isAnthropicAuthOrCreditError(err)).toBe(true);
+  });
+
+  it("reconhece erro de permissão (403)", () => {
+    const err = new Anthropic.PermissionDeniedError(403, { message: "forbidden" }, "forbidden", new Headers());
+    expect(isAnthropicAuthOrCreditError(err)).toBe(true);
+  });
+
+  // O erro real de crédito zerado (visto em produção) é um 400 comum, sem
+  // classe própria no SDK — só a mensagem denuncia.
+  it("reconhece 'credit balance too low' embutido na mensagem de um erro genérico", () => {
+    expect(isAnthropicAuthOrCreditError(new Error("400 Your credit balance is too low to access the Anthropic API."))).toBe(true);
+  });
+
+  it("NÃO reconhece um erro de negócio comum (ex: rate limit) como problema de créditos/autenticação", () => {
+    expect(isAnthropicAuthOrCreditError(new Error("429 Rate limit exceeded"))).toBe(false);
+  });
+
+  it("volta false pra algo que não é um Error", () => {
+    expect(isAnthropicAuthOrCreditError("string qualquer")).toBe(false);
+    expect(isAnthropicAuthOrCreditError(null)).toBe(false);
   });
 });

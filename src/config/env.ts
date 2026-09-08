@@ -91,6 +91,11 @@ const envSchema = z.object({
   // registrado no console, igual ao stub do WhatsApp antes de configurado).
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default("onboarding@resend.dev"),
+  // E-mail de alerta operacional (achado em produção 2026-09-07: falha real
+  // de WhatsApp/IA ficou dias sem ninguém perceber, só via reclamação do
+  // dono) — sem essa env var configurada, o alerta só fica no log (ver
+  // src/lib/alerts.ts), igual o padrão dos outros stubs deste arquivo.
+  PLATFORM_ALERT_EMAIL: z.string().optional(),
   // Cobrança (Stripe) — tudo opcional: sem as chaves, a aba de cobrança
   // fica desligada (mostra só o status do trial, sem botão de assinar).
   STRIPE_SECRET_KEY: z.string().optional(),

@@ -3,7 +3,8 @@ import { env } from "@/config/env.js";
 import { AppError } from "@/middleware/errorHandler.js";
 import { TEMPLATE_DEFINITIONS, OTP_TEMPLATE_NAME } from "./templates.js";
 import { isWhatsappDisconnectionError } from "@/lib/whatsapp.js";
-import { setWhatsappConnectionStatusByBusinessId } from "./whatsappConnect.repository.js";
+import { prisma } from "@/lib/prisma.js";
+import { alertPlatformOperator } from "@/lib/alerts.js";
 
 const GRAPH_API_VERSION = "v21.0";
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
@@ -22,7 +23,21 @@ export const whatsappConnectConfigured = !!(env.WHATSAPP_APP_ID && env.WHATSAPP_
 export async function markWhatsappDisconnectedIfNeeded(businessId: number, err: unknown): Promise<void> {
   if (!isWhatsappDisconnectionError(err)) return;
   try {
-    await setWhatsappConnectionStatusByBusinessId(businessId, "disconnected");
+    // updateMany com a condição extra "ainda não estava disconnected" —
+    // devolve count=0 se já estava marcado (ex: 5ª mensagem falhando desde
+    // que a conexão caiu), pra só alertar na TRANSIÇÃO, não em cada falha
+    // repetida enquanto ninguém reconecta.
+    const { count } = await prisma.business.updateMany({
+      where: { id: businessId, whatsappConnectionStatus: { not: "disconnected" } },
+      data: { whatsappConnectionStatus: "disconnected" },
+    });
+    if (count > 0) {
+      const business = await prisma.business.findUnique({ where: { id: businessId }, select: { name: true, whatsappDisplayPhone: true } });
+      await alertPlatformOperator(
+        "WhatsApp desconectado",
+        `A barbearia "${business?.name ?? businessId}" (número ${business?.whatsappDisplayPhone ?? "?"}) teve a conexão de WhatsApp derrubada de verdade (token/WABA perdeu acesso na Meta). O atendimento automático parou até alguém reconectar pelo painel.`
+      );
+    }
   } catch (dbErr) {
     console.error(`[WHATSAPP CONNECT] Falha ao marcar barbearia ${businessId} como desconectada:`, (dbErr as Error).message);
   }

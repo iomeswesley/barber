@@ -43,10 +43,6 @@ export function setWhatsappConnectionStatusByWabaId(wabaId: string, status: stri
   return prisma.business.updateMany({ where: { whatsappWabaId: wabaId }, data: { whatsappConnectionStatus: status } });
 }
 
-export function setWhatsappConnectionStatusByBusinessId(businessId: number, status: string) {
-  return prisma.business.updateMany({ where: { id: businessId }, data: { whatsappConnectionStatus: status } });
-}
-
 // Limpa a conexão salva no banco (usado pelo botão "Desconectar" no painel).
 // Não revoga o token do lado da Meta nem desfaz o registro do número na Cloud
 // API — só reseta o estado local pra permitir reconectar (inclusive

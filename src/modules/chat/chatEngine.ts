@@ -25,6 +25,7 @@ import { notifyNewAppointment, notifyEscalation } from "@/modules/push/push.serv
 import { createWaitlistEntry } from "@/modules/waitlist/waitlist.repository.js";
 import { sendWhatsappText, whatsappConfigured, resolveBarbershopAccessToken, uploadWhatsappMedia, sendWhatsappMedia } from "@/lib/whatsapp.js";
 import { markWhatsappDisconnectedIfNeeded } from "@/modules/whatsappConnect/whatsappConnect.service.js";
+import { alertPlatformOperator } from "@/lib/alerts.js";
 import { createShortLink } from "@/lib/shortLink.js";
 import { generateGoogleCalendarUrl } from "@/lib/ics.js";
 import { prisma } from "@/lib/prisma.js";
@@ -37,6 +38,35 @@ import type { Business, Prisma } from "@prisma/client";
 const client = new Anthropic();
 const MODEL = "claude-sonnet-5";
 const MAX_ITERATIONS = 8;
+
+// Achado em produção (2026-09-07): créditos da Anthropic zeraram e o bot
+// parou de responder por um bom tempo até alguém notar — nada avisava
+// sozinho. Detecta os dois jeitos que isso quebra (401 de autenticação, ou
+// 400 "credit balance too low" — que não tem classe de erro própria no SDK,
+// só aparece na mensagem mesmo) e alerta o operador da plataforma.
+// Debounce simples em memória (não sobrevive a cold start, mas evita
+// mandar um e-mail por MENSAGEM enquanto a mesma instância segue no ar sem
+// ninguém corrigir): no máximo 1 alerta a cada 15min por processo.
+let lastAnthropicAlertAt = 0;
+const ANTHROPIC_ALERT_COOLDOWN_MS = 15 * 60 * 1000;
+
+export function isAnthropicAuthOrCreditError(err: unknown): boolean {
+  if (err instanceof Anthropic.AuthenticationError) return true;
+  if (err instanceof Anthropic.PermissionDeniedError) return true;
+  if (err instanceof Error && /credit balance/i.test(err.message)) return true;
+  return false;
+}
+
+async function alertAnthropicFailureIfNeeded(err: unknown): Promise<void> {
+  if (!isAnthropicAuthOrCreditError(err)) return;
+  const now = Date.now();
+  if (now - lastAnthropicAlertAt < ANTHROPIC_ALERT_COOLDOWN_MS) return;
+  lastAnthropicAlertAt = now;
+  await alertPlatformOperator(
+    "IA (Anthropic) fora do ar",
+    `O bot de WhatsApp parou de conseguir chamar a API da Anthropic: ${(err as Error).message}. Provável causa: chave inválida ou créditos zerados. Nenhuma barbearia consegue receber resposta automática enquanto isso não for corrigido.`
+  );
+}
 
 interface ChatSession {
   businessId: number;
@@ -941,14 +971,20 @@ export async function sendMessage(
           // Testado "high" (14/14) e "medium" (14/14) na mesma bateria —
           // empate de confiabilidade, então fica "medium": mesmo resultado
           // por um custo de token/latência menor.
-          const response = await client.messages.create({
-            model: MODEL,
-            max_tokens: 1024,
-            system,
-            tools,
-            messages: apiMessages,
-            output_config: { effort: "medium" },
-          });
+          let response;
+          try {
+            response = await client.messages.create({
+              model: MODEL,
+              max_tokens: 1024,
+              system,
+              tools,
+              messages: apiMessages,
+              output_config: { effort: "medium" },
+            });
+          } catch (err) {
+            await alertAnthropicFailureIfNeeded(err);
+            throw err;
+          }
 
           await logChatUsage(businessId, MODEL, response.usage);
 
