@@ -116,6 +116,39 @@ describe("POST/GET /api/whatsapp/webhook", () => {
       expect(sendWhatsappTextMock).toHaveBeenCalledWith(phoneNumberId, "5511999990000", "Resposta mockada da IA", undefined);
     });
 
+    // Achado em produção (2026-09-08): em modo Coexistência o número
+    // continua recebendo mensagem de operadora/banco/etc — sem esse
+    // filtro a IA tentava agendar corte de cabelo com a Claro. Ver
+    // src/lib/nonCustomerSenders.ts.
+    it("remetente reconhecido como não-cliente (ex: Claro): ignora sem chamar a IA nem responder", async () => {
+      const raw = JSON.stringify({
+        entry: [
+          {
+            id: "waba-teste",
+            changes: [
+              {
+                field: "messages",
+                value: {
+                  metadata: { phone_number_id: phoneNumberId },
+                  contacts: [{ profile: { name: "Claro" }, wa_id: "5511988887777" }],
+                  messages: [{ id: "wamid-teste-nao-cliente", from: "5511988887777", type: "text", text: { body: "Sua fatura está disponível" } }],
+                },
+              },
+            ],
+          },
+        ],
+      });
+      const res = await request(app)
+        .post("/api/whatsapp/webhook")
+        .set("Content-Type", "application/json")
+        .set("X-Hub-Signature-256", signBody(raw))
+        .send(raw);
+
+      expect(res.status).toBe(200);
+      expect(sendMessageMock).not.toHaveBeenCalled();
+      expect(sendWhatsappTextMock).not.toHaveBeenCalled();
+    });
+
     it("ignora reenvio duplicado do mesmo wamid (dedupe)", async () => {
       const raw = textMessagePayload(phoneNumberId, "wamid-teste-3", "5511999990000", "Mensagem repetida");
       const send = () =>

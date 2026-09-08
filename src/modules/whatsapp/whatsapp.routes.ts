@@ -7,6 +7,7 @@ import { getBarbershopByWhatsappPhoneNumberId } from "@/modules/businesses/busin
 import { sendMessage } from "@/modules/chat/chatEngine.js";
 import { setWhatsappConnectionStatusByWabaId } from "@/modules/whatsappConnect/whatsappConnect.repository.js";
 import { markWhatsappDisconnectedIfNeeded } from "@/modules/whatsappConnect/whatsappConnect.service.js";
+import { isKnownNonCustomerSender } from "@/lib/nonCustomerSenders.js";
 
 // Registra o wamid como processado; retorna false se já tinha sido
 // registrado antes (reenvio duplicado da Meta), pra quem chamar pular o
@@ -108,6 +109,18 @@ whatsappRouter.post("/api/whatsapp/webhook", async (req, res) => {
 
         const from = message.from!;
         const pushName = value?.contacts?.[0]?.profile?.name;
+
+        // Achado em produção (2026-09-08): em modo Coexistência o número
+        // continua recebendo tudo que já recebia antes (operadora, banco,
+        // promoção) — sem esse filtro, a IA tentava agendar corte de
+        // cabelo com a Claro. Silencioso de propósito (nem responde "só
+        // entendo texto", nem salva no histórico) — mandar qualquer coisa
+        // pra uma operadora/banco só confundiria mais.
+        if (isKnownNonCustomerSender(pushName)) {
+          console.log(`[WHATSAPP] Mensagem de "${pushName}" (${from}) ignorada — remetente reconhecido como não-cliente.`);
+          continue;
+        }
+
         const accessToken = resolveBarbershopAccessToken(barbershop);
 
         // Áudio, foto, figurinha etc. não vão pra IA (só entende texto) —
