@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { env, isProduction } from "@/config/env.js";
 import { decryptSecret } from "@/lib/crypto.js";
+import { captureError } from "@/lib/errorReporting.js";
 
 export const whatsappConfigured = !!env.WHATSAPP_ACCESS_TOKEN;
 
@@ -16,6 +17,7 @@ export function resolveBarbershopAccessToken(
     return decryptSecret(barbershop.whatsappAccessTokenEnc);
   } catch (err) {
     console.error("[WHATSAPP] Falha ao descriptografar token da barbearia, caindo pro token global:", (err as Error).message);
+    captureError(err);
     return undefined;
   }
 }
@@ -205,6 +207,10 @@ export async function sendWhatsappAuthTemplate(
     const body = await res.text().catch(() => "");
     throw new Error(`Falha ao enviar template de autenticação WhatsApp "${templateName}" (${res.status}): ${body}`);
   }
+  // Sem isso, a única evidência de sucesso era "a chamada não jogou erro" —
+  // não dava pra confirmar entrega real (ex: no número de produção da
+  // Vintage) só olhando o log. Nunca loga o código em si.
+  console.log(`[WHATSAPP OTP] Template "${templateName}" aceito pela Meta para ${to}`);
 }
 
 // Verifica a assinatura HMAC-SHA256 que a Meta envia no header

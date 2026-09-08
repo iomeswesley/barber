@@ -5,6 +5,7 @@ import { TEMPLATE_DEFINITIONS, OTP_TEMPLATE_NAME } from "./templates.js";
 import { isWhatsappDisconnectionError } from "@/lib/whatsapp.js";
 import { prisma } from "@/lib/prisma.js";
 import { alertPlatformOperator } from "@/lib/alerts.js";
+import { captureError } from "@/lib/errorReporting.js";
 
 const GRAPH_API_VERSION = "v21.0";
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
@@ -40,6 +41,7 @@ export async function markWhatsappDisconnectedIfNeeded(businessId: number, err: 
     }
   } catch (dbErr) {
     console.error(`[WHATSAPP CONNECT] Falha ao marcar barbearia ${businessId} como desconectada:`, (dbErr as Error).message);
+    captureError(dbErr);
   }
 }
 

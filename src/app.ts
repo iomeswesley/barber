@@ -116,7 +116,7 @@ export function createApp() {
         tableName: "session",
         createTableIfMissing: true,
         pruneSessionInterval: false, // evita um timer de fundo (setInterval) que não faz sentido em serverless
-        errorLog: (err) => console.error("[SESSION STORE ERROR]", err),
+        errorLog: (err) => { console.error("[SESSION STORE ERROR]", err); captureError(err); },
       }),
       secret: env.SESSION_SECRET,
       resave: false,
@@ -191,6 +191,7 @@ export function createApp() {
     // de crons, não vale abrir um dedicado só pra isso.
     const icalResult = await runIcalImport().catch((err) => {
       console.error("[CRON] Falha no import de iCal:", (err as Error).message);
+      captureError(err);
       return null;
     });
     res.json({ ok: true, ical: icalResult });
