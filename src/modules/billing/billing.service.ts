@@ -322,7 +322,15 @@ export async function handleSubscriptionUpdated(subscription: Stripe.Subscriptio
   }
   const priceId = subscription.items.data[0]?.price?.id;
   const plan = planForPriceId(priceId);
-  const currentPeriodEndSec = (subscription as unknown as { current_period_end?: number }).current_period_end;
+  // Achado em produção (2026-09-08, "Renova em —" sempre vazio no painel):
+  // a Stripe moveu current_period_end do nível da Subscription pro nível
+  // do SubscriptionItem (mudança de "flexible billing") — o campo no
+  // objeto Subscription não existe mais na API atual, então essa leitura
+  // sempre voltava undefined, silenciosamente (sem erro, sem log — o
+  // upsert só gravava currentPeriodEnd: undefined toda vez). Confirmado
+  // contra o .d.ts instalado (stripe@22.3.2): Subscriptions.d.ts não tem
+  // mais o campo, SubscriptionItems.d.ts tem.
+  const currentPeriodEndSec = subscription.items.data[0]?.current_period_end;
   const status = mapStripeStatus(subscription.status);
   const currentPeriodEnd = currentPeriodEndSec ? new Date(currentPeriodEndSec * 1000) : undefined;
   // upsert pelo mesmo motivo de handleCheckoutCompleted: nunca deixar um
