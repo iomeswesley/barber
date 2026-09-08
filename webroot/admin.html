@@ -750,6 +750,58 @@
     main { padding: 16px 14px; }
   }
 
+  /* ---------- Trilha animada de conexão do WhatsApp (Configurações) ----------
+     Substitui a lista de texto corrida por um progresso visual — 4 fases
+     genéricas (login → confirmar → finalizar → conectado), as mesmas nos
+     dois modos (Coexistência/número novo), que a JS liga/desliga em tempo
+     real conforme o FB.login() avança (ver setWhatsappProgressStep, abaixo do
+     fluxo de conexão). O passo a passo detalhado por modo (pré-requisitos,
+     como confirmar no celular etc.) continua existindo, só migrou pra um
+     bloco compacto abaixo da trilha (ver .wa-steps-detail). */
+  .wa-progress { display: flex; align-items: flex-start; margin: 18px 0 6px; }
+  .wa-progress-step { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; }
+  .wa-progress-line {
+    position: absolute; top: 15px; left: -50%; width: 100%; height: 2px;
+    background: var(--card-border); z-index: 0; transition: background-color .4s ease;
+  }
+  .wa-progress-step:first-child .wa-progress-line { display: none; }
+  .wa-progress-step.done .wa-progress-line { background: var(--good); }
+  .wa-progress-dot {
+    position: relative; z-index: 1; width: 30px; height: 30px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--card-bg-solid); border: 2px solid var(--card-border);
+    font-size: 12px; font-weight: 700; color: var(--text-muted);
+    transition: border-color .3s ease, color .3s ease, background-color .3s ease;
+  }
+  .wa-progress-step.active .wa-progress-dot {
+    border-color: var(--brand); color: var(--brand);
+    animation: wa-pulse 1.6s ease-in-out infinite;
+  }
+  .wa-progress-step.done .wa-progress-dot {
+    border-color: var(--good); background: var(--good); color: var(--brand-ink);
+  }
+  .wa-progress-dot svg { width: 15px; height: 15px; }
+  .wa-progress-check { transform: scale(0); animation: wa-check-in .35s cubic-bezier(.2,1.4,.4,1) forwards; }
+  .wa-progress-label {
+    margin-top: 8px; font-size: 11px; line-height: 1.35; color: var(--text-muted);
+    max-width: 84px; transition: color .3s ease;
+  }
+  .wa-progress-step.active .wa-progress-label { color: var(--text-primary); font-weight: 600; }
+  .wa-progress-step.done .wa-progress-label { color: var(--text-secondary); }
+  /* Pulso de cor sólida (wash), não brilho/sombra difusa — projeto é
+     superfície chapada de propósito, nada de glow (ver CLAUDE.md). */
+  @keyframes wa-pulse {
+    0%, 100% { background: var(--card-bg-solid); }
+    50% { background: var(--brand-soft); }
+  }
+  @keyframes wa-check-in { to { transform: scale(1); } }
+  .wa-steps-detail {
+    margin: 4px 0 16px; padding: 12px 14px; border-radius: var(--radius-sm);
+    background: var(--bg-page); border: 1px solid var(--card-border);
+  }
+  .wa-steps-detail summary { cursor: pointer; font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+  .wa-steps-detail ol { margin: 10px 0 0; padding-left: 18px; font-size: 12.5px; color: var(--text-secondary); line-height: 1.7; }
+
   /* ---------- Conversas (histórico de chat do WhatsApp) ---------- */
   .chat-session-item {
     display: block; width: 100%; text-align: left; padding: 12px 14px; border: none; border-bottom: 1px solid var(--card-border);
@@ -1472,7 +1524,13 @@
         </label>
       </div>
 
-      <ol id="whatsapp-connect-steps" style="margin:14px 0 16px; padding-left:20px; font-size:12.5px; color: var(--text-secondary); line-height:1.7; display:none;"></ol>
+      <div class="wa-progress" id="whatsapp-progress" style="display:none;"></div>
+
+      <details class="wa-steps-detail" id="whatsapp-connect-steps-wrap" style="display:none;">
+        <summary>Ver o passo a passo detalhado</summary>
+        <ol id="whatsapp-connect-steps"></ol>
+      </details>
+
       <div class="form-actions" id="whatsapp-connect-actions" style="display:none;">
         <button class="btn-primary" id="whatsapp-connect-btn">Conectar meu WhatsApp</button>
       </div>
@@ -5376,11 +5434,68 @@ function renderWhatsappConnectSteps() {
   const steps = document.getElementById("whatsapp-connect-steps");
   const mode = getWhatsappConnectMode();
   steps.innerHTML = WHATSAPP_CONNECT_STEPS[mode].map((s) => `<li>${s}</li>`).join("");
+  document.getElementById("whatsapp-connect-steps-wrap").style.display = "block";
+  renderWhatsappProgress();
 }
 
 document.querySelectorAll('input[name="whatsapp-connect-mode"]').forEach((input) => {
   input.addEventListener("change", renderWhatsappConnectSteps);
 });
+
+// Trilha animada com as 4 fases genéricas do processo (mesmas nas duas
+// modalidades, só o rótulo do passo 2 muda) — dá feedback visual de
+// progresso enquanto o popup da Meta está aberto, em vez de só o texto do
+// botão mudando. Rótulos e classe de estado (pending/active/done) são
+// recalculados a cada chamada, então trocar de modo no meio (radio) não
+// deixa a trilha "presa" num estado antigo.
+const WHATSAPP_PROGRESS_LABELS = {
+  coexistence: ["Login com sua conta Meta", "Confirmar no WhatsApp Business App", "Finalizando conexão", "Conectado"],
+  migrate: ["Login com sua conta Meta", "Confirmar código de verificação", "Finalizando conexão", "Conectado"],
+};
+let whatsappProgressActiveStep = -1; // -1 = nada em andamento (trilha escondida)
+
+function renderWhatsappProgress() {
+  const el = document.getElementById("whatsapp-progress");
+  const labels = WHATSAPP_PROGRESS_LABELS[getWhatsappConnectMode()];
+  el.innerHTML = labels
+    .map((label, i) => {
+      let state = "pending";
+      if (whatsappProgressActiveStep > i) state = "done";
+      else if (whatsappProgressActiveStep === i) state = "active";
+      const dotContent =
+        state === "done"
+          ? '<svg class="icon wa-progress-check" style="width:14px;height:14px;"><use href="#icon-check"></use></svg>'
+          : i + 1;
+      return `
+        <div class="wa-progress-step ${state}">
+          <div class="wa-progress-line"></div>
+          <div class="wa-progress-dot">${dotContent}</div>
+          <div class="wa-progress-label">${label}</div>
+        </div>`;
+    })
+    .join("");
+}
+
+// step: 0-3 (fase atual em andamento), 4 (tudo concluído/conectado), ou
+// null (esconde a trilha — estado ocioso, antes de clicar em conectar).
+function setWhatsappProgressStep(step) {
+  const el = document.getElementById("whatsapp-progress");
+  if (step === null) {
+    el.style.display = "none";
+    whatsappProgressActiveStep = -1;
+    return;
+  }
+  el.style.display = "flex";
+  whatsappProgressActiveStep = step;
+  renderWhatsappProgress();
+}
+
+// Só avança, nunca volta — os dois sinais do popup (code / FINISH) podem
+// chegar em qualquer ordem (ver comentário grande logo abaixo, sobre
+// whatsappSignupData), então cada sinal só garante um "mínimo" de fase.
+function advanceWhatsappProgress(minStep) {
+  if (whatsappProgressActiveStep < minStep) setWhatsappProgressStep(minStep);
+}
 
 let fbSdkLoadPromise = null;
 function loadFacebookSdk(appId) {
@@ -5436,6 +5551,7 @@ window.addEventListener("message", (event) => {
     if (data.event === "FINISH" || data.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING") {
       whatsappSignupIsCoexistence = data.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING";
       whatsappSignupData = { wabaId: data.data.waba_id, phoneNumberId: data.data.phone_number_id };
+      advanceWhatsappProgress(1);
       // Um FINISH sempre vence um CANCEL anterior: a Meta manda um CANCEL
       // "falso" no meio do fluxo (ex.: ao trocar de passo, tipicamente com
       // current_step ASSET_SELECTION) seguido, logo depois, do FINISH real —
@@ -5695,13 +5811,13 @@ document.getElementById("ical-import-url-save-btn").addEventListener("click", as
 
 async function loadWhatsappConnectStatus() {
   const hint = document.getElementById("whatsapp-connect-hint");
-  const steps = document.getElementById("whatsapp-connect-steps");
+  const stepsWrap = document.getElementById("whatsapp-connect-steps-wrap");
   const actions = document.getElementById("whatsapp-connect-actions");
 
   const config = await (await fetch("/api/manage/whatsapp/connect/config")).json();
   if (!config.configured) {
     hint.textContent = "Conexão self-service de WhatsApp ainda não liberada pra sua conta — em breve.";
-    steps.style.display = "none";
+    stepsWrap.style.display = "none";
     actions.style.display = "none";
     return;
   }
@@ -5743,7 +5859,7 @@ async function loadWhatsappConnectStatus() {
   const showConnectFlow = status.status === "not_connected" || status.status === "disconnected";
   const modeField = document.getElementById("whatsapp-connect-mode-field");
   modeField.style.display = showConnectFlow ? "block" : "none";
-  steps.style.display = showConnectFlow ? "block" : "none";
+  stepsWrap.style.display = showConnectFlow ? "block" : "none";
   actions.style.display = showConnectFlow ? "flex" : "none";
   if (showConnectFlow) renderWhatsappConnectSteps();
 
@@ -5775,6 +5891,7 @@ async function loadWhatsappConnectStatus() {
     const btn = document.getElementById("whatsapp-connect-btn");
     btn.disabled = true;
     btn.textContent = "Abrindo conexão...";
+    setWhatsappProgressStep(0);
     try {
       await loadFacebookSdk(config.app_id);
       const connectMode = getWhatsappConnectMode();
@@ -5804,6 +5921,7 @@ async function loadWhatsappConnectStatus() {
         finalizeWhatsappSignup = null;
         btn.disabled = false;
         btn.textContent = "Conectar meu WhatsApp";
+        setWhatsappProgressStep(null);
       }, 3 * 60 * 1000);
 
       const finalize = async () => {
@@ -5812,6 +5930,7 @@ async function loadWhatsappConnectStatus() {
           finalizeWhatsappSignup = null;
           btn.disabled = false;
           btn.textContent = "Conectar meu WhatsApp";
+          setWhatsappProgressStep(null);
           await showAlertModal("Conexão cancelada. Quando quiser, é só clicar em \"Conectar meu WhatsApp\" de novo.");
           return;
         }
@@ -5823,6 +5942,7 @@ async function loadWhatsappConnectStatus() {
         clearTimeout(stuckTimer);
         finalizeWhatsappSignup = null;
         btn.textContent = "Finalizando conexão...";
+        setWhatsappProgressStep(2);
         try {
           const res = await fetch("/api/manage/whatsapp/connect/callback", {
             method: "POST",
@@ -5836,9 +5956,13 @@ async function loadWhatsappConnectStatus() {
           });
           const body = await res.json();
           if (!res.ok) {
+            setWhatsappProgressStep(null);
             await showAlertModal(body.error || "Erro ao finalizar a conexão do WhatsApp.");
+          } else {
+            setWhatsappProgressStep(4); // todas as fases concluídas
           }
         } catch {
+          setWhatsappProgressStep(null);
           await showAlertModal("Erro de conexão com o servidor.");
         }
         btn.disabled = false;
@@ -5860,6 +5984,7 @@ async function loadWhatsappConnectStatus() {
           const code = response.authResponse?.code;
           if (code) {
             whatsappSignupCode = code;
+            advanceWhatsappProgress(1);
             finalizeWhatsappSignup();
           }
         },
@@ -5885,6 +6010,7 @@ async function loadWhatsappConnectStatus() {
       finalizeWhatsappSignup = null;
       btn.disabled = false;
       btn.textContent = "Conectar meu WhatsApp";
+      setWhatsappProgressStep(null);
       await showAlertModal("Não foi possível carregar a conexão com a Meta agora. Tente de novo em instantes.");
     }
     // stuckTimer (se chegou a ser criado) é limpo dentro de finalize() nos
