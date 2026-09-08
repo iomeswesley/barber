@@ -1500,6 +1500,29 @@
   <div id="page-configuracoes" class="page-section" style="display:none;">
     <div class="settings-section">
       <div class="settings-section-head">
+        <h2>IA</h2>
+        <p>Interruptor geral — pausa a resposta automática em <strong>todas</strong> as conversas de uma vez.</p>
+      </div>
+      <div class="card panel">
+        <div class="chat-info-toggle-row" style="padding:0;">
+          <div>
+            <div class="label">IA Ativa em todas as conversas</div>
+            <div class="sub" id="ai-global-toggle-sub">Carregando...</div>
+          </div>
+          <button type="button" class="chat-ai-toggle-btn" id="ai-global-toggle-btn" disabled>
+            <span class="dot"></span><span id="ai-global-toggle-label">…</span>
+          </button>
+        </div>
+        <div class="hint" style="margin-top:10px;">
+          Diferente do toggle "IA Ativa" de cada conversa (aba Mensagens) — esse aqui pausa <strong>de uma vez só</strong>, mesmo com
+          o WhatsApp conectado. As mensagens dos clientes continuam chegando e ficam marcadas como "precisa de atenção", só não tem
+          resposta automática até você reativar.
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-head">
         <h2>WhatsApp</h2>
         <p>Configure o número de WhatsApp que a IA usa pra atender seus clientes.</p>
       </div>
@@ -5648,6 +5671,53 @@ document.getElementById("tone-examples-save-btn").addEventListener("click", asyn
   }
 });
 
+/* ---------------- Interruptor geral de IA ---------------- */
+let aiGloballyPaused = false;
+
+function renderAiGlobalToggle() {
+  const btn = document.getElementById("ai-global-toggle-btn");
+  const label = document.getElementById("ai-global-toggle-label");
+  const sub = document.getElementById("ai-global-toggle-sub");
+  const on = !aiGloballyPaused;
+  btn.classList.toggle("on", on);
+  btn.classList.toggle("off", !on);
+  btn.disabled = false;
+  label.textContent = on ? "Ativa" : "Pausada";
+  sub.textContent = on
+    ? "Respondendo automaticamente em todas as conversas"
+    : "Pausada em TODAS as conversas — nenhuma resposta automática até reativar";
+}
+
+async function loadAiGlobalToggle() {
+  const data = await (await fetch("/api/manage/ai-global-toggle")).json();
+  aiGloballyPaused = !!data.paused;
+  renderAiGlobalToggle();
+}
+
+document.getElementById("ai-global-toggle-btn").addEventListener("click", async () => {
+  const nextPaused = !aiGloballyPaused; // clicando enquanto ativa -> pausa, e vice-versa
+  if (nextPaused) {
+    const ok = await showConfirmModal(
+      "Pausar a IA em TODAS as conversas? Nenhum cliente recebe resposta automática até você reativar aqui."
+    );
+    if (!ok) return;
+  }
+  const btn = document.getElementById("ai-global-toggle-btn");
+  btn.disabled = true;
+  try {
+    const res = await fetch("/api/manage/ai-global-toggle", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paused: nextPaused }),
+    });
+    const data = await res.json();
+    aiGloballyPaused = !!data.paused;
+  } catch {
+    await showAlertModal("Erro de conexão com o servidor.");
+  }
+  renderAiGlobalToggle();
+});
+
 /* ---------------- Personalidade da IA ---------------- */
 async function loadAiPersonality() {
   const data = await (await fetch("/api/manage/ai-personality")).json();
@@ -6575,7 +6645,7 @@ document.querySelectorAll("#page-tabs button").forEach((btn) => {
     }
     if (page === "configuracoes" && !configuracoesLoaded) {
       configuracoesLoaded = true;
-      await Promise.all([loadManageBarbers(), loadTimeBlocks(), loadBusinessHours(), loadBackups(), loadBillingStatus(), loadClientPlans(), loadWhatsappConnectStatus(), loadToneExamples(), loadAiPersonality(), loadMasterPrompt(), loadGoogleCalendarSection(), loadIcalImportUrl()]);
+      await Promise.all([loadManageBarbers(), loadTimeBlocks(), loadBusinessHours(), loadBackups(), loadBillingStatus(), loadClientPlans(), loadWhatsappConnectStatus(), loadToneExamples(), loadAiPersonality(), loadMasterPrompt(), loadGoogleCalendarSection(), loadIcalImportUrl(), loadAiGlobalToggle()]);
     }
     if (page === "auditoria") {
       auditoriaLoaded = true;

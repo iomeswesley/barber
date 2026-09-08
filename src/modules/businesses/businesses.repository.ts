@@ -30,6 +30,12 @@ export function updateMasterPrompt(businessId: number, masterPrompt: string | nu
   return prisma.business.update({ where: { id: businessId }, data: { masterPrompt } });
 }
 
+// Interruptor geral de "IA Ativa" (Configurações) — ver comentário no
+// schema (Business.aiGloballyPaused) e sendMessage (chatEngine.ts).
+export function updateAiGloballyPaused(businessId: number, paused: boolean) {
+  return prisma.business.update({ where: { id: businessId }, data: { aiGloballyPaused: paused } });
+}
+
 export function updateIcalImportUrl(businessId: number, icalImportUrl: string | null) {
   return prisma.business.update({ where: { id: businessId }, data: { icalImportUrl } });
 }

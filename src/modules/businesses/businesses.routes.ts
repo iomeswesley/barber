@@ -12,6 +12,7 @@ import {
   updateAiPersonality,
   updateMasterPrompt,
   updateIcalImportUrl,
+  updateAiGloballyPaused,
 } from "./businesses.repository.js";
 import { getServices } from "@/modules/services/services.repository.js";
 import { getBarbers } from "@/modules/professionals/professionals.repository.js";
@@ -121,6 +122,30 @@ businessesRouter.put("/api/manage/ai-personality", requireAuth, requireOwner, as
     await updateAiPersonality(businessId, personality);
     await logAudit(businessId, req.session.user!.name, "Alterou personalidade da IA", personality);
     res.json({ personality });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Interruptor geral de "IA Ativa" (Configurações) — diferente do toggle
+// por conversa (aba Mensagens). Ver comentário no schema
+// (Business.aiGloballyPaused) e sendMessage (chatEngine.ts).
+businessesRouter.get("/api/manage/ai-global-toggle", requireAuth, requireOwner, async (req, res) => {
+  const barbershop = await getBarbershop(req.session.user!.businessId);
+  res.json({ paused: barbershop?.aiGloballyPaused ?? false });
+});
+
+businessesRouter.put("/api/manage/ai-global-toggle", requireAuth, requireOwner, async (req, res, next) => {
+  try {
+    const paused = !!req.body?.paused;
+    const businessId = req.session.user!.businessId;
+    await updateAiGloballyPaused(businessId, paused);
+    await logAudit(
+      businessId,
+      req.session.user!.name,
+      paused ? "Desativou a IA em todas as conversas" : "Reativou a IA em todas as conversas"
+    );
+    res.json({ paused });
   } catch (err) {
     next(err);
   }

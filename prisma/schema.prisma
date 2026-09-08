@@ -158,6 +158,13 @@ model Business {
   // dar brecha do dono (sem querer ou não) anular alguma regra crítica
   // (ex: "nunca invente preço"). Limitado a 4000 chars na validação da rota.
   masterPrompt String? @map("master_prompt")
+  // Interruptor geral de "IA Ativa" (Configurações) — diferente do toggle
+  // por conversa (ChatSession.aiPaused, aba Mensagens): quando true,
+  // NENHUMA conversa recebe resposta automática, mesmo que o WhatsApp
+  // continue conectado — a mensagem do cliente é salva e marcada
+  // needsAttention, igual o comportamento de uma sessão pausada
+  // individualmente (ver sendMessage, chatEngine.ts).
+  aiGloballyPaused Boolean @default(false) @map("ai_globally_paused")
   // URL pública de um calendário externo (.ics) — importado periodicamente
   // (src/jobs/icalImport.ts) e virado TimeBlock com source="ical_import"
   // pra IA parar de oferecer esses horários. Um só por barbearia na v1 (não

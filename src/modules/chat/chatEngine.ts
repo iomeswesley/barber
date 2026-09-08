@@ -950,11 +950,13 @@ export async function sendMessage(
         return "No momento não estamos com o atendimento automático disponível. Em breve alguém vai te responder por aqui, obrigado pela paciência!";
       }
 
-      // Toggle "IA Ativa" pausado (aba Mensagens) — grava a mensagem do
-      // cliente pro histórico e marca "precisa de atenção" (ninguém
-      // automático está respondendo), mas NÃO gera nem manda resposta.
-      // O dono/barbeiro responde manualmente via sendManualMessage.
-      if (session.aiPaused) {
+      // Toggle "IA Ativa" pausado, por conversa (aba Mensagens) OU geral
+      // pra todas de uma vez (Configurações → aiGloballyPaused) — nos dois
+      // casos grava a mensagem do cliente pro histórico e marca "precisa
+      // de atenção" (ninguém automático está respondendo), mas NÃO gera
+      // nem manda resposta. O dono/barbeiro responde manualmente via
+      // sendManualMessage.
+      if (session.aiPaused || barbershop.aiGloballyPaused) {
         await saveSession(tx, sessionId, session);
         await tx.chatSession.update({ where: { sessionId: key }, data: { needsAttention: true } });
         return null;
