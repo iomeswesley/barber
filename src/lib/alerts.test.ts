@@ -6,7 +6,13 @@ process.env.SESSION_SECRET ??= "test-session-secret";
 
 const sendMock = vi.fn().mockResolvedValue({ data: { id: "email-1" }, error: null });
 vi.mock("resend", () => ({
-  Resend: vi.fn().mockImplementation(() => ({ emails: { send: sendMock } })),
+  // Precisa ser uma function (não arrow) — o código chama com `new Resend(...)`,
+  // e a partir do vitest 4 um mock com implementação arrow não pode mais ser
+  // usado como construtor (arrow function nunca pôde, na prática; versões
+  // anteriores do vitest deixavam passar).
+  Resend: vi.fn().mockImplementation(function () {
+    return { emails: { send: sendMock } };
+  }),
 }));
 
 describe("alertPlatformOperator", () => {

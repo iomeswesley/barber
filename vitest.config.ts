@@ -8,7 +8,7 @@ import path from "node:path";
 // ordem de import entre arquivos, não confiável). try/catch: em CI o .env não
 // existe, as env vars reais vêm do ambiente mesmo.
 try {
-  process.loadEnvFile(path.resolve(__dirname, ".env"));
+  process.loadEnvFile(path.resolve(import.meta.dirname, ".env"));
 } catch {
   // sem .env local (ex: CI) — segue com o que já estiver em process.env
 }
@@ -19,7 +19,7 @@ try {
 export default defineConfig({
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src"),
+      "@": path.resolve(import.meta.dirname, "src"),
     },
   },
   test: {
