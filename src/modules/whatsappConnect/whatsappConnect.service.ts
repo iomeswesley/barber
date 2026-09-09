@@ -157,7 +157,11 @@ export async function createTemplates(wabaId: string, accessToken: string): Prom
           name: tpl.name,
           language: "pt_BR",
           category: tpl.category,
-          components: [{ type: "BODY", text: tpl.bodyText }],
+          // "example" é obrigatório pra qualquer variável {{n}} no corpo —
+          // sem isso a Meta rejeita com INVALID_FORMAT (achado em produção,
+          // 08/09, ver comentário em templates.ts). body_text é um array de
+          // arrays (um set de exemplos por linha; um set já basta aqui).
+          components: [{ type: "BODY", text: tpl.bodyText, example: { body_text: [tpl.example] } }],
         }),
       });
       if (!res.ok) {
