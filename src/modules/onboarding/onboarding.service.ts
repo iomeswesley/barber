@@ -135,13 +135,19 @@ export async function getOnboardingChecklist(businessId: number, userId: number)
   // "incompleto" pra quem só precisa de 1 serviço e já renomeou o padrão).
   const servicesCustomized = services.length > 1 || (services.length === 1 && services[0]!.name !== DEFAULT_SERVICE_NAME);
 
+  // Ordem pensada pra seguir a sequência natural de quem tá começando
+  // (sugestão do usuário, 10/09): confirmar a própria identidade primeiro,
+  // preparar o que a IA vai oferecer, só então conectar o canal que
+  // depende disso, e o agendamento como validação final de que tudo
+  // funciona ponta a ponta — nessa ordem, não a ordem "técnica" antiga
+  // (WhatsApp primeiro).
   const items: OnboardingChecklistItem[] = [
-    { key: "whatsapp", label: "Conecte seu WhatsApp pra IA atender seus clientes", done: business?.whatsappConnectionStatus !== "not_connected" },
-    { key: "services", label: `Confira os ${vertical.servicePlural} oferecidos (preço e duração)`, done: servicesCustomized },
-    { key: "appointment", label: "Crie seu primeiro agendamento", done: appointmentsCount > 0 },
     // Sem e-mail cadastrado (contas de seed/demo) não tem o que confirmar —
     // conta como feito pra não travar o checklist de quem nunca vai ter isso.
     { key: "email", label: "Confirme seu e-mail", done: !user?.email || !!user?.emailVerifiedAt },
+    { key: "services", label: `Confira os ${vertical.servicePlural} oferecidos (preço e duração)`, done: servicesCustomized },
+    { key: "whatsapp", label: "Conecte seu WhatsApp pra IA atender seus clientes", done: business?.whatsappConnectionStatus !== "not_connected" },
+    { key: "appointment", label: "Crie seu primeiro agendamento", done: appointmentsCount > 0 },
   ];
 
   return { items, complete: items.every((i) => i.done) };
