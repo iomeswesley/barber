@@ -483,6 +483,46 @@
   .item-row.inactive { opacity: .5; }
   .item-actions { display: flex; gap: 6px; flex-shrink: 0; }
 
+  /* ---------- Serviços (grid de cards, um card por serviço) — portado do
+     odonto-saas (webroot/admin.html:514-528 lá). ---------- */
+  #services-manage-list {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px;
+    margin-bottom: 14px;
+  }
+  .tipo-card {
+    border: 1px solid var(--card-border); border-radius: var(--radius); background: var(--card-bg-solid);
+    padding: 14px 16px;
+  }
+  .tipo-card.inactive { opacity: .55; }
+  .tipo-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .tipo-card-title { font-size: 14px; font-weight: 700; }
+  .tipo-card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .tipo-card-meta { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+  .tipo-card .inline-form { border-top-style: solid; }
+
+  /* ---------- Cards de plano (Cobrança) — estilo Cal.com: todos os planos
+     lado a lado sempre, com o atual destacado, em vez de esconder uns
+     atrás de "trocar de plano". Portado do odonto-saas (mesmo arquivo,
+     linha ~533 lá). ---------- */
+  .plan-card {
+    border: 1px solid var(--card-border); border-radius: var(--radius);
+    background: var(--card-bg-solid); padding: 18px 20px;
+    display: flex; flex-direction: column; min-width: 200px; flex: 1;
+    position: relative;
+  }
+  .plan-card.current { border-color: var(--brand); border-width: 2px; padding: 17px 19px; }
+  .plan-card-badge {
+    align-self: flex-start; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--brand-ink); background: var(--brand); padding: 3px 9px; border-radius: 999px; margin-bottom: 10px;
+  }
+  .plan-card-name { font-size: 13px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+  .plan-card-price { font-size: 26px; font-weight: 800; margin: 4px 0 2px; color: var(--text-primary); }
+  .plan-card-price span { font-size: 13px; font-weight: 600; color: var(--text-muted); }
+  .plan-card-sub { font-size: 11.5px; color: var(--text-muted); margin-bottom: 14px; }
+  .plan-card-list { list-style: none; margin: 0 0 16px; padding: 0; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .plan-card-list li { display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; color: var(--text-secondary); line-height: 1.4; }
+  .plan-card-list .icon { color: var(--good); flex-shrink: 0; margin-top: 2px; width: 14px; height: 14px; }
+
   /* Resumo de conversas (card de altura fixa em .overview-grid-two): sem
      nome de cliente, o fallback é o telefone/id da sessão — às vezes bem
      longo, e sem truncar ele quebra em 2 linhas, engordando a linha o
@@ -3399,16 +3439,15 @@ async function loadManageServices() {
   list.innerHTML = services
     .map(
       (s) => `
-    <div class="item-row ${s.active ? "" : "inactive"}">
-      <div>
-        <div class="item-info">${s.name}${s.active ? "" : " (inativo)"}</div>
-        <div class="item-meta">${currency(s.price_cents / 100)} · ${s.duration_min} min</div>
+    <div class="tipo-card ${s.active ? "" : "inactive"}">
+      <div class="tipo-card-top">
+        <div class="tipo-card-title">${s.name}${s.active ? "" : " (inativo)"}</div>
+        <div class="tipo-card-actions">
+          <button class="icon-btn" data-edit-service="${s.id}" title="Editar"><svg class="icon"><use href="#icon-edit"></use></svg></button>
+          <button class="icon-btn ${s.active ? "danger" : ""}" data-toggle-service="${s.id}" data-active="${s.active}" title="${s.active ? "Desativar" : "Ativar"}">${s.active ? '<svg class="icon"><use href="#icon-block"></use></svg>' : '<svg class="icon"><use href="#icon-check-circle"></use></svg>'}</button>
+        </div>
       </div>
-      <div class="item-actions">
-        <button class="icon-btn" data-edit-service="${s.id}" title="Editar"><svg class="icon"><use href="#icon-edit"></use></svg></button>
-        <button class="icon-btn ${s.active ? "danger" : ""}" data-toggle-service="${s.id}" data-active="${s.active}" title="${s.active ? "Desativar" : "Ativar"}">${s.active ? '<svg class="icon"><use href="#icon-block"></use></svg>' : '<svg class="icon"><use href="#icon-check-circle"></use></svg>'}</button>
-      </div>
-    </div>
+      <div class="tipo-card-meta">${currency(s.price_cents / 100)} · ${s.duration_min} min</div>
     <div class="inline-form" id="edit-service-form-${s.id}">
       <div class="form-grid">
         <div class="form-field" style="grid-column: 1 / -1;"><label>Nome</label><input type="text" id="edit-service-name-${s.id}" value="${s.name}" /></div>
@@ -3420,6 +3459,7 @@ async function loadManageServices() {
         <button class="btn-secondary" data-cancel-edit-service="${s.id}">Cancelar</button>
       </div>
     </div>
+  </div>
   `
     )
     .join("");
@@ -6177,98 +6217,105 @@ async function loadBillingStatus() {
     hint.textContent = `Sem assinatura ativa. Escolha um plano pra continuar usando o painel:`;
   }
 
-  if (data.status === "active") {
-    actionsEl.style.display = "flex";
-    plansEl.style.display = "none";
+  // Todos os planos ficam lado a lado sempre — o card do plano atual (se
+  // houver assinatura ativa) vem destacado com "Plano atual" em vez de
+  // botão; os outros mostram "Assinar" (sem assinatura ainda) ou "Migrar
+  // para X" (troca o price da mesma assinatura no Stripe, com proração).
+  // Portado do odonto-saas — antes, com assinatura ativa, o card do plano
+  // sumia inteiro e só sobrava um botão de texto "Migrar para X".
+  changePlanEl.style.display = "none";
+  actionsEl.style.display = data.status === "active" && data.has_subscription ? "flex" : "none";
 
-    // Migrar pra outro plano sem sair do painel — troca o price da mesma
-    // assinatura no Stripe (POST /api/billing/change-plan), diferente do
-    // botão "Assinar" acima, que sempre cria uma sessão/assinatura nova.
-    const otherPlans = data.plans.filter((p) => p.id !== data.plan);
-    changePlanEl.style.display = otherPlans.length ? "flex" : "none";
-    changePlanEl.innerHTML = otherPlans
-      .map((p) => `<button class="btn-secondary" data-change-plan="${p.id}">Migrar para ${PLAN_BADGE_TEXT[p.id] || p.id}</button>`)
-      .join("");
-    changePlanEl.querySelectorAll("[data-change-plan]").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        const newPlan = btn.dataset.changePlan;
-        const confirmMsg = `Migrar sua assinatura para o plano ${PLAN_BADGE_TEXT[newPlan] || newPlan}?\n\nA diferença proporcional do restante do mês é cobrada (ou creditada, se for downgrade) na hora, no cartão já cadastrado.`;
-        if (!(await showConfirmModal(confirmMsg, { destructive: false }))) return;
-        btn.disabled = true;
-        const original = btn.textContent;
-        btn.textContent = "Migrando...";
-        try {
-          const res = await fetch("/api/billing/change-plan", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ plan: newPlan }),
-          });
-          const body = await res.json();
-          if (!res.ok) {
-            await showAlertModal(body.error || "Não foi possível migrar de plano.");
-            btn.disabled = false;
-            btn.textContent = original;
-            return;
-          }
-          await loadBillingStatus();
-        } catch {
-          await showAlertModal("Erro de conexão com o servidor.");
-          btn.disabled = false;
-          btn.textContent = original;
-        }
-      });
-    });
-  } else {
-    changePlanEl.style.display = "none";
-    const PLAN_BENEFITS = {
-      starter: ["Agendamento automático via WhatsApp com IA", "Painel de gestão para até 2 barbeiros", "Lembretes automáticos por WhatsApp"],
-      pro: [
-        "Tudo do Starter, com barbeiros ilimitados",
-        "Planos de assinatura recorrente pros seus clientes",
-        "Mensagens automáticas de reconquista de clientes inativos",
-      ],
-    };
+  const PLAN_BENEFITS = {
+    starter: ["Agendamento automático via WhatsApp com IA", "Painel de gestão para até 2 barbeiros", "Lembretes automáticos por WhatsApp"],
+    pro: [
+      "Tudo do Starter, com barbeiros ilimitados",
+      "Planos de assinatura recorrente pros seus clientes",
+      "Mensagens automáticas de reconquista de clientes inativos",
+    ],
+  };
+  const checkIcon = `<svg class="icon"><use href="#icon-check"></use></svg>`;
 
-    plansEl.style.display = "flex";
-    plansEl.innerHTML = data.plans
-      .map(
-        (p) => `
-      <div class="card" style="padding:16px 18px; flex:1; min-width:180px;">
-        <div style="font-weight:700; margin-bottom:8px;">${p.label}</div>
-        <ul style="margin:0 0 12px; padding-left:18px; font-size:12px; color: var(--text-secondary); line-height:1.6;">
-          ${(PLAN_BENEFITS[p.id] || []).map((b) => `<li>${b}</li>`).join("")}
+  plansEl.style.display = "flex";
+  plansEl.innerHTML = data.plans
+    .map((p) => {
+      const isCurrent = data.status === "active" && p.id === data.plan;
+      const shortName = PLAN_BADGE_TEXT[p.id] || p.id;
+      const cta = isCurrent
+        ? `<button class="btn-secondary" disabled style="width:100%;">Plano atual</button>`
+        : data.status === "active"
+        ? `<button class="btn-secondary" data-change-plan="${p.id}" style="width:100%;">Migrar para ${shortName}</button>`
+        : `<button class="btn-primary" data-subscribe="${p.id}" style="width:100%;">Assinar</button>`;
+      return `
+      <div class="plan-card ${isCurrent ? "current" : ""}">
+        ${isCurrent ? '<div class="plan-card-badge">Plano atual</div>' : ""}
+        <div class="plan-card-name">${shortName}</div>
+        <div class="plan-card-price">${currency(p.price_cents / 100)}<span>/mês</span></div>
+        <div class="plan-card-sub">${p.barber_limit ? `Até ${p.barber_limit} barbeiros` : "Barbeiros ilimitados"}</div>
+        <ul class="plan-card-list">
+          ${(PLAN_BENEFITS[p.id] || []).map((b) => `<li>${checkIcon}${b}</li>`).join("")}
         </ul>
-        <button class="btn-primary" data-subscribe="${p.id}" style="width:100%; margin-top:8px;">Assinar</button>
-      </div>`
-      )
-      .join("");
-    plansEl.querySelectorAll("[data-subscribe]").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        btn.disabled = true;
-        btn.textContent = "Redirecionando...";
-        try {
-          const res = await fetch("/api/billing/checkout", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ plan: btn.dataset.subscribe }),
-          });
-          const body = await res.json();
-          if (!res.ok) {
-            await showAlertModal(body.error || "Erro ao iniciar assinatura");
-            btn.disabled = false;
-            btn.textContent = "Assinar";
-            return;
-          }
-          window.location.href = body.url;
-        } catch {
-          await showAlertModal("Erro de conexão com o servidor.");
+        ${cta}
+      </div>`;
+    })
+    .join("");
+
+  plansEl.querySelectorAll("[data-subscribe]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      btn.textContent = "Redirecionando...";
+      try {
+        const res = await fetch("/api/billing/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ plan: btn.dataset.subscribe }),
+        });
+        const body = await res.json();
+        if (!res.ok) {
+          await showAlertModal(body.error || "Erro ao iniciar assinatura");
           btn.disabled = false;
           btn.textContent = "Assinar";
+          return;
         }
-      });
+        window.location.href = body.url;
+      } catch {
+        await showAlertModal("Erro de conexão com o servidor.");
+        btn.disabled = false;
+        btn.textContent = "Assinar";
+      }
     });
-    actionsEl.style.display = data.has_subscription ? "flex" : "none";
-  }
+  });
+
+  plansEl.querySelectorAll("[data-change-plan]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const newPlan = btn.dataset.changePlan;
+      const planLabel = PLAN_BADGE_TEXT[newPlan] || newPlan;
+      const confirmMsg = `Migrar sua assinatura para o plano ${planLabel}?\n\nA diferença proporcional do restante do mês é cobrada (ou creditada, se for downgrade) na hora, no cartão já cadastrado.`;
+      if (!(await showConfirmModal(confirmMsg, { destructive: false }))) return;
+      btn.disabled = true;
+      const original = btn.textContent;
+      btn.textContent = "Migrando...";
+      try {
+        const res = await fetch("/api/billing/change-plan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ plan: newPlan }),
+        });
+        const body = await res.json();
+        if (!res.ok) {
+          await showAlertModal(body.error || "Não foi possível migrar de plano.");
+          btn.disabled = false;
+          btn.textContent = original;
+          return;
+        }
+        await loadBillingStatus();
+      } catch {
+        await showAlertModal("Erro de conexão com o servidor.");
+        btn.disabled = false;
+        btn.textContent = original;
+      }
+    });
+  });
 }
 
 /* ---------------- Planos para clientes (Stripe Connect) ---------------- */

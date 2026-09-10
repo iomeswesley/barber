@@ -2,7 +2,7 @@ import { Router } from "express";
 import { requireAuth, requireOwner } from "@/middleware/auth.js";
 import { AppError } from "@/middleware/errorHandler.js";
 import { env } from "@/config/env.js";
-import { stripe, stripeConfigured, PLAN_LABELS, PLAN_LIMITS, type PlanId } from "@/lib/stripe.js";
+import { stripe, stripeConfigured, PLAN_LABELS, PLAN_LIMITS, PLAN_PRICE_CENTS, type PlanId } from "@/lib/stripe.js";
 import { captureError } from "@/lib/errorReporting.js";
 import {
   getSubscription,
@@ -32,7 +32,7 @@ billingRouter.get("/api/billing/status", requireAuth, requireOwner, async (req, 
     trial_ends_at: sub?.trialEndsAt || null,
     current_period_end: sub?.currentPeriodEnd || null,
     has_subscription: !!sub?.stripeSubscriptionId,
-    plans: VALID_PLANS.map((p) => ({ id: p, label: PLAN_LABELS[p], barber_limit: PLAN_LIMITS[p] })),
+    plans: VALID_PLANS.map((p) => ({ id: p, label: PLAN_LABELS[p], barber_limit: PLAN_LIMITS[p], price_cents: PLAN_PRICE_CENTS[p] })),
     // Só faz sentido mostrar durante o trial usando o número compartilhado —
     // ver tryConsumeWhatsappTrialBudget (billing.service.ts). Fora disso o
     // valor existe no banco mas não limita nada.
