@@ -96,18 +96,18 @@
         <input id="owner-name" type="text" autocomplete="name" required />
 
         <label>Telefone (com DDD)</label>
-        <input id="phone" type="text" autocomplete="tel" placeholder="Ex: 11999998888" required />
+        <input id="phone" type="tel" autocomplete="tel" placeholder="Ex: 11999998888" pattern="^\D*(\d\D*){10,}$" title="Telefone com DDD, pelo menos 10 dígitos" required />
 
         <label>Seu e-mail</label>
         <input id="email" type="email" autocomplete="email" placeholder="voce@exemplo.com" required />
         <div class="field-hint">Enviamos um link de confirmação — o acesso já funciona antes de confirmar.</div>
 
         <label>Usuário de acesso</label>
-        <input id="username" type="text" autocomplete="username" required />
+        <input id="username" type="text" autocomplete="username" pattern="[A-Za-z0-9._\-]+" title="Só letras, números, ponto, traço ou underline" required />
         <div class="field-hint">Só letras, números, ponto, traço ou underline.</div>
 
         <label>Senha</label>
-        <input id="password" type="password" autocomplete="new-password" required />
+        <input id="password" type="password" autocomplete="new-password" minlength="8" title="Pelo menos 8 caracteres" required />
         <div class="field-hint">Pelo menos 8 caracteres.</div>
 
         <button type="submit" id="submit-btn">Criar minha conta</button>

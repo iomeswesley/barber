@@ -12,6 +12,8 @@ describe("signupBarbershop", () => {
 
   afterAll(async () => {
     await prisma.user.deleteMany({ where: { username: { in: createdUsernames } } });
+    await prisma.service.deleteMany({ where: { businessId: { in: createdBarbershopIds } } });
+    await prisma.professional.deleteMany({ where: { businessId: { in: createdBarbershopIds } } });
     await prisma.subscription.deleteMany({ where: { businessId: { in: createdBarbershopIds } } });
     await prisma.businessHours.deleteMany({ where: { businessId: { in: createdBarbershopIds } } });
     await prisma.business.deleteMany({ where: { id: { in: createdBarbershopIds } } });
@@ -55,6 +57,27 @@ describe("signupBarbershop", () => {
 
     expect(user.emailVerificationToken).toBeTruthy();
     expect(user.emailVerifiedAt).toBeNull();
+  });
+
+  // Achado num QA (10/09): conta nova ficava sem profissional nem serviço —
+  // sem os dois, não dá pra criar o primeiro agendamento sem antes navegar
+  // até Configurações/Serviços. Signup agora já entrega os dois prontos.
+  it("cria profissional padrão vinculado ao dono e serviço padrão", async () => {
+    const data = input("padrao");
+    const { barbershop, user } = await signupBarbershop(data);
+    createdBarbershopIds.push(barbershop.id);
+    createdUsernames.push(data.username);
+
+    expect(user.professionalId).toBeTruthy();
+    const professional = await prisma.professional.findUnique({ where: { id: user.professionalId! } });
+    expect(professional?.businessId).toBe(barbershop.id);
+    expect(professional?.name).toBe(data.ownerName);
+    expect(professional?.active).toBe(true);
+
+    const services = await prisma.service.findMany({ where: { businessId: barbershop.id } });
+    expect(services).toHaveLength(1);
+    expect(services[0]!.priceCents).toBeGreaterThan(0);
+    expect(services[0]!.durationMin).toBeGreaterThan(0);
   });
 
   it("rejeita username já em uso", async () => {

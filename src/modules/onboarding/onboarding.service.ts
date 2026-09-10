@@ -2,13 +2,20 @@ import { prisma } from "@/lib/prisma.js";
 import { hashPassword } from "@/lib/auth.js";
 import { AppError } from "@/middleware/errorHandler.js";
 import { generateVerificationToken, verificationTokenExpiry, sendVerificationEmail } from "@/lib/email.js";
-import { env } from "@/config/env.js";
+import { env, vertical } from "@/config/env.js";
 
 const TRIAL_DAYS = 7;
 // Mesmo padrão usado no seed de demonstração: 09h-19h, fechado domingo
 // (weekday 0). O dono ajusta depois pela aba de Configurações.
 const DEFAULT_OPENS_AT = "09:00";
 const DEFAULT_CLOSES_AT = "19:00";
+// Achado num QA (10/09): conta nova ficava sem profissional nem serviço —
+// sem os dois, não dá pra criar o primeiro agendamento sem antes descobrir
+// sozinho os menus de Configurações/Serviços. Cria os dois já no cadastro,
+// pré-preenchidos e óbvios de editar/renomear (nomes genéricos de propósito,
+// funcionam pra qualquer vertical).
+const DEFAULT_SERVICE_PRICE_CENTS = 3000;
+const DEFAULT_SERVICE_DURATION_MIN = 30;
 
 export interface SignupInput {
   shopName: string;
@@ -52,7 +59,7 @@ export async function signupBarbershop(input: SignupInput) {
       data: { businessId: barbershop.id, status: "trialing", plan: "starter", trialEndsAt },
     });
 
-    const user = await tx.user.create({
+    let user = await tx.user.create({
       data: {
         businessId: barbershop.id,
         role: "owner",
@@ -62,6 +69,26 @@ export async function signupBarbershop(input: SignupInput) {
         email: input.email,
         emailVerificationToken: verificationToken,
         emailVerificationExpiresAt: verificationExpiresAt,
+      },
+    });
+
+    // Profissional padrão vinculado ao próprio login do dono (mesmo caminho
+    // de "Esse barbeiro sou eu" que já existe em Configurações) — assim a
+    // conta nova já nasce com alguém pra atender, sem precisar navegar até
+    // lá antes do primeiro agendamento. Segue ativo o modo barbeiro-único
+    // (isSoloMode) até o dono cadastrar um segundo, como qualquer outra
+    // barbearia com 1 profissional só.
+    const professional = await tx.professional.create({
+      data: { businessId: barbershop.id, name: input.ownerName },
+    });
+    user = await tx.user.update({ where: { id: user.id }, data: { professionalId: professional.id } });
+
+    await tx.service.create({
+      data: {
+        businessId: barbershop.id,
+        name: `${vertical.service.charAt(0).toUpperCase()}${vertical.service.slice(1)} padrão`,
+        priceCents: DEFAULT_SERVICE_PRICE_CENTS,
+        durationMin: DEFAULT_SERVICE_DURATION_MIN,
       },
     });
 
