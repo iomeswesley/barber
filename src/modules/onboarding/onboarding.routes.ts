@@ -1,12 +1,12 @@
 import { Router } from "express";
 import { AppError } from "@/middleware/errorHandler.js";
 import { signupRateLimiter, selfServiceRateLimiter } from "@/middleware/rateLimiter.js";
-import { requireAuth } from "@/middleware/auth.js";
+import { requireAuth, requireOwner } from "@/middleware/auth.js";
 import { normalizePhone } from "@/lib/time.js";
 import { prisma } from "@/lib/prisma.js";
 import { generateVerificationToken, verificationTokenExpiry, sendVerificationEmail } from "@/lib/email.js";
 import { env } from "@/config/env.js";
-import { signupBarbershop } from "./onboarding.service.js";
+import { signupBarbershop, getOnboardingChecklist } from "./onboarding.service.js";
 
 export const onboardingRouter = Router();
 
@@ -76,6 +76,18 @@ onboardingRouter.get("/api/verify-email", selfServiceRateLimiter, async (req, re
     data: { emailVerifiedAt: new Date(), emailVerificationToken: null, emailVerificationExpiresAt: null },
   });
   res.redirect("/login.html?verified=1");
+});
+
+// Consultado pela Visão Geral do painel a cada carregamento — sem estado
+// próprio, só deriva do que já existe (serviços, agendamentos, WhatsApp,
+// e-mail). O painel esconde o card sozinho quando `complete` é true.
+onboardingRouter.get("/api/manage/onboarding-checklist", requireAuth, requireOwner, async (req, res, next) => {
+  try {
+    const data = await getOnboardingChecklist(req.session.user!.businessId, req.session.user!.id);
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
 });
 
 onboardingRouter.post("/api/auth/resend-verification", requireAuth, async (req, res, next) => {

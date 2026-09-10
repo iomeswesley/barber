@@ -211,7 +211,17 @@ Levantamento do estado real de cada pendência (não bloqueiam venda, mas valem 
 - **Achado secundário durante a investigação, corrigido junto**: uma vez marcada `disconnected`, nada no sistema revertia o status sozinho depois — só reconectar manualmente pelo painel (desnecessariamente disruptivo pra uma barbearia cujo WhatsApp nunca tinha caído de verdade). Usuário pediu explicitamente que isso se corrigisse sozinho. Adicionada a contrapartida `markWhatsappReconnectedIfNeeded` (`whatsappConnect.service.ts`) — chamada depois de qualquer envio real bem-sucedido (bot automático no webhook, mensagem/anexo manual do painel, lembrete/reagendamento/reconquista do cron, OTP), reverte `disconnected`→`connected` só se o status atual for exatamente `disconnected` (prova direta de que a conexão funciona); não mexe se já estava noutro status (`pending_templates` etc.) — o próximo evento de aprovação/rejeição de template via webhook continua decidindo entre `connected`/`error` normalmente depois disso.
 - Testes novos: `whatsappConnect.service.test.ts` (4 casos cobrindo as duas funções contra o banco real) + `chat.routes.test.ts` (regressão específica do bug: token próprio é passado quando a barbearia tem WhatsApp conectado).
 - **A correção da Vintage no banco é automática**: assim que o próximo envio real (bot respondendo um cliente, por exemplo) for bem-sucedido, `markWhatsappReconnectedIfNeeded` já reverte sozinha pra `connected` — decisão consciente de não editar o campo direto em produção, o usuário preferiu deixar a correção acontecer pelo próprio fluxo normal.
-- Ainda não portado pro `odonto-saas` — o mesmo bug (token faltando em `sendManualMessage`) provavelmente existe lá também, conferir.
+- Ainda não portado pro `odonto-saas` — o mesmo bug (token faltando em `sendManualMessage`) provavelmente existe lá também, conferir. Deixada tarefa sugerida (spawn_task) pra isso.
+
+### Checklist de onboarding "Primeiros passos" (10/09)
+
+QA de 10/09 apontou (achado #4) que a conta nova não tinha como saber o que já estava pronto vs. o que faltava — o tour guiado existente é passivo (mostra uma vez, não acompanha progresso), diferente de um checklist. Implementado:
+
+- `getOnboardingChecklist(businessId, userId)` (`onboarding.service.ts`) — 4 itens, todos derivados do que já existe no banco, sem estado próprio: **Conectar WhatsApp** (`whatsappConnectionStatus !== "not_connected"`), **Confira os serviços** (mais de 1 serviço, OU o único serviço já foi renomeado do nome padrão do signup — evita ficar "incompleto" pra sempre pra quem só precisa de 1 serviço), **Criar primeiro agendamento** (`Appointment` count > 0), **Confirmar e-mail** (conta sem e-mail cadastrado, como as de seed/demo, conta como feito automaticamente).
+- Rota `GET /api/manage/onboarding-checklist` (`requireOwner`).
+- `admin.html`: card "Primeiros passos" na Visão Geral, consultado a cada `loadAll()`, escondido sozinho quando `complete` vira `true`. Cada item é clicável e navega direto pra onde a ação acontece (Configurações → WhatsApp com scroll até a seção, Serviços, Agenda) — reaproveita o clique nas abas de `#page-tabs`, sem rota nova.
+- Testes: 3 casos novos em `onboarding.service.test.ts` (conta nova sem nada feito, e-mail null conta como feito, todos os 4 itens completos via edição direta no banco).
+- Não portado pro `odonto-saas` ainda.
 
 ### Pendências reais
 

@@ -523,6 +523,16 @@
   .plan-card-list li { display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; color: var(--text-secondary); line-height: 1.4; }
   .plan-card-list .icon { color: var(--good); flex-shrink: 0; margin-top: 2px; width: 14px; height: 14px; }
 
+  /* ---------- Checklist de primeiros passos (Visão Geral, conta nova) ---------- */
+  .checklist-item {
+    display: flex; align-items: center; gap: 10px; padding: 8px 6px; border-radius: 10px;
+    cursor: pointer; transition: background .15s ease; font-size: 13px;
+  }
+  .checklist-item:hover { background: var(--surface-raise); }
+  .checklist-item .icon { flex-shrink: 0; width: 18px; height: 18px; color: var(--good); }
+  .checklist-item .checklist-dot { flex-shrink: 0; width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid var(--text-muted); box-sizing: border-box; }
+  .checklist-item.done span.checklist-label { color: var(--text-muted); text-decoration: line-through; }
+
   /* Resumo de conversas (card de altura fixa em .overview-grid-two): sem
      nome de cliente, o fallback é o telefone/id da sessão — às vezes bem
      longo, e sem truncar ele quebra em 2 linhas, engordando a linha o
@@ -1054,6 +1064,12 @@
       <span class="period-select" title="Os números abaixo são sempre do mês atual">Este mês</span>
     </div>
   </div>
+  <div class="card panel" id="onboarding-checklist-card" style="display:none; margin-bottom:16px;">
+    <h2>Primeiros passos</h2>
+    <div class="hint">Complete esses passos pra sua barbearia começar a receber agendamentos pelo WhatsApp.</div>
+    <div id="onboarding-checklist-list" style="margin-top:12px; display:flex; flex-direction:column; gap:2px;"></div>
+  </div>
+
   <div class="alert-banner" id="alert-banner" style="display:none;"></div>
 
   <div class="grid-two overview-grid-two">
@@ -6766,6 +6782,53 @@ function renderNotifBell(lowStockCount, escalationCount) {
   });
 }
 
+// Cada item do checklist manda o dono pra onde a ação de verdade acontece —
+// mesma navegação por clique nas abas (#page-tabs), sem rota própria.
+const ONBOARDING_CHECKLIST_TARGETS = {
+  whatsapp: { page: "configuracoes", scrollTo: "whatsapp-connect-card" },
+  services: { page: "tipos" },
+  appointment: { page: "agenda" },
+  email: null, // sem navegação — o próprio banner de e-mail já cobre a ação (reenviar)
+};
+
+function goToOnboardingTarget(key) {
+  const target = ONBOARDING_CHECKLIST_TARGETS[key];
+  if (!target) return;
+  document.querySelector(`#page-tabs button[data-page="${target.page}"]`)?.click();
+  if (target.scrollTo) {
+    setTimeout(() => document.getElementById(target.scrollTo)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  }
+}
+
+async function loadOnboardingChecklist() {
+  const card = document.getElementById("onboarding-checklist-card");
+  const res = await fetch("/api/manage/onboarding-checklist");
+  if (!res.ok) {
+    card.style.display = "none";
+    return;
+  }
+  const data = await res.json();
+  if (data.complete) {
+    card.style.display = "none";
+    return;
+  }
+  card.style.display = "block";
+  const list = document.getElementById("onboarding-checklist-list");
+  list.innerHTML = data.items
+    .map(
+      (item) => `
+    <div class="checklist-item ${item.done ? "done" : ""}" data-checklist-key="${item.key}">
+      ${item.done ? '<svg class="icon"><use href="#icon-check-circle"></use></svg>' : '<span class="checklist-dot"></span>'}
+      <span class="checklist-label">${item.label}</span>
+    </div>
+  `
+    )
+    .join("");
+  list.querySelectorAll("[data-checklist-key]").forEach((el) => {
+    el.addEventListener("click", () => goToOnboardingTarget(el.dataset.checklistKey));
+  });
+}
+
 async function loadAlerts() {
   const banner = document.getElementById("alert-banner");
   const [stock, escalations] = await Promise.all([
@@ -6868,6 +6931,7 @@ async function loadChatSummary() {
 
 async function loadAll() {
   await Promise.all([
+    loadOnboardingChecklist(),
     loadSummary(),
     loadRevenueChart(),
     loadOccupancyChart(),

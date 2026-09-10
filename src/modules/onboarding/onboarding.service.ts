@@ -16,6 +16,7 @@ const DEFAULT_CLOSES_AT = "19:00";
 // funcionam pra qualquer vertical).
 const DEFAULT_SERVICE_PRICE_CENTS = 3000;
 const DEFAULT_SERVICE_DURATION_MIN = 30;
+const DEFAULT_SERVICE_NAME = `${vertical.service.charAt(0).toUpperCase()}${vertical.service.slice(1)} padrão`;
 
 export interface SignupInput {
   shopName: string;
@@ -86,7 +87,7 @@ export async function signupBarbershop(input: SignupInput) {
     await tx.service.create({
       data: {
         businessId: barbershop.id,
-        name: `${vertical.service.charAt(0).toUpperCase()}${vertical.service.slice(1)} padrão`,
+        name: DEFAULT_SERVICE_NAME,
         priceCents: DEFAULT_SERVICE_PRICE_CENTS,
         durationMin: DEFAULT_SERVICE_DURATION_MIN,
       },
@@ -106,4 +107,42 @@ export async function signupBarbershop(input: SignupInput) {
   }
 
   return { barbershop, user };
+}
+
+export interface OnboardingChecklistItem {
+  key: string;
+  label: string;
+  done: boolean;
+}
+
+// Achado num QA (10/09): mesmo depois de a conta nova nascer com
+// profissional/serviço prontos (ver acima), o dono não tinha como saber o
+// que já estava pronto pra receber cliente de verdade e o que ainda faltava
+// — o tour guiado mostra a tela uma vez, mas não acompanha progresso.
+// Consultado a cada carregamento da Visão Geral (sem gravar nada — deriva
+// só do que já existe no banco); o painel esconde o card sozinho quando
+// `complete` vira true.
+export async function getOnboardingChecklist(businessId: number, userId: number): Promise<{ items: OnboardingChecklistItem[]; complete: boolean }> {
+  const [user, services, appointmentsCount, business] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { email: true, emailVerifiedAt: true } }),
+    prisma.service.findMany({ where: { businessId }, select: { name: true } }),
+    prisma.appointment.count({ where: { businessId } }),
+    prisma.business.findUnique({ where: { id: businessId }, select: { whatsappConnectionStatus: true } }),
+  ]);
+
+  // "Cadastrou serviços de verdade" = tem mais de um, ou já mexeu no nome do
+  // único serviço que veio pronto no cadastro (senão ficaria eternamente
+  // "incompleto" pra quem só precisa de 1 serviço e já renomeou o padrão).
+  const servicesCustomized = services.length > 1 || (services.length === 1 && services[0]!.name !== DEFAULT_SERVICE_NAME);
+
+  const items: OnboardingChecklistItem[] = [
+    { key: "whatsapp", label: "Conecte seu WhatsApp pra IA atender seus clientes", done: business?.whatsappConnectionStatus !== "not_connected" },
+    { key: "services", label: `Confira os ${vertical.servicePlural} oferecidos (preço e duração)`, done: servicesCustomized },
+    { key: "appointment", label: "Crie seu primeiro agendamento", done: appointmentsCount > 0 },
+    // Sem e-mail cadastrado (contas de seed/demo) não tem o que confirmar —
+    // conta como feito pra não travar o checklist de quem nunca vai ter isso.
+    { key: "email", label: "Confirme seu e-mail", done: !user?.email || !!user?.emailVerifiedAt },
+  ];
+
+  return { items, complete: items.every((i) => i.done) };
 }

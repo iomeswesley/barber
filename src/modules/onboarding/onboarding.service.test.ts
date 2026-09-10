@@ -1,6 +1,6 @@
 import { describe, it, expect, afterAll } from "vitest";
 import { prisma } from "@/lib/prisma.js";
-import { signupBarbershop } from "./onboarding.service.js";
+import { signupBarbershop, getOnboardingChecklist } from "./onboarding.service.js";
 import { verifyPassword } from "@/lib/auth.js";
 
 // Teste de integração: usa o banco real. RESEND_API_KEY não está configurada
@@ -99,5 +99,87 @@ describe("signupBarbershop", () => {
     const second = { ...input("dup-email-2"), email: data.email };
     await expect(signupBarbershop(second)).rejects.toThrow(/e-mail já está cadastrado/);
     createdUsernames.push(second.username); // não deveria ter sido criado, mas garante limpeza se o teste falhar
+  });
+});
+
+// Achado num QA (10/09): mesmo com profissional/serviço prontos de cara
+// (ver acima), o dono não tinha como saber o que ainda faltava pra receber
+// cliente de verdade. Card na Visão Geral consulta esse checklist a cada
+// carregamento e some sozinho quando `complete` vira true.
+describe("getOnboardingChecklist", () => {
+  const createdBarbershopIds: number[] = [];
+  const createdUsernames: string[] = [];
+  const createdClientPhones: string[] = [];
+
+  afterAll(async () => {
+    await prisma.appointment.deleteMany({ where: { businessId: { in: createdBarbershopIds } } });
+    await prisma.client.deleteMany({ where: { phone: { in: createdClientPhones } } });
+    await prisma.user.deleteMany({ where: { username: { in: createdUsernames } } });
+    await prisma.service.deleteMany({ where: { businessId: { in: createdBarbershopIds } } });
+    await prisma.professional.deleteMany({ where: { businessId: { in: createdBarbershopIds } } });
+    await prisma.subscription.deleteMany({ where: { businessId: { in: createdBarbershopIds } } });
+    await prisma.businessHours.deleteMany({ where: { businessId: { in: createdBarbershopIds } } });
+    await prisma.business.deleteMany({ where: { id: { in: createdBarbershopIds } } });
+  });
+
+  async function freshSignup(suffix: string) {
+    const data = {
+      shopName: `[teste] Checklist ${suffix}`,
+      ownerName: "Dono de Teste",
+      username: `teste-checklist-${suffix}-${Date.now()}`,
+      password: "senhaSegura123",
+      phone: "5511999990001",
+      email: `teste-checklist-${suffix}-${Date.now()}@example.com`,
+    };
+    const { barbershop, user } = await signupBarbershop(data);
+    createdBarbershopIds.push(barbershop.id);
+    createdUsernames.push(data.username);
+    return { barbershop, user };
+  }
+
+  it("conta nova: nenhum item concluído (e-mail ainda não confirmado)", async () => {
+    const { barbershop, user } = await freshSignup("vazio");
+    const result = await getOnboardingChecklist(barbershop.id, user.id);
+    expect(result.complete).toBe(false);
+    expect(Object.fromEntries(result.items.map((i) => [i.key, i.done]))).toEqual({
+      whatsapp: false,
+      services: false,
+      appointment: false,
+      email: false,
+    });
+  });
+
+  it("item de e-mail conta como feito quando a conta não tem e-mail (seed/demo)", async () => {
+    const { barbershop, user } = await freshSignup("sememail");
+    await prisma.user.update({ where: { id: user.id }, data: { email: null } });
+    const result = await getOnboardingChecklist(barbershop.id, user.id);
+    expect(result.items.find((i) => i.key === "email")?.done).toBe(true);
+  });
+
+  it("fica completo quando WhatsApp conectado, serviço renomeado, agendamento criado e e-mail confirmado", async () => {
+    const { barbershop, user } = await freshSignup("completo");
+    await prisma.business.update({ where: { id: barbershop.id }, data: { whatsappConnectionStatus: "connected" } });
+    await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
+    const service = await prisma.service.findFirstOrThrow({ where: { businessId: barbershop.id } });
+    await prisma.service.update({ where: { id: service.id }, data: { name: "Corte + Barba" } });
+
+    const clientPhone = `5511999${Date.now().toString().slice(-6)}`;
+    createdClientPhones.push(clientPhone);
+    const client = await prisma.client.create({ data: { name: "[teste] Cliente Checklist", phone: clientPhone } });
+    await prisma.appointment.create({
+      data: {
+        businessId: barbershop.id,
+        professionalId: user.professionalId!,
+        serviceId: service.id,
+        clientId: client.id,
+        date: new Date(),
+        startTime: "10:00",
+        endTime: "10:30",
+      },
+    });
+
+    const result = await getOnboardingChecklist(barbershop.id, user.id);
+    expect(result.complete).toBe(true);
+    expect(result.items.every((i) => i.done)).toBe(true);
   });
 });
