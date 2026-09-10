@@ -123,11 +123,12 @@ export interface OnboardingChecklistItem {
 // só do que já existe no banco); o painel esconde o card sozinho quando
 // `complete` vira true.
 export async function getOnboardingChecklist(businessId: number, userId: number): Promise<{ items: OnboardingChecklistItem[]; complete: boolean }> {
-  const [user, services, appointmentsCount, business] = await Promise.all([
+  const [user, services, appointmentsCount, business, hours] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { email: true, emailVerifiedAt: true } }),
     prisma.service.findMany({ where: { businessId }, select: { name: true } }),
     prisma.appointment.count({ where: { businessId } }),
     prisma.business.findUnique({ where: { id: businessId }, select: { whatsappConnectionStatus: true } }),
+    prisma.businessHours.findMany({ where: { businessId }, select: { weekday: true, opensAt: true, closesAt: true, closed: true } }),
   ]);
 
   // "Cadastrou serviços de verdade" = tem mais de um, ou já mexeu no nome do
@@ -135,17 +136,26 @@ export async function getOnboardingChecklist(businessId: number, userId: number)
   // "incompleto" pra quem só precisa de 1 serviço e já renomeou o padrão).
   const servicesCustomized = services.length > 1 || (services.length === 1 && services[0]!.name !== DEFAULT_SERVICE_NAME);
 
+  // Mesma lógica de "já mexeu no padrão do cadastro" usada em serviços —
+  // sem isso, uma barbearia que na verdade abre em outro horário (ou
+  // domingo) ficaria com a IA oferecendo/aceitando horário errado no
+  // WhatsApp sem o dono nunca ter conferido essa tela.
+  const hoursCustomized = hours.some(
+    (h) => h.opensAt !== DEFAULT_OPENS_AT || h.closesAt !== DEFAULT_CLOSES_AT || h.closed !== (h.weekday === 0)
+  );
+
   // Ordem pensada pra seguir a sequência natural de quem tá começando
   // (sugestão do usuário, 10/09): confirmar a própria identidade primeiro,
-  // preparar o que a IA vai oferecer, só então conectar o canal que
-  // depende disso, e o agendamento como validação final de que tudo
-  // funciona ponta a ponta — nessa ordem, não a ordem "técnica" antiga
-  // (WhatsApp primeiro).
+  // preparar o que a IA vai oferecer (serviços e horário), só então
+  // conectar o canal que depende disso, e o agendamento como validação
+  // final de que tudo funciona ponta a ponta — nessa ordem, não a ordem
+  // "técnica" antiga (WhatsApp primeiro).
   const items: OnboardingChecklistItem[] = [
     // Sem e-mail cadastrado (contas de seed/demo) não tem o que confirmar —
     // conta como feito pra não travar o checklist de quem nunca vai ter isso.
     { key: "email", label: "Confirme seu e-mail", done: !user?.email || !!user?.emailVerifiedAt },
     { key: "services", label: `Confira os ${vertical.servicePlural} oferecidos (preço e duração)`, done: servicesCustomized },
+    { key: "hours", label: "Confirme seu horário de funcionamento", done: hoursCustomized },
     { key: "whatsapp", label: "Conecte seu WhatsApp pra IA atender seus clientes", done: business?.whatsappConnectionStatus !== "not_connected" },
     { key: "appointment", label: "Crie seu primeiro agendamento", done: appointmentsCount > 0 },
   ];

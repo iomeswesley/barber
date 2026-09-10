@@ -154,6 +154,7 @@ describe("getOnboardingChecklist", () => {
     expect(Object.fromEntries(result.items.map((i) => [i.key, i.done]))).toEqual({
       whatsapp: false,
       services: false,
+      hours: false,
       appointment: false,
       email: false,
     });
@@ -166,12 +167,30 @@ describe("getOnboardingChecklist", () => {
     expect(result.items.find((i) => i.key === "email")?.done).toBe(true);
   });
 
-  it("fica completo quando WhatsApp conectado, serviço renomeado, agendamento criado e e-mail confirmado", async () => {
+  // Sugestão do usuário (10/09): horário errado faz a IA oferecer/aceitar
+  // agendamento fora do funcionamento real da barbearia sem o dono nunca
+  // ter conferido a tela — mesma lógica de "já mexeu no padrão do
+  // cadastro" já usada pra serviços.
+  it("item de horário conta como feito quando algum dia foi alterado do padrão do cadastro", async () => {
+    const { barbershop, user } = await freshSignup("horario");
+    const beforeChange = await getOnboardingChecklist(barbershop.id, user.id);
+    expect(beforeChange.items.find((i) => i.key === "hours")?.done).toBe(false);
+
+    const monday = await prisma.businessHours.findFirstOrThrow({ where: { businessId: barbershop.id, weekday: 1 } });
+    await prisma.businessHours.update({ where: { id: monday.id }, data: { opensAt: "08:00" } });
+
+    const afterChange = await getOnboardingChecklist(barbershop.id, user.id);
+    expect(afterChange.items.find((i) => i.key === "hours")?.done).toBe(true);
+  });
+
+  it("fica completo quando WhatsApp conectado, serviço renomeado, horário ajustado, agendamento criado e e-mail confirmado", async () => {
     const { barbershop, user } = await freshSignup("completo");
     await prisma.business.update({ where: { id: barbershop.id }, data: { whatsappConnectionStatus: "connected" } });
     await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
     const service = await prisma.service.findFirstOrThrow({ where: { businessId: barbershop.id } });
     await prisma.service.update({ where: { id: service.id }, data: { name: "Corte + Barba" } });
+    const sunday = await prisma.businessHours.findFirstOrThrow({ where: { businessId: barbershop.id, weekday: 0 } });
+    await prisma.businessHours.update({ where: { id: sunday.id }, data: { closed: false, opensAt: "10:00", closesAt: "14:00" } });
 
     const clientPhone = `5511999${Date.now().toString().slice(-6)}`;
     createdClientPhones.push(clientPhone);
