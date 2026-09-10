@@ -49,6 +49,41 @@ export async function markWhatsappDisconnectedIfNeeded(businessId: number, err: 
   }
 }
 
+// Contrapartida da função acima — chamar depois de qualquer envio real que
+// TENHA dado certo. Achado em produção (10/09): um bug à parte (token
+// errado em sendManualMessage, ver chatEngine.ts) fez a Vintage ser marcada
+// como "disconnected" por engano, mas nada no sistema revertia isso
+// sozinho depois — só um reconnect manual pelo painel, desnecessariamente
+// disruptivo pra uma barbearia cujo WhatsApp nunca tinha realmente caído.
+// Best-effort igual a markWhatsappDisconnectedIfNeeded: nunca lança.
+// Não assume "connected" nem "pending_templates" às cegas — só reverte se
+// o status atual for exatamente "disconnected" (updateMany já filtra
+// isso), então um envio bem-sucedido é prova direta de que a conexão
+// funciona; o próximo evento de aprovação/rejeição de template (webhook)
+// continua responsável por decidir entre "connected" e "error" depois.
+export async function markWhatsappReconnectedIfNeeded(businessId: number): Promise<void> {
+  try {
+    const { count } = await prisma.business.updateMany({
+      where: { id: businessId, whatsappConnectionStatus: "disconnected" },
+      data: { whatsappConnectionStatus: "connected" },
+    });
+    if (count > 0) {
+      const business = await prisma.business.findUnique({ where: { id: businessId }, select: { name: true, whatsappDisplayPhone: true } });
+      await alertPlatformOperator(
+        "WhatsApp reconectado sozinho",
+        `A barbearia "${business?.name ?? businessId}" (número ${business?.whatsappDisplayPhone ?? "?"}) estava marcada como desconectada, mas um envio real acabou de funcionar — status corrigido automaticamente pra "connected".`
+      );
+    }
+  } catch (dbErr) {
+    console.error(`[WHATSAPP CONNECT] Falha ao reverter barbearia ${businessId} de "disconnected":`, (dbErr as Error).message);
+    captureError(dbErr, {
+      descricao: `Falha ao reverter barbearia ${businessId} de "disconnected" após envio bem-sucedido`,
+      area: "whatsapp-desconexao",
+      extra: { businessId },
+    });
+  }
+}
+
 function requireConfigured() {
   if (!whatsappConnectConfigured) {
     throw new AppError("Conexão self-service de WhatsApp ainda não configurada no servidor.", 503);

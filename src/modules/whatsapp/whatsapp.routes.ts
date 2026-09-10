@@ -6,7 +6,7 @@ import { verifyWebhookSignature, sendWhatsappText, whatsappConfigured, resolveBa
 import { getBarbershopByWhatsappPhoneNumberId } from "@/modules/businesses/businesses.repository.js";
 import { sendMessage } from "@/modules/chat/chatEngine.js";
 import { setWhatsappConnectionStatusByWabaId } from "@/modules/whatsappConnect/whatsappConnect.repository.js";
-import { markWhatsappDisconnectedIfNeeded } from "@/modules/whatsappConnect/whatsappConnect.service.js";
+import { markWhatsappDisconnectedIfNeeded, markWhatsappReconnectedIfNeeded } from "@/modules/whatsappConnect/whatsappConnect.service.js";
 import { isKnownNonCustomerSender } from "@/lib/nonCustomerSenders.js";
 
 // Registra o wamid como processado; retorna false se já tinha sido
@@ -134,6 +134,7 @@ whatsappRouter.post("/api/whatsapp/webhook", async (req, res) => {
               "Por enquanto só consigo entender mensagens de texto 🙏 Pode escrever o que você precisa?",
               accessToken
             );
+            await markWhatsappReconnectedIfNeeded(barbershop.id);
           } catch (err) {
             await markWhatsappDisconnectedIfNeeded(barbershop.id, err);
             throw err;
@@ -148,6 +149,7 @@ whatsappRouter.post("/api/whatsapp/webhook", async (req, res) => {
         if (reply) {
           try {
             await sendWhatsappText(phoneNumberId, from, reply, accessToken);
+            await markWhatsappReconnectedIfNeeded(barbershop.id);
           } catch (err) {
             // Achado em produção (2026-09-07): a conexão pode cair de
             // verdade (dono desconectou pelo celular) sem nenhum aviso

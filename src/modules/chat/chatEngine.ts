@@ -24,7 +24,7 @@ import {
 import { notifyNewAppointment, notifyEscalation } from "@/modules/push/push.service.js";
 import { createWaitlistEntry } from "@/modules/waitlist/waitlist.repository.js";
 import { sendWhatsappText, whatsappConfigured, resolveBarbershopAccessToken, uploadWhatsappMedia, sendWhatsappMedia } from "@/lib/whatsapp.js";
-import { markWhatsappDisconnectedIfNeeded } from "@/modules/whatsappConnect/whatsappConnect.service.js";
+import { markWhatsappDisconnectedIfNeeded, markWhatsappReconnectedIfNeeded } from "@/modules/whatsappConnect/whatsappConnect.service.js";
 import { alertPlatformOperator } from "@/lib/alerts.js";
 import { createShortLink } from "@/lib/shortLink.js";
 import { generateGoogleCalendarUrl } from "@/lib/ics.js";
@@ -768,7 +768,18 @@ export async function sendManualMessage(businessId: number, phone: string, text:
   }
 
   try {
-    await sendWhatsappText(barbershop.whatsappPhoneNumberId, phone, text);
+    // Achado em produção (10/09): faltava passar o token próprio da
+    // barbearia aqui (sendManualAttachment, logo abaixo, já fazia certo) —
+    // sem ele, caía pro token global da plataforma, que não tem permissão
+    // pro phoneNumberId de uma barbearia com WhatsApp próprio conectado. O
+    // erro de permissão batia com a assinatura de "conexão caiu de verdade"
+    // (isWhatsappDisconnectionError) e marcava a barbearia como
+    // whatsappConnectionStatus="disconnected" por engano — mesmo com o
+    // WhatsApp Business App dela mostrando conectado normalmente e o bot
+    // automático (whatsapp.routes.ts, que já resolvia o token certo)
+    // respondendo sem problema. Só a mensagem manual pelo painel falhava.
+    await sendWhatsappText(barbershop.whatsappPhoneNumberId, phone, text, resolveBarbershopAccessToken(barbershop));
+    await markWhatsappReconnectedIfNeeded(businessId);
   } catch (err) {
     await markWhatsappDisconnectedIfNeeded(businessId, err);
     throw err;
@@ -813,6 +824,7 @@ export async function sendManualAttachment(
   try {
     const mediaId = await uploadWhatsappMedia(barbershop.whatsappPhoneNumberId, fileBuffer, mimeType, fileName, accessToken);
     await sendWhatsappMedia(barbershop.whatsappPhoneNumberId, phone, mediaId, mimeType, fileName, accessToken);
+    await markWhatsappReconnectedIfNeeded(businessId);
   } catch (err) {
     await markWhatsappDisconnectedIfNeeded(businessId, err);
     throw err;

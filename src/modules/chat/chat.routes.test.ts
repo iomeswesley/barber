@@ -212,10 +212,42 @@ describe("rotas de /api/chat e /api/manage/chat-sessions", () => {
       const res = await (await loginAgent()).post(`/api/manage/chat-sessions/${customerPhone}/send`).send({ message: "Confirmado!" });
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ ok: true });
-      expect(sendWhatsappTextMock).toHaveBeenCalledWith(`teste-phone-${business.id}`, customerPhone, "Confirmado!");
+      // Achado em produção (10/09): faltava passar o token próprio da
+      // barbearia aqui — sem access token cadastrado no teste (como nesta
+      // barbearia de teste), resolveBarbershopAccessToken retorna
+      // undefined, então sendWhatsappText cai pro token global mesmo —
+      // mas agora explicitamente, não por esquecer o parâmetro.
+      expect(sendWhatsappTextMock).toHaveBeenCalledWith(`teste-phone-${business.id}`, customerPhone, "Confirmado!", undefined);
 
       const row = await prisma.chatSession.findUnique({ where: { sessionId: key } });
       expect(row?.needsAttention).toBe(false);
+    });
+
+    // Regressão (10/09): sendManualMessage esquecia de passar o token
+    // próprio da barbearia pro sendWhatsappText, caindo sempre pro token
+    // global da plataforma — pra uma barbearia com WhatsApp próprio
+    // conectado (whatsappAccessTokenEnc preenchido), esse token não tem
+    // permissão sobre o phoneNumberId dela, e o erro de permissão real da
+    // Meta era lido como "conexão caiu de verdade" (isWhatsappDisconnectionError),
+    // marcando a barbearia como desconectada por engano mesmo com o
+    // WhatsApp dela funcionando normalmente (achado em produção, Vintage).
+    it("usa o token próprio da barbearia quando ela tem WhatsApp conectado", async () => {
+      const { encryptSecret } = await import("@/lib/crypto.js");
+      await prisma.business.update({
+        where: { id: business.id },
+        data: { whatsappPhoneNumberId: `teste-phone-${business.id}`, whatsappAccessTokenEnc: encryptSecret("token-proprio-da-barbearia") },
+      });
+
+      const res = await (await loginAgent()).post(`/api/manage/chat-sessions/${customerPhone}/send`).send({ message: "Confirmado!" });
+      expect(res.status).toBe(200);
+      expect(sendWhatsappTextMock).toHaveBeenCalledWith(
+        `teste-phone-${business.id}`,
+        customerPhone,
+        "Confirmado!",
+        "token-proprio-da-barbearia"
+      );
+
+      await prisma.business.update({ where: { id: business.id }, data: { whatsappAccessTokenEnc: null } });
     });
   });
 

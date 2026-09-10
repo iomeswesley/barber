@@ -1,11 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
 
 process.env.DATABASE_URL ??= "postgresql://user:pass@localhost:5432/db";
 process.env.DIRECT_URL ??= "postgresql://user:pass@localhost:5432/db";
 process.env.SESSION_SECRET ??= "test-session-secret";
 
-const { createTemplates } = await import("./whatsappConnect.service.js");
+const { createTemplates, markWhatsappDisconnectedIfNeeded, markWhatsappReconnectedIfNeeded } = await import("./whatsappConnect.service.js");
 const { TEMPLATE_DEFINITIONS } = await import("./templates.js");
+const { prisma } = await import("@/lib/prisma.js");
 
 // Garantia pedida pelo usuário (09/09): toda barbearia que conectar a partir
 // de agora precisa mandar pra Meta um payload que passe na validação de
@@ -55,5 +56,55 @@ describe("createTemplates (payload real mandado pra Meta)", () => {
     expect(body.category).toBe("MARKETING");
 
     vi.unstubAllGlobals();
+  });
+});
+
+// Achado em produção (10/09, Vintage): um bug à parte (token errado em
+// chatEngine.sendManualMessage) fez markWhatsappDisconnectedIfNeeded marcar
+// uma barbearia com WhatsApp funcionando normalmente como "disconnected" —
+// e nada revertia isso sozinho depois. markWhatsappReconnectedIfNeeded é a
+// contrapartida: chamada depois de qualquer envio bem-sucedido, corrige o
+// status sozinho na próxima mensagem que realmente for.
+describe("markWhatsappDisconnectedIfNeeded / markWhatsappReconnectedIfNeeded", () => {
+  const createdBusinessIds: number[] = [];
+
+  afterAll(async () => {
+    await prisma.business.deleteMany({ where: { id: { in: createdBusinessIds } } });
+  });
+
+  async function createTestBusiness(status: string) {
+    const biz = await prisma.business.create({
+      data: { name: `[teste] WhatsApp reconnect ${Date.now()}`, whatsappConnectionStatus: status },
+    });
+    createdBusinessIds.push(biz.id);
+    return biz;
+  }
+
+  it("marca disconnected só num erro que indica queda real (código 190/100+33)", async () => {
+    const biz = await createTestBusiness("connected");
+    await markWhatsappDisconnectedIfNeeded(biz.id, new Error('{"error":{"code":190}}'));
+    const after = await prisma.business.findUnique({ where: { id: biz.id } });
+    expect(after?.whatsappConnectionStatus).toBe("disconnected");
+  });
+
+  it("não mexe no status pra um erro qualquer (ex: rede, rate limit)", async () => {
+    const biz = await createTestBusiness("connected");
+    await markWhatsappDisconnectedIfNeeded(biz.id, new Error("timeout de rede"));
+    const after = await prisma.business.findUnique({ where: { id: biz.id } });
+    expect(after?.whatsappConnectionStatus).toBe("connected");
+  });
+
+  it("reverte disconnected pra connected depois de um envio bem-sucedido", async () => {
+    const biz = await createTestBusiness("disconnected");
+    await markWhatsappReconnectedIfNeeded(biz.id);
+    const after = await prisma.business.findUnique({ where: { id: biz.id } });
+    expect(after?.whatsappConnectionStatus).toBe("connected");
+  });
+
+  it("não mexe se o status já não era disconnected (ex: pending_templates)", async () => {
+    const biz = await createTestBusiness("pending_templates");
+    await markWhatsappReconnectedIfNeeded(biz.id);
+    const after = await prisma.business.findUnique({ where: { id: biz.id } });
+    expect(after?.whatsappConnectionStatus).toBe("pending_templates");
   });
 });

@@ -1,7 +1,7 @@
 import { findMatchingWaitlistEntries, markWaitlistNotified } from "./waitlist.repository.js";
 import { getBarbershop } from "@/modules/businesses/businesses.repository.js";
 import { sendWhatsappText, whatsappConfigured, resolveBarbershopAccessToken } from "@/lib/whatsapp.js";
-import { markWhatsappDisconnectedIfNeeded } from "@/modules/whatsappConnect/whatsappConnect.service.js";
+import { markWhatsappDisconnectedIfNeeded, markWhatsappReconnectedIfNeeded } from "@/modules/whatsappConnect/whatsappConnect.service.js";
 import { vertical } from "@/config/env.js";
 
 // Mesmo stub-fallback de sendWhatsAppMessage (src/jobs/reminders.ts) —
@@ -14,6 +14,7 @@ async function sendFreeTextMessage(businessId: number, phone: string, text: stri
   if (barbershop?.whatsappPhoneNumberId && (accessToken || whatsappConfigured)) {
     try {
       await sendWhatsappText(barbershop.whatsappPhoneNumberId, phone, text, accessToken);
+      await markWhatsappReconnectedIfNeeded(businessId);
       return;
     } catch (err) {
       console.error(`[WAITLIST] Falha ao enviar mensagem real, caindo pro stub:`, (err as Error).message);
