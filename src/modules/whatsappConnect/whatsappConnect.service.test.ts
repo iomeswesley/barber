@@ -4,6 +4,19 @@ process.env.DATABASE_URL ??= "postgresql://user:pass@localhost:5432/db";
 process.env.DIRECT_URL ??= "postgresql://user:pass@localhost:5432/db";
 process.env.SESSION_SECRET ??= "test-session-secret";
 
+// Achado em produção (10/09): RESEND_API_KEY/PLATFORM_ALERT_EMAIL estão
+// configurados neste ambiente (mesmas credenciais de produção) — sem
+// mockar isso, os testes de markWhatsappDisconnectedIfNeeded/
+// markWhatsappReconnectedIfNeeded abaixo mandavam e-mail de alerta REAL a
+// cada `vitest run` (3 e-mails reais chegaram na caixa do usuário antes
+// desse fix). alerts.ts não tem (nem deve ter) um kill-switch global de
+// teste — alerts.test.ts mocka o SDK do Resend de propósito pra validar o
+// envio de verdade quando configurado; o jeito certo de isolar ESTE
+// arquivo é mockar alertPlatformOperator aqui, não desligar a função pra
+// todo mundo.
+const alertPlatformOperatorMock = vi.fn().mockResolvedValue(undefined);
+vi.mock("@/lib/alerts.js", () => ({ alertPlatformOperator: alertPlatformOperatorMock }));
+
 const { createTemplates, markWhatsappDisconnectedIfNeeded, markWhatsappReconnectedIfNeeded } = await import("./whatsappConnect.service.js");
 const { TEMPLATE_DEFINITIONS } = await import("./templates.js");
 const { prisma } = await import("@/lib/prisma.js");
@@ -72,6 +85,10 @@ describe("markWhatsappDisconnectedIfNeeded / markWhatsappReconnectedIfNeeded", (
     await prisma.business.deleteMany({ where: { id: { in: createdBusinessIds } } });
   });
 
+  beforeEach(() => {
+    alertPlatformOperatorMock.mockClear();
+  });
+
   async function createTestBusiness(status: string) {
     const biz = await prisma.business.create({
       data: { name: `[teste] WhatsApp reconnect ${Date.now()}`, whatsappConnectionStatus: status },
@@ -85,6 +102,9 @@ describe("markWhatsappDisconnectedIfNeeded / markWhatsappReconnectedIfNeeded", (
     await markWhatsappDisconnectedIfNeeded(biz.id, new Error('{"error":{"code":190}}'));
     const after = await prisma.business.findUnique({ where: { id: biz.id } });
     expect(after?.whatsappConnectionStatus).toBe("disconnected");
+    // Prova de que o alerta passou pelo mock (nunca pelo Resend de verdade)
+    // — é exatamente essa chamada que mandava e-mail real antes do fix.
+    expect(alertPlatformOperatorMock).toHaveBeenCalledTimes(1);
   });
 
   it("não mexe no status pra um erro qualquer (ex: rede, rate limit)", async () => {
@@ -99,6 +119,7 @@ describe("markWhatsappDisconnectedIfNeeded / markWhatsappReconnectedIfNeeded", (
     await markWhatsappReconnectedIfNeeded(biz.id);
     const after = await prisma.business.findUnique({ where: { id: biz.id } });
     expect(after?.whatsappConnectionStatus).toBe("connected");
+    expect(alertPlatformOperatorMock).toHaveBeenCalledTimes(1);
   });
 
   it("não mexe se o status já não era disconnected (ex: pending_templates)", async () => {

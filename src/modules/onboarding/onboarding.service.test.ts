@@ -1,11 +1,21 @@
-import { describe, it, expect, afterAll } from "vitest";
+import { describe, it, expect, afterAll, vi } from "vitest";
 import { prisma } from "@/lib/prisma.js";
-import { signupBarbershop, getOnboardingChecklist } from "./onboarding.service.js";
 import { verifyPassword } from "@/lib/auth.js";
 
-// Teste de integração: usa o banco real. RESEND_API_KEY não está configurada
-// neste ambiente, então sendVerificationEmail cai no stub (só loga, não
-// manda e-mail de verdade) — seguro rodar sem risco de disparar nada.
+// Achado em produção (10/09): RESEND_API_KEY está configurada neste
+// ambiente (mesmas credenciais de produção) — sem mockar isso,
+// signupBarbershop chamava sendVerificationEmail de verdade a cada
+// `vitest run` (endereço fictício @example.com, mas ainda uma chamada real
+// à API do Resend — mesma classe de problema que alertPlatformOperator
+// causou de verdade num teste irmão hoje, ver whatsappConnect.service.test.ts).
+vi.mock("@/lib/email.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/email.js")>();
+  return { ...actual, sendVerificationEmail: vi.fn().mockResolvedValue(undefined) };
+});
+
+const { signupBarbershop, getOnboardingChecklist } = await import("./onboarding.service.js");
+
+// Teste de integração: usa o banco real (sendVerificationEmail mockado acima).
 describe("signupBarbershop", () => {
   const createdBarbershopIds: number[] = [];
   const createdUsernames: string[] = [];
