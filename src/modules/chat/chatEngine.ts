@@ -887,18 +887,115 @@ async function saveSession(db: Prisma.TransactionClient, sessionId: string, sess
   });
 }
 
-export async function sendMessage(
+// Resultado de recordIncomingMessage: "immediate" cobre os dois casos que
+// nunca passam pela IA (bloqueio de cobrança e IA pausada) — o chamador
+// manda `reply` direto (ou nada, se for null) sem esperar debounce nenhum.
+// "queued" é o caminho normal: a mensagem já foi gravada na sessão, falta
+// só decidir QUANDO gerar a resposta (ver hasNewerCustomerMessage no
+// webhook do WhatsApp, que implementa o debounce em cima disso).
+type RecordResult = { status: "immediate"; reply: string | null } | { status: "queued"; queuedAt: Date };
+
+// Primeira metade do que sendMessage fazia antes de existir o debounce de
+// resposta (ver whatsapp.routes.ts): grava a mensagem do cliente na sessão
+// e decide se o caminho é imediato (bloqueio/pausa, sem IA) ou "queued"
+// (segue pra generateReplyFromHistory — direto, no caso do simulador
+// /api/chat via sendMessage abaixo, ou depois de esperar o período de
+// silêncio, no caso do webhook real). Separado de generateReplyFromHistory
+// de propósito: a IA nunca deveria ficar "seguradas" numa mesma transação
+// de banco por 20s de debounce (ver histórico do commit que introduziu
+// isso) — aqui a transação é curta (só grava), sem chamada de IA dentro.
+export async function recordIncomingMessage(
   businessId: number,
   sessionId: string,
   userText: string,
-  customerPhone: string,
-  pushName?: string | null
-): Promise<string | null> {
+  customerPhone: string
+): Promise<RecordResult> {
   const barbershop = await getBarbershop(businessId);
   if (!barbershop) throw new Error("Barbearia não encontrada");
   if (!customerPhone) throw new Error("Telefone do remetente (WhatsApp) é obrigatório");
 
   await migrateLegacySessionIfNeeded(sessionId, businessId);
+
+  const key = storageKey(businessId, sessionId);
+
+  // Mesmo lock de linha (FOR UPDATE) que a versão antiga de sendMessage já
+  // usava — ver comentário original abaixo, em generateReplyFromHistory,
+  // que preserva a explicação completa da corrida entre webhooks
+  // concorrentes.
+  return prisma.$transaction(async (tx) => {
+    await tx.chatSession.upsert({
+      where: { sessionId: key },
+      create: { sessionId: key, businessId, messages: [] as unknown as Prisma.InputJsonValue },
+      update: {},
+    });
+    await tx.$queryRaw`SELECT 1 FROM "chat_sessions" WHERE "session_id" = ${key} FOR UPDATE`;
+
+    const session = await loadSession(tx, sessionId, businessId);
+    session.messages.push({ role: "user", content: userText });
+
+    // Assinatura cancelada (trial vencido sem virar pagamento, ou
+    // assinatura paga que o Stripe desistiu de cobrar) — mesmo critério e
+    // função do bloqueio do painel (requireBillingOk), aplicado aqui
+    // porque HTTP 402 não faz sentido pro cliente final do WhatsApp: grava
+    // a mensagem normalmente (histórico não se perde pra quando a
+    // barbearia reativar) e marca "precisa de atenção", mas responde com
+    // um aviso fixo em vez de gastar tokens chamando a IA.
+    const billingBlocked = await isBillingBlocked(businessId);
+    if (billingBlocked) {
+      await saveSession(tx, sessionId, session);
+      await tx.chatSession.update({ where: { sessionId: key }, data: { needsAttention: true } });
+      return {
+        status: "immediate",
+        reply: "No momento não estamos com o atendimento automático disponível. Em breve alguém vai te responder por aqui, obrigado pela paciência!",
+      };
+    }
+
+    // Toggle "IA Ativa" pausado, por conversa (aba Mensagens) OU geral
+    // pra todas de uma vez (Configurações → aiGloballyPaused) — nos dois
+    // casos grava a mensagem do cliente pro histórico e marca "precisa
+    // de atenção" (ninguém automático está respondendo), mas NÃO gera
+    // nem manda resposta. O dono/barbeiro responde manualmente via
+    // sendManualMessage.
+    if (session.aiPaused || barbershop.aiGloballyPaused) {
+      await saveSession(tx, sessionId, session);
+      await tx.chatSession.update({ where: { sessionId: key }, data: { needsAttention: true } });
+      return { status: "immediate", reply: null };
+    }
+
+    // Mesmo Date usado nos dois lugares (grava no banco e devolve pro
+    // chamador) — é o "ticket" que hasNewerCustomerMessage compara depois
+    // pra saber se uma mensagem mais nova chegou nesse meio tempo.
+    const queuedAt = new Date();
+    await saveSession(tx, sessionId, session);
+    await tx.chatSession.update({ where: { sessionId: key }, data: { lastCustomerMessageAt: queuedAt } });
+    return { status: "queued", queuedAt };
+  });
+}
+
+// Debounce de resposta (ver whatsapp.routes.ts): true se uma mensagem do
+// cliente mais nova que `since` já foi gravada nessa sessão — sinal pra
+// quem está esperando desistir de responder (a invocação da mensagem mais
+// nova assume). Leitura simples, sem lock — não precisa (só compara
+// timestamp, não decide nada sozinha).
+export async function hasNewerCustomerMessage(businessId: number, sessionId: string, since: Date): Promise<boolean> {
+  const key = storageKey(businessId, sessionId);
+  const row = await prisma.chatSession.findUnique({ where: { sessionId: key }, select: { lastCustomerMessageAt: true } });
+  return !!row?.lastCustomerMessageAt && row.lastCustomerMessageAt.getTime() > since.getTime();
+}
+
+// Segunda metade do que sendMessage fazia antes do debounce existir: lê a
+// sessão (já com a(s) mensagem(ns) do cliente gravada(s) por
+// recordIncomingMessage), chama a IA e manda a resposta. Chamada direto
+// pelo simulador (via sendMessage, sem debounce) ou pelo webhook real
+// depois do período de silêncio (ver WHATSAPP_REPLY_DEBOUNCE_MS).
+export async function generateReplyFromHistory(
+  businessId: number,
+  sessionId: string,
+  customerPhone: string,
+  pushName?: string | null
+): Promise<string | null> {
+  const barbershop = await getBarbershop(businessId);
+  if (!barbershop) throw new Error("Barbearia não encontrada");
 
   const existingClient = await getClientByPhone(customerPhone);
   const pendingReview = await getUnreviewedCompletedAppointment(customerPhone, businessId);
@@ -930,7 +1027,9 @@ export async function sendMessage(
   // com saudação duas vezes. Com o lock, a segunda chamada espera a primeira
   // commitar e já enxerga o histórico atualizado. Persistido no banco (não
   // num Map em memória) porque em ambiente serverless mensagens consecutivas
-  // do mesmo cliente podem cair em instâncias diferentes.
+  // do mesmo cliente podem cair em instâncias diferentes. A mensagem do
+  // cliente em si já foi gravada por recordIncomingMessage — aqui não faz
+  // session.messages.push de novo, só lê o que já está lá.
   return prisma.$transaction(
     async (tx) => {
       await tx.chatSession.upsert({
@@ -941,38 +1040,11 @@ export async function sendMessage(
       await tx.$queryRaw`SELECT 1 FROM "chat_sessions" WHERE "session_id" = ${key} FOR UPDATE`;
 
       const session = await loadSession(tx, sessionId, businessId);
-      session.messages.push({ role: "user", content: userText });
       // Cópia podada (ver pruneStaleAppointmentHistory) — só o que vai pra
       // API. session.messages continua completo pra salvar no banco (painel
       // de Conversas mostra o histórico real, sem essa poda).
       const todayIsoForPruning = localDateStr(new Date()); // não toISOString() — ver buildDynamicContext acima
       let apiMessages = pruneStaleAppointmentHistory(session.messages, todayIsoForPruning);
-
-      // Assinatura cancelada (trial vencido sem virar pagamento, ou
-      // assinatura paga que o Stripe desistiu de cobrar) — mesmo critério e
-      // função do bloqueio do painel (requireBillingOk), aplicado aqui
-      // porque HTTP 402 não faz sentido pro cliente final do WhatsApp: grava
-      // a mensagem normalmente (histórico não se perde pra quando a
-      // barbearia reativar) e marca "precisa de atenção", mas responde com
-      // um aviso fixo em vez de gastar tokens chamando a IA.
-      const billingBlocked = await isBillingBlocked(businessId);
-      if (billingBlocked) {
-        await saveSession(tx, sessionId, session);
-        await tx.chatSession.update({ where: { sessionId: key }, data: { needsAttention: true } });
-        return "No momento não estamos com o atendimento automático disponível. Em breve alguém vai te responder por aqui, obrigado pela paciência!";
-      }
-
-      // Toggle "IA Ativa" pausado, por conversa (aba Mensagens) OU geral
-      // pra todas de uma vez (Configurações → aiGloballyPaused) — nos dois
-      // casos grava a mensagem do cliente pro histórico e marca "precisa
-      // de atenção" (ninguém automático está respondendo), mas NÃO gera
-      // nem manda resposta. O dono/barbeiro responde manualmente via
-      // sendManualMessage.
-      if (session.aiPaused || barbershop.aiGloballyPaused) {
-        await saveSession(tx, sessionId, session);
-        await tx.chatSession.update({ where: { sessionId: key }, data: { needsAttention: true } });
-        return null;
-      }
 
       try {
         for (let i = 0; i < MAX_ITERATIONS; i++) {
@@ -1043,4 +1115,22 @@ export async function sendMessage(
     },
     { timeout: 30_000 }
   );
+}
+
+// Ponto de entrada usado por quem não quer (ou não deve) debounce: o
+// simulador de WhatsApp (chat.html → POST /api/chat) e os testes — resposta
+// imediata, sem esperar mensagens adicionais, igual o comportamento de
+// sempre. O webhook real (whatsapp.routes.ts) NÃO usa esta função — chama
+// recordIncomingMessage e generateReplyFromHistory separadamente, com uma
+// espera de debounce no meio (ver WHATSAPP_REPLY_DEBOUNCE_MS).
+export async function sendMessage(
+  businessId: number,
+  sessionId: string,
+  userText: string,
+  customerPhone: string,
+  pushName?: string | null
+): Promise<string | null> {
+  const recorded = await recordIncomingMessage(businessId, sessionId, userText, customerPhone);
+  if (recorded.status === "immediate") return recorded.reply;
+  return generateReplyFromHistory(businessId, sessionId, customerPhone, pushName);
 }

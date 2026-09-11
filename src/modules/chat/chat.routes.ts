@@ -131,11 +131,12 @@ chatRouter.post("/api/manage/chat-sessions/:phone/send", requireAuth, requireOwn
   }
 });
 
-// Anexo (imagem/PDF) da aba Mensagens — arquivo chega como base64 no corpo
-// JSON (não multipart: o projeto não tem parser de multipart instalado, e
-// isso evita adicionar uma dependência nova só pra esse upload pontual).
-// 15MB de limite no express.json() (ver app.ts) cobre o caso de uso real
-// (documento), com folga pro overhead de ~33% do base64.
+// Anexo (imagem/PDF/áudio/vídeo) da aba Mensagens — arquivo chega como
+// base64 no corpo JSON (não multipart: o projeto não tem parser de
+// multipart instalado, e isso evita adicionar uma dependência nova só pra
+// esse upload pontual). 22MB de limite no express.json() (ver app.ts)
+// cobre o teto de 16MB de áudio/vídeo da própria Cloud API do WhatsApp,
+// com folga pro overhead de ~33% do base64.
 chatRouter.post("/api/manage/chat-sessions/:phone/send-attachment", requireAuth, requireOwner, async (req, res, next) => {
   try {
     // Express 5 tipa req.params como string | string[] (path-to-regexp
@@ -147,7 +148,11 @@ chatRouter.post("/api/manage/chat-sessions/:phone/send-attachment", requireAuth,
     if (!phone) throw new AppError("Telefone é obrigatório");
     if (!fileName || !mimeType || !dataBase64) throw new AppError("fileName, mimeType e dataBase64 são obrigatórios");
     const buffer = Buffer.from(String(dataBase64), "base64");
-    if (buffer.length > 10 * 1024 * 1024) throw new AppError("Arquivo muito grande (máximo 10MB).");
+    // Mesmo teto que a Cloud API do WhatsApp aceita pra áudio/vídeo (imagem
+    // e documento têm limites próprios menores/maiores na Meta, mas não
+    // vale a pena replicar essa tabela toda aqui — só evita mandar algo
+    // grande demais pra QUALQUER tipo e a Meta rejeitar sem explicação clara).
+    if (buffer.length > 16 * 1024 * 1024) throw new AppError("Arquivo muito grande (máximo 16MB).");
     try {
       await sendManualAttachment(req.session.user!.businessId, phone, buffer, String(mimeType), String(fileName));
     } catch (err) {

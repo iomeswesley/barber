@@ -801,6 +801,14 @@ model ChatSession {
   // resposta automática (só grava a mensagem do cliente e marca
   // needsAttention), deixando o atendimento 100% manual nessa conversa.
   aiPaused Boolean @default(false) @map("ai_paused")
+  // Debounce de resposta do bot (ver recordIncomingMessage/
+  // hasNewerCustomerMessage em chatEngine.ts): timestamp da última mensagem
+  // do CLIENTE (não do dono nem da IA) gravada nesta sessão — usado só pra
+  // uma invocação em espera saber se uma mensagem mais nova chegou nesse
+  // meio tempo e desistir de responder (deixando a mais recente responder
+  // por ela). Deliberadamente separado de updatedAt (que também muda em
+  // saves do dono/IA) pra não confundir esses dois sinais.
+  lastCustomerMessageAt DateTime? @map("last_customer_message_at")
 
   @@map("chat_sessions")
 }

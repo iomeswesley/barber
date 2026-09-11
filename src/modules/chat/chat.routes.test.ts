@@ -259,8 +259,8 @@ describe("rotas de /api/chat e /api/manage/chat-sessions", () => {
       expect(res.status).toBe(400);
     });
 
-    it("400 quando o arquivo passa de 10MB", async () => {
-      const big = Buffer.alloc(11 * 1024 * 1024, 1).toString("base64");
+    it("400 quando o arquivo passa de 16MB", async () => {
+      const big = Buffer.alloc(17 * 1024 * 1024, 1).toString("base64");
       const res = await (await loginAgent())
         .post(`/api/manage/chat-sessions/${customerPhone}/send-attachment`)
         .send({ fileName: "grande.pdf", mimeType: "application/pdf", dataBase64: big });

@@ -1302,10 +1302,10 @@
         <div id="chat-transcript-header">Selecione uma conversa</div>
         <div id="chat-transcript-body"></div>
         <div id="chat-reply-bar">
-          <button type="button" class="chat-attach-btn" id="chat-attach-btn" title="Anexar arquivo">
+          <button type="button" class="chat-attach-btn" id="chat-attach-btn" title="Anexar foto, vídeo, áudio ou PDF">
             <svg class="icon" style="width:16px;height:16px;"><use href="#icon-document"></use></svg>
           </button>
-          <input type="file" id="chat-attach-input" style="display:none;" accept="image/*,application/pdf" />
+          <input type="file" id="chat-attach-input" style="display:none;" accept="image/*,video/*,audio/*,application/pdf" />
           <div class="form-field" style="flex:1; margin:0;">
             <input type="text" id="chat-reply-input" placeholder="Digite uma resposta..." />
           </div>
@@ -3990,8 +3990,8 @@ document.getElementById("chat-attach-input").addEventListener("change", async (e
   const file = e.target.files[0];
   e.target.value = ""; // permite escolher o mesmo arquivo de novo depois
   if (!file || !activeChatPhone) return;
-  if (file.size > 10 * 1024 * 1024) {
-    await showAlertModal("Arquivo muito grande (máximo 10MB).");
+  if (file.size > 16 * 1024 * 1024) {
+    await showAlertModal("Arquivo muito grande (máximo 16MB).");
     return;
   }
   const attachBtn = document.getElementById("chat-attach-btn");

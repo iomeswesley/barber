@@ -122,6 +122,22 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((v) => v === "1"),
+  // Transcrição de áudio recebido pelo bot (Groq roda o Whisper na própria
+  // infra deles — cota gratuita de 2.000 req/dia e 8h de áudio/dia, sem
+  // cartão, cobre o volume real de uma barbearia; ver chatEngine.ts,
+  // transcribeAudio). Opcional: sem a chave, áudio recebido cai no aviso
+  // fixo "só consigo entender mensagens de texto" (comportamento de antes).
+  GROQ_API_KEY: z.string().optional(),
+  // Debounce de resposta do bot (ver whatsapp.routes.ts): espera esse tempo
+  // de silêncio do cliente antes de responder, pra juntar mensagens
+  // mandadas em sequência rápida numa resposta só, em vez de responder cada
+  // uma separadamente. POLL é de quanto em quanto tempo verifica se chegou
+  // mensagem mais nova (que cancela a espera atual). Configurável só pra
+  // teste automatizado rodar rápido (valores default de produção: 20s/3s) —
+  // não documentado como env var "de produto", não precisa aparecer no
+  // painel nem na Vercel.
+  WHATSAPP_REPLY_DEBOUNCE_MS: z.coerce.number().int().nonnegative().default(20_000),
+  WHATSAPP_REPLY_DEBOUNCE_POLL_MS: z.coerce.number().int().positive().default(3_000),
 });
 
 const parsed = envSchema.safeParse(process.env);
