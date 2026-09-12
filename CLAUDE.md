@@ -249,6 +249,22 @@ Pedido do usuário: (1) esperar ~20s antes da IA responder, pra juntar mensagens
 
 Sources sobre transcrição gratuita: [Groq pricing 2026 — eesel AI](https://www.eesel.ai/blog/groq-pricing) | [Groq API Free Tier Limits — Grizzly Peak Software](https://www.grizzlypeaksoftware.com/articles/p/groq-api-free-tier-limits-in-2026-what-you-actually-get-uwysd6mb) | [Free Speech-to-Text APIs 2026 — Spokenly](https://spokenly.app/blog/free-speech-to-text-apis)
 
+### Bug real: checklist "Primeiros passos" não atualizava sozinho (12/09)
+
+- **Sintoma**: usuário completava um passo do checklist (ex: cadastrar um serviço em Configurações → Serviços,
+  ou confirmar o horário de funcionamento) e voltava pra Visão Geral — o card continuava mostrando o item
+  como pendente até dar F5.
+- **Causa**: `loadOnboardingChecklist()` (`admin.html`) só rodava no boot (`loadAll()`) e a cada 60s
+  (`setInterval`) — voltar pra aba "Visão Geral" (`data-page="overview"`) não disparava um refetch, diferente
+  da aba Métricas, que já recarrega os gráficos toda vez que abre (mesmo motivo: dado pode ter mudado desde o
+  último load, e "já carregou uma vez" não é garantia de estar atualizado).
+- **Corrigido**: mesmo padrão da aba Métricas — `loadOnboardingChecklist()` agora roda de novo toda vez que a
+  aba "overview" é clicada, sem gate de "já carregou". Cobre TODOS os itens do checklist de uma vez (serviços,
+  WhatsApp, horário de funcionamento, agendamento) sem precisar rastrear cada ponto de conclusão
+  individualmente. Validado no dev server local (login via API, mock de `fetch` confirmando que
+  `/api/manage/onboarding-checklist` é chamada de novo ao voltar pra Visão Geral depois de visitar outra aba).
+- `barber.html` não tem esse card (checklist é só pro dono) — nada a mudar lá.
+
 ## Login de demonstração
 
 Senha `barbearia123` para todos. Dono: `barbearia-vintage.dono` (3 barbeiros — `carlos`, `rafael`, `diego`) ou `barbearia-solo.dono` (barbeiro único — `marcos`, pra testar o modo barbeiro-único vs múltiplos; criada por `scripts/seed-solo-barbershop.ts`, seguro rodar de novo).

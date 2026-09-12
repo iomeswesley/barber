@@ -6678,6 +6678,16 @@ document.querySelectorAll("#page-tabs button").forEach((btn) => {
       // aba abre garante que o canvas já está visível na hora de medir.
       await Promise.all([loadRevenueChart(), loadOccupancyChart(), loadRevenueTrend(), loadBarberPerformance(), loadPayouts()]);
     }
+    if (page === "overview") {
+      // Mesmo motivo do "sem gate" de Métricas acima, adaptado: o card
+      // "Primeiros passos" só recarregava no boot (loadAll()) e a cada 60s
+      // (setInterval) — achado em produção (12/09): quem completa um passo
+      // (ex: cadastra um serviço em Configurações → Serviços) e volta pra
+      // Visão Geral via essa aba via o card ainda marcado como pendente,
+      // precisando de F5 pra ver o check. Recarregar toda vez que a aba
+      // abre resolve sem precisar rastrear cada ponto que completa um item.
+      await loadOnboardingChecklist();
+    }
     if (page === "agenda" && !agendaLoaded) {
       agendaLoaded = true;
       await renderAgenda();
