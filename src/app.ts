@@ -98,7 +98,12 @@ export function createApp() {
   // Guarda o corpo bruto da requisição em req.rawBody: o webhook do
   // WhatsApp precisa dele (não do JSON já parseado) pra validar a
   // assinatura HMAC que a Meta envia no header X-Hub-Signature-256.
-  app.use(express.json({ limit: "15mb", verify: (req, _res, buf) => { (req as express.Request).rawBody = buf; } }));
+  // 25mb cobre o limite de 16MB de áudio/vídeo da própria Cloud API do
+  // WhatsApp (ver POST /api/manage/chat-sessions/:phone/send-attachment)
+  // com folga confortável pro overhead de ~33% do base64 (16MB*1.34≈21.4MB)
+  // — era 15mb, suficiente só pra documento/imagem, vídeo de alguns
+  // segundos já estourava.
+  app.use(express.json({ limit: "25mb", verify: (req, _res, buf) => { (req as express.Request).rawBody = buf; } }));
   app.use(
     session({
       // Usa DATABASE_URL (pooler em modo transaction, porta 6543), não

@@ -236,6 +236,111 @@ QA de 10/09 apontou (achado #4) que a conta nova não tinha como saber o que já
 8. Depois de qualquer push, conferir se o deployment novo foi promovido pra produção automaticamente (ver nota "Convenções operacionais" acima) — aconteceu de novo em 23/08, 04/09 e **09/09** (esse último: TODOS os commits da sessão de 08-09/09, do Fase 1 até o fix dos templates, ficaram só em Preview por ~19h até a promoção manual via `vercel promote` — ou seja, o fix que impede template mal formado em barbearia nova só passou a valer de verdade depois dessa promoção, não no momento do push).
 9. ~~Templates da Vintage rejeitados pela Meta na WABA nova de Coexistence~~ **RESOLVIDO (09/09)** — causa raiz achada (faltava `example` obrigatório + categoria errada em `come_back_message`, ver seção da sessão acima), corrigido no código e reenviado. Os 3 estão `PENDING` na Meta agora; falta só a aprovação chegar via webhook pra lembrete/reagendamento/reconquista/OTP automáticos voltarem a funcionar nessa conexão.
 
+### Sessão de 11/09: debounce de resposta do bot, transcrição de áudio e anexo de áudio/vídeo em Conversas
+
+Pedido do usuário: (1) esperar ~20s antes da IA responder, pra juntar mensagens mandadas em sequência rápida numa resposta só; (2) o bot entender mensagem de voz (transcrever e responder); (3) a aba Conversas → Mensagens poder mandar áudio/vídeo/foto pro cliente, não só imagem/PDF.
+
+- **Debounce de 20s (`chatEngine.ts`, `whatsapp.routes.ts`)**: `sendMessage` (usado até agora pelo webhook) foi dividido em `recordIncomingMessage` (grava a mensagem do cliente + timestamp `lastCustomerMessageAt`, decide se o caminho é imediato — bloqueio de cobrança/IA pausada, sem IA — ou "queued") e `generateReplyFromHistory` (chama a IA e manda a resposta, lendo o que já foi gravado). O webhook chama os dois separados, com uma espera de `WHATSAPP_REPLY_DEBOUNCE_MS` (20s por padrão, `src/config/env.ts`) entre eles: a cada `WHATSAPP_REPLY_DEBOUNCE_POLL_MS` (3s) verifica via `hasNewerCustomerMessage` se uma mensagem mais nova chegou nesse meio tempo — se sim, essa invocação desiste sem responder (a invocação da mensagem mais nova assume, e só ela efetivamente espera os 20s inteiros). `sendMessage` continua existindo como wrapper de `recordIncomingMessage` + `generateReplyFromHistory` sem espera nenhuma — usado pelo simulador (`chat.html` → `POST /api/chat`) e pelos testes que não devem esperar 20s reais. **Decisão consciente de arquitetura**: o debounce roda FORA de qualquer transação de banco — a versão antiga de `sendMessage` segurava um lock de linha (`FOR UPDATE`) durante toda a chamada de IA; segurar esse lock por 20s adicionais seria arriscado (contenção, timeout do pooler do Supabase). Novo campo `ChatSession.lastCustomerMessageAt` (migration `20260911000000_chat_session_last_customer_message_at`), separado de `updatedAt` de propósito (que também muda em saves do dono/IA, confundiria o sinal). `vercel.json` ganhou `functions.maxDuration: 60` (era o default da Vercel, insuficiente pra 20s de espera + geração da IA) — **plano Hobby permite até 60s configurável**, mas vale medir na prática; se a geração da IA por si só já se aproximar desse teto em casos reais (tool loop longo), pode precisar do plano Pro (300s) — mesma pendência já registrada de "deveria subir pro Pro".
+- **Transcrição de áudio (`src/lib/transcription.ts`, novo)**: mensagem de voz recebida é baixada da Meta (`downloadWhatsappMedia`, novo em `src/lib/whatsapp.ts` — caminho inverso de `uploadWhatsappMedia`) e transcrita via **Groq** (roda o Whisper na própria infra deles, `whisper-large-v3-turbo`) — escolhido depois de pesquisa comparativa (ver sources abaixo) por ter cota gratuita **permanente** (2.000 req/dia, 8h de áudio/dia, sem cartão) que cobre o volume real de uma barbearia, diferente de Deepgram (só US$200 de crédito único, expira) ou Google Cloud STT (60min/mês). A Claude API não recebe áudio diretamente (só texto/imagem/PDF), daí precisar desse passo à parte. Texto transcrito entra no histórico prefixado com `[Áudio transcrito] ` (transparência pro dono na aba Conversas + contexto pra IA). Se a transcrição falhar (sem `GROQ_API_KEY` configurada, erro de rede, áudio incompreensível) o bot avisa e pede pra tentar de novo ou escrever, em vez de travar silenciosamente. **`GROQ_API_KEY` ainda NÃO configurada em produção** — sem ela, `transcriptionConfigured` é `false` e áudio recebido cai no aviso antigo ("só consigo entender texto"), sem quebrar nada; falta o usuário criar a conta em console.groq.com e configurar a env var na Vercel pra transcrição funcionar de verdade.
+- **Anexo de áudio/vídeo em Conversas (`admin.html`, `src/lib/whatsapp.ts`, `chat.routes.ts`)**: `sendWhatsappMedia` agora classifica o mime type em `image`/`video`/`audio`/`document` (antes só `image`/`document` — vídeo e áudio mandados manualmente viravam "documento" genérico, sem preview/player nativo no WhatsApp do cliente). Input de arquivo (`accept`) e limite de tamanho (10MB → 16MB, o teto de áudio/vídeo da própria Cloud API) atualizados; `express.json()` de `app.ts` subiu de 15mb pra 25mb (o corpo é base64, ~33% maior que o arquivo — 16MB\*1.34≈21.4MB, precisa de folga).
+- Testes novos: `src/modules/chat/debounce.test.ts` (`recordIncomingMessage`/`hasNewerCustomerMessage` contra o banco real), `src/lib/transcription.test.ts` (Groq mockado — sucesso, erro HTTP, texto vazio, falha de rede), testes novos em `src/lib/whatsapp.test.ts` (`downloadWhatsappMedia`, classificação de mime type em `sendWhatsappMedia`), `whatsapp.routes.test.ts` reescrito pro novo fluxo (mocka `recordIncomingMessage`/`generateReplyFromHistory`/`hasNewerCustomerMessage`/`transcribeAudio` em vez de `sendMessage`, com `WHATSAPP_REPLY_DEBOUNCE_MS`/`POLL_MS` setados baixos só nesse arquivo de teste pra não esperar 20s reais). Suíte: 40 arquivos, 256 testes, `tsc --noEmit` limpo.
+- **Não portado pro `odonto-saas` ainda** — só depois de mais uso real aqui, mesmo padrão de sempre.
+- **Pendências reais desta sessão**: (a) configurar `GROQ_API_KEY` na Vercel pra transcrição funcionar de verdade; (b) validar ponta a ponta com WhatsApp real — nenhuma das duas partes (debounce, transcrição) foi testada contra o WhatsApp de verdade ainda, só a suíte automatizada com tudo mockado; (c) medir na prática se `maxDuration: 60` é suficiente (debounce de 20s + geração da IA, que já tinha timeout de transação de 30s antes disso) ou se algum caso real de tool loop longo estoura o teto.
+
+Sources sobre transcrição gratuita: [Groq pricing 2026 — eesel AI](https://www.eesel.ai/blog/groq-pricing) | [Groq API Free Tier Limits — Grizzly Peak Software](https://www.grizzlypeaksoftware.com/articles/p/groq-api-free-tier-limits-in-2026-what-you-actually-get-uwysd6mb) | [Free Speech-to-Text APIs 2026 — Spokenly](https://spokenly.app/blog/free-speech-to-text-apis)
+
+### Bug real: checklist "Primeiros passos" não atualizava sozinho (12/09)
+
+- **Sintoma**: usuário completava um passo do checklist (ex: cadastrar um serviço em Configurações → Serviços,
+  ou confirmar o horário de funcionamento) e voltava pra Visão Geral — o card continuava mostrando o item
+  como pendente até dar F5.
+- **Causa**: `loadOnboardingChecklist()` (`admin.html`) só rodava no boot (`loadAll()`) e a cada 60s
+  (`setInterval`) — voltar pra aba "Visão Geral" (`data-page="overview"`) não disparava um refetch, diferente
+  da aba Métricas, que já recarrega os gráficos toda vez que abre (mesmo motivo: dado pode ter mudado desde o
+  último load, e "já carregou uma vez" não é garantia de estar atualizado).
+- **Corrigido**: mesmo padrão da aba Métricas — `loadOnboardingChecklist()` agora roda de novo toda vez que a
+  aba "overview" é clicada, sem gate de "já carregou". Cobre TODOS os itens do checklist de uma vez (serviços,
+  WhatsApp, horário de funcionamento, agendamento) sem precisar rastrear cada ponto de conclusão
+  individualmente. Validado no dev server local (login via API, mock de `fetch` confirmando que
+  `/api/manage/onboarding-checklist` é chamada de novo ao voltar pra Visão Geral depois de visitar outra aba).
+- `barber.html` não tem esse card (checklist é só pro dono) — nada a mudar lá.
+
+### Bug real: primeira tentativa de conectar WhatsApp "não dava certo" mesmo indo até o Finish (13/09)
+
+- **Sintoma**: um cliente relatou que a primeira tentativa de "Conectar meu WhatsApp" (Embedded Signup) pareceu
+  não fazer nada — mesmo completando o assistente da Meta até o fim e clicando em algo equivalente a "Finish",
+  o painel continuava mostrando como se não tivesse conectado. A segunda tentativa funcionou normalmente.
+- **Causa raiz (confirmada contra a doc oficial da Meta, "Embedded Signup flow errors")**: a Meta manda **5
+  variantes** de evento de conclusão via `postMessage` (`WA_EMBEDDED_SIGNUP`), não só as 2 que `admin.html`
+  tratava (`FINISH` e `FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING`, pro Coexistence). As outras 3 —
+  `FINISH_OBO_MIGRATION` (migração de número já existente noutra plataforma), `FINISH_GRANT_ONLY_API_ACCESS`
+  (reautorização de ativos já existentes) e `FINISH_ONLY_WABA` (completou sem telefone) — caíam no vazio: nem
+  no `if` de FINISH, nem no `else if` de CANCEL/ERROR. O "code" que já tinha chegado via `FB.login()` ficava
+  esperando pra sempre um `whatsappSignupData` que nunca vinha, até o timer de 3min destravar o botão
+  silenciosamente (sem erro nenhum visível) — batendo exatamente com "pareceu que não deu certo".
+- **Corrigido**: `admin.html` agora trata `FINISH_OBO_MIGRATION`/`FINISH_GRANT_ONLY_API_ACCESS` igual ao
+  `FINISH` normal (mesma estrutura de dados, `waba_id`+`phone_number_id`), com uma guarda defensiva pro caso
+  raro de vir sem os dois IDs. `FINISH_ONLY_WABA` (sem telefone — não dá pra completar a conexão sem
+  `phone_number_id`, backend exige os dois) ganhou um aviso claro pedindo pra completar a etapa do número, em
+  vez de travar silenciosamente.
+- **Achado secundário no mesmo código**: a janela de debounce que decide se um `CANCEL` é "falso" (a Meta manda
+  um `CANCEL` intermediário ao trocar de passo, seguido do `FINISH` real logo depois) estava em **1.5s** — curta
+  demais pra clientes mais lentos numa etapa entre o `CANCEL` falso e o `FINISH` de verdade, o que faria o
+  `CANCEL` ser tratado como definitivo antes do `FINISH` chegar (mesmo sintoma: pareceu não conectar). Aumentada
+  pra **5s**.
+- Validado no dev server local (typecheck limpo, página carrega e renderiza normalmente, sem erro de sintaxe
+  no script). **Não foi possível reproduzir o evento real de um popup de verdade da Meta nesta sessão** — a
+  correção é baseada na doc oficial + leitura cuidadosa do código, não numa reprodução ao vivo do bug. Vale
+  confirmar com o próximo cliente que passar por isso se o problema realmente some.
+- Não portado pro `odonto-saas` ainda — o mesmo código de Embedded Signup existe lá, mesma classe de bug
+  provavelmente presente.
+
+### Sessão de 13/09: contador de trial, bloqueio imediato e deregister real no desconectar
+
+Pedido do usuário: (1) mostrar na Visão Geral quanto falta pro trial acabar; (2) confirmar que o bloqueio ao
+vencer o trial funciona de verdade; (3) esclarecer se desconectar o WhatsApp de uma conta pra conectar em
+outra dentro da plataforma funciona.
+
+- **Banner de contagem do trial (`admin.html`)**: novo `<div id="trial-countdown-banner">`, no mesmo nível do
+  `email-verify-banner` (visível em **qualquer aba** do painel, não só Visão Geral — decisão deliberada, é um
+  aviso com prazo). `updateTrialBanner(status, trialEndsAt)` só aparece com `status === "trialing"`; texto e
+  cor mudam com a urgência (`--warn-soft` com mais de 3 dias, `--danger-soft` nos últimos 3, "acaba amanhã"/
+  "venceu hoje" como casos especiais de texto). Botão "Ver planos" leva pra Configurações → Cobrança. Chamado
+  tanto no boot da página (fetch já existente pro selo de plano no header) quanto em `loadBillingStatus()`
+  (aba Configurações). Validado no dev server local com uma barbearia `[teste]` em trial de 2 dias — banner,
+  cor e navegação do CTA conferidos via browser automatizado antes de limpar os dados de teste.
+- **Bloqueio de trial vencido agora é imediato, não depende do cron diário (`billing.service.ts`)**: antes,
+  `isBillingBlocked` só bloqueava `status === "canceled"` — e o único jeito de uma barbearia em trial vencido
+  virar "canceled" era o cron `/api/cron/reminders` (`expireOverdueTrials`, roda 1x/dia às 8h BRT) já ter
+  passado. Na prática, alguém cujo trial vencia às 14h continuava com acesso liberado (painel + bot) até a
+  manhã seguinte — quase 24h de folga indevida. Corrigido: `isBillingBlocked` agora também bloqueia
+  `status === "trialing"` com `trialEndsAt` já no passado, checado direto na hora, sem depender do cron ter
+  rodado. O cron continua existindo — só não é mais quem decide o bloqueio, é quem formaliza o status no banco
+  pra relatórios/superadmin refletirem certo depois. Cobre painel (`requireBillingOk`) e bot (mesmo helper
+  usado em `chatEngine.sendMessage`) automaticamente, sem mudança nos dois pontos de uso. Testes novos:
+  `isBillingBlocked` em `billing.service.test.ts` (5 casos) + regressão HTTP em `middleware/billing.test.ts`
+  (trial vencido bloqueia com 402 mesmo com status ainda "trialing" no banco).
+- **Desconectar de uma conta pra conectar em outra dentro da plataforma — confirmado que NÃO funcionava, e
+  corrigido**: o botão "Desconectar" só limpava `whatsappPhoneNumberId`/`whatsappWabaId`/etc no NOSSO banco —
+  nunca tocava no registro de verdade da Cloud API da Meta (documentado desde sempre no comentário de
+  `clearWhatsappConnection`). Na prática, isso significava que o mesmo número continuava preso do lado da
+  Meta depois de "desconectado" por aqui — exatamente o problema investigado na sessão de 12/09 (ver acima,
+  WABA "Innova IA"/ClienteTest), só que dessa vez identificado como um gap real no próprio fluxo normal de
+  desconectar, não um caso isolado. **Corrigido**: `deregisterPhoneNumber` novo
+  (`whatsappConnect.service.ts`, `POST /{phone_number_id}/deregister` na Graph API) — a rota de disconnect
+  agora lê o `phoneNumberId`/token salvos **antes** de limpar o banco, tenta liberar de verdade na Meta
+  (best-effort: nunca bloqueia o desconectar local se falhar) e devolve `meta_released: true|false|null` na
+  resposta. `admin.html` avisa o dono explicitamente quando `meta_released === false` — "desconectou aqui, mas
+  pode aparecer 'já registrado em outra conta' se tentar noutra conta; nesse caso precisa liberar direto pelo
+  WhatsApp Manager ou suporte da Meta" — em vez de deixar ele descobrir isso do jeito difícil, testando às
+  cegas. Só resolve o caso normal (conexão ainda saudável, token ainda válido) — se o app já perdeu acesso à
+  WABA por algum motivo externo (como aconteceu no caso da Vintage em 10/09), o deregister falha do mesmo jeito
+  e ainda cai no caminho manual documentado. Testes novos: `deregisterPhoneNumber` em
+  `whatsappConnect.service.test.ts` (3 casos, fetch mockado) + 3 casos HTTP em `whatsappConnect.routes.test.ts`
+  (chama com o token certo, `meta_released` reflete sucesso/falha, não chama nada quando não havia conexão).
+- Suíte completa depois de tudo: 40 arquivos, 269 testes, `tsc --noEmit` limpo.
+- Nada disso foi portado pro `odonto-saas` ainda.
+
 ## Login de demonstração
 
 Senha `barbearia123` para todos. Dono: `barbearia-vintage.dono` (3 barbeiros — `carlos`, `rafael`, `diego`) ou `barbearia-solo.dono` (barbeiro único — `marcos`, pra testar o modo barbeiro-único vs múltiplos; criada por `scripts/seed-solo-barbershop.ts`, seguro rodar de novo).

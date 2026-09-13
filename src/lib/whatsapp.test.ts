@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import crypto from "node:crypto";
 
 // Ver comentário em crypto.test.ts sobre por que o env é preenchido antes do
@@ -10,8 +10,10 @@ process.env.SESSION_SECRET ??= "test-session-secret";
 process.env.WHATSAPP_TOKEN_ENCRYPTION_KEY ??= "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 process.env.NODE_ENV = "test";
 process.env.WHATSAPP_APP_SECRET = "app-secret-de-teste";
+process.env.WHATSAPP_ACCESS_TOKEN = "token-global-de-teste";
 
-const { verifyWebhookSignature, resolveBarbershopAccessToken, isWhatsappDisconnectionError } = await import("./whatsapp.js");
+const { verifyWebhookSignature, resolveBarbershopAccessToken, isWhatsappDisconnectionError, downloadWhatsappMedia, sendWhatsappMedia } =
+  await import("./whatsapp.js");
 
 function sign(body: Buffer, secret = "app-secret-de-teste"): string {
   return `sha256=${crypto.createHmac("sha256", secret).update(body).digest("hex")}`;
@@ -105,5 +107,89 @@ describe("isWhatsappDisconnectionError", () => {
     expect(isWhatsappDisconnectionError("string qualquer")).toBe(false);
     expect(isWhatsappDisconnectionError(null)).toBe(false);
     expect(isWhatsappDisconnectionError(undefined)).toBe(false);
+  });
+});
+
+// Caminho inverso de uploadWhatsappMedia — usado pra baixar mensagem de voz
+// recebida e mandar pra transcrição (ver src/lib/transcription.ts).
+describe("downloadWhatsappMedia", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("resolve a URL temporária a partir do media id, depois baixa os bytes de lá — os dois passos com o Bearer token", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ url: "https://lookaside.fbsbx.com/temp/abc", mime_type: "audio/ogg; codecs=opus" }) })
+      .mockResolvedValueOnce({ ok: true, arrayBuffer: async () => new TextEncoder().encode("bytes-do-audio").buffer });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await downloadWhatsappMedia("media-id-1", "token-da-barbearia");
+
+    expect(result.mimeType).toBe("audio/ogg; codecs=opus");
+    expect(result.buffer.toString()).toBe("bytes-do-audio");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).headers).toEqual({ Authorization: "Bearer token-da-barbearia" });
+    expect(fetchMock.mock.calls[1]![0]).toBe("https://lookaside.fbsbx.com/temp/abc");
+    expect((fetchMock.mock.calls[1]![1] as RequestInit).headers).toEqual({ Authorization: "Bearer token-da-barbearia" });
+  });
+
+  it("lança quando a Meta não devolve URL nenhuma", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(downloadWhatsappMedia("media-id-2")).rejects.toThrow(/não trouxe a URL/i);
+  });
+
+  it("lança quando o primeiro passo (resolver a URL) falha", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({ ok: false, status: 404, text: async () => "not found" });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(downloadWhatsappMedia("media-id-3")).rejects.toThrow(/Falha ao resolver URL/i);
+  });
+});
+
+// image/video/audio viram o tipo de mensagem nativo correspondente (preview/
+// player no WhatsApp do cliente); qualquer outro mime type vira "document".
+describe("sendWhatsappMedia (classificação por mime type)", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  async function sendAndCaptureBody(mimeType: string) {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: async () => "" });
+    vi.stubGlobal("fetch", fetchMock);
+    await sendWhatsappMedia("phone-id", "5511999990000", "media-id", mimeType, "arquivo", "token");
+    return JSON.parse((fetchMock.mock.calls[0]![1] as RequestInit).body as string);
+  }
+
+  it("image/* vira type: image, sem filename", async () => {
+    const body = await sendAndCaptureBody("image/jpeg");
+    expect(body.type).toBe("image");
+    expect(body.image).toEqual({ id: "media-id" });
+  });
+
+  it("video/* vira type: video, sem filename", async () => {
+    const body = await sendAndCaptureBody("video/mp4");
+    expect(body.type).toBe("video");
+    expect(body.video).toEqual({ id: "media-id" });
+  });
+
+  it("audio/* vira type: audio, sem filename (a Cloud API rejeita esse campo pra áudio)", async () => {
+    const body = await sendAndCaptureBody("audio/ogg");
+    expect(body.type).toBe("audio");
+    expect(body.audio).toEqual({ id: "media-id" });
+  });
+
+  it("qualquer outro mime type vira type: document, com filename", async () => {
+    const body = await sendAndCaptureBody("application/pdf");
+    expect(body.type).toBe("document");
+    expect(body.document).toEqual({ id: "media-id", filename: "arquivo" });
   });
 });

@@ -97,10 +97,49 @@ export async function uploadWhatsappMedia(
   return data.id;
 }
 
-// image/* vira mensagem tipo "image" (a Meta gera preview/miniatura
-// automaticamente no WhatsApp); qualquer outro tipo (PDF etc.) vira
-// "document", que exige filename pra o app do cliente mostrar um nome
-// decente em vez de um hash.
+// Caminho inverso de uploadWhatsappMedia: baixa uma mídia recebida do
+// cliente (ex: mensagem de voz, pro bot transcrever — ver
+// src/lib/transcription.ts) — 2 passos também, primeiro resolve a URL
+// temporária do arquivo a partir do media id que veio no webhook, depois
+// baixa os bytes de lá (a URL em si também exige o Bearer token, não é
+// pública).
+export async function downloadWhatsappMedia(
+  mediaId: string,
+  accessToken?: string
+): Promise<{ buffer: Buffer; mimeType: string }> {
+  const token = accessToken || env.WHATSAPP_ACCESS_TOKEN;
+  const metaRes = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${mediaId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!metaRes.ok) {
+    const body = await metaRes.text().catch(() => "");
+    throw new Error(`Falha ao resolver URL da mídia do WhatsApp (${metaRes.status}): ${body}`);
+  }
+  const meta = (await metaRes.json()) as { url?: string; mime_type?: string };
+  if (!meta.url) throw new Error("Resposta da Meta não trouxe a URL da mídia.");
+
+  const fileRes = await fetch(meta.url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!fileRes.ok) {
+    const body = await fileRes.text().catch(() => "");
+    throw new Error(`Falha ao baixar mídia do WhatsApp (${fileRes.status}): ${body}`);
+  }
+  const buffer = Buffer.from(await fileRes.arrayBuffer());
+  return { buffer, mimeType: meta.mime_type || "application/octet-stream" };
+}
+
+// image/*, video/* e audio/* viram mensagem do tipo nativo correspondente
+// (a Meta gera preview/miniatura/player automaticamente no app do
+// cliente); qualquer outro tipo (PDF etc.) vira "document", que exige
+// filename pra o app do cliente mostrar um nome decente em vez de um hash.
+// audio/document são os únicos dois tipos aqui que não levam "filename" —
+// a Cloud API rejeita esse campo pra audio (erro de parâmetro desconhecido).
+function whatsappMediaMessageType(mimeType: string): "image" | "video" | "audio" | "document" {
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType.startsWith("video/")) return "video";
+  if (mimeType.startsWith("audio/")) return "audio";
+  return "document";
+}
+
 export async function sendWhatsappMedia(
   phoneNumberId: string,
   to: string,
@@ -109,7 +148,8 @@ export async function sendWhatsappMedia(
   fileName: string,
   accessToken?: string
 ): Promise<void> {
-  const isImage = mimeType.startsWith("image/");
+  const type = whatsappMediaMessageType(mimeType);
+  const mediaObject = type === "document" ? { id: mediaId, filename: fileName } : { id: mediaId };
   const res = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${phoneNumberId}/messages`, {
     method: "POST",
     headers: {
@@ -119,8 +159,8 @@ export async function sendWhatsappMedia(
     body: JSON.stringify({
       messaging_product: "whatsapp",
       to,
-      type: isImage ? "image" : "document",
-      [isImage ? "image" : "document"]: isImage ? { id: mediaId } : { id: mediaId, filename: fileName },
+      type,
+      [type]: mediaObject,
     }),
   });
   if (!res.ok) {

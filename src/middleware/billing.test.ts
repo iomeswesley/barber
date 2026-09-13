@@ -54,6 +54,21 @@ describe("requireBillingOk (bloqueio real por assinatura cancelada)", () => {
     }
   });
 
+  // Achado em produção (13/09): o bloqueio dependia só do cron diário já
+  // ter virado o status "trialing" pra "canceled" — até 24h de folga
+  // indevida entre o trial vencer de verdade e o acesso ser cortado.
+  it("trial vencido bloqueia com 402 mesmo com status ainda 'trialing' (cron não rodou)", async () => {
+    await prisma.subscription.upsert({
+      where: { businessId: business.id },
+      update: { status: "trialing", trialEndsAt: new Date(Date.now() - 60_000) },
+      create: { businessId: business.id, status: "trialing", trialEndsAt: new Date(Date.now() - 60_000) },
+    });
+    const agent = await loginAgent();
+    const res = await agent.get("/api/dashboard/summary");
+    expect(res.status).toBe(402);
+    expect(res.body.error).toBe("billing_blocked");
+  });
+
   it("canceled bloqueia rotas de painel com 402", async () => {
     await prisma.subscription.upsert({
       where: { businessId: business.id },

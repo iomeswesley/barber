@@ -4,7 +4,8 @@
   "regions": ["gru1"],
   "functions": {
     "api/index.js": {
-      "includeFiles": "webroot/**"
+      "includeFiles": "webroot/**",
+      "maxDuration": 60
     }
   },
   "rewrites": [

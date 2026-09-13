@@ -164,6 +164,48 @@ export async function registerPhoneNumber(phoneNumberId: string, accessToken: st
   }
 }
 
+// Best-effort: tenta liberar o número de verdade do lado da Meta (não só
+// limpar nosso banco) quando o dono clica "Desconectar" — ver
+// clearWhatsappConnection/disconnect route. Achado em produção (13/09,
+// investigando outro caso): só limpar nosso banco NUNCA liberava o número
+// pra conectar em outra conta (nossa ou de outro cliente qualquer) — a
+// Cloud API continuava com o registro antigo, e a Meta rejeitava a nova
+// tentativa de Embedded Signup com "already registered to another account",
+// mesmo já não aparecendo mais conectado no nosso painel. Chamar
+// /deregister aqui resolve o caso normal (conexão ainda saudável, token
+// ainda válido) — se falhar (token expirado, app perdeu acesso à WABA por
+// algum motivo externo, etc.) não impede o dono de desconectar por aqui,
+// só significa que o número pode continuar preso do lado da Meta e
+// precisar do mesmo caminho manual (WhatsApp Manager/suporte da Meta) já
+// documentado no CLAUDE.md.
+export async function deregisterPhoneNumber(phoneNumberId: string, accessToken: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${GRAPH_BASE}/${phoneNumberId}/deregister`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.error(`[WHATSAPP CONNECT] Falha ao desregistrar o número ${phoneNumberId} na Meta (${res.status}): ${body}`);
+      captureError(new Error(`Falha ao desregistrar número WhatsApp (${res.status}): ${body}`), {
+        descricao: `Deregister falhou ao desconectar o número ${phoneNumberId} — pode continuar preso do lado da Meta`,
+        area: "whatsapp-desconexao",
+        extra: { phoneNumberId, status: res.status },
+      });
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error(`[WHATSAPP CONNECT] Erro de rede ao desregistrar o número ${phoneNumberId}:`, (err as Error).message);
+    captureError(err, {
+      descricao: `Erro de rede ao desregistrar número WhatsApp ${phoneNumberId} ao desconectar`,
+      area: "whatsapp-desconexao",
+      extra: { phoneNumberId },
+    });
+    return false;
+  }
+}
+
 // Assina o app da plataforma nos webhooks dessa WABA — sem isso, mensagens
 // recebidas nesse número não chegam no nosso /api/whatsapp/webhook.
 export async function subscribeAppToWaba(wabaId: string, accessToken: string): Promise<void> {

@@ -1053,6 +1053,17 @@
     <button class="btn-secondary" id="resend-verify-btn" style="padding:6px 12px; font-size:12px;">Reenviar e-mail</button>
   </div>
 
+  <!-- Contador de teste grátis — visível em qualquer aba do painel (não só
+       Visão Geral), de propósito: é um aviso com prazo, igual o de e-mail
+       acima. Cor/texto mudam conforme a urgência (ver updateTrialBanner) —
+       neutro com dias de sobra, vermelho nos últimos 3 dias. Só aparece com
+       status "trialing" (nunca em "active"/"past_due"/"canceled" nem quando
+       cobrança não está configurada no servidor). -->
+  <div id="trial-countdown-banner" style="display:none; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; border:1px solid var(--card-border); border-radius:14px; padding:10px 16px; margin-bottom:16px; font-size:12.5px; color:var(--text-primary);">
+    <span id="trial-countdown-text"><svg class="icon" id="trial-countdown-icon"><use href="#icon-alert-triangle"></use></svg></span>
+    <button class="btn-primary" id="trial-countdown-cta" style="padding:6px 12px; font-size:12px;">Ver planos</button>
+  </div>
+
   <div id="page-overview" class="page-section">
   <div class="greeting-header">
     <div>
@@ -1302,10 +1313,10 @@
         <div id="chat-transcript-header">Selecione uma conversa</div>
         <div id="chat-transcript-body"></div>
         <div id="chat-reply-bar">
-          <button type="button" class="chat-attach-btn" id="chat-attach-btn" title="Anexar arquivo">
+          <button type="button" class="chat-attach-btn" id="chat-attach-btn" title="Anexar foto, vídeo, áudio ou PDF">
             <svg class="icon" style="width:16px;height:16px;"><use href="#icon-document"></use></svg>
           </button>
-          <input type="file" id="chat-attach-input" style="display:none;" accept="image/*,application/pdf" />
+          <input type="file" id="chat-attach-input" style="display:none;" accept="image/*,video/*,audio/*,application/pdf" />
           <div class="form-field" style="flex:1; margin:0;">
             <input type="text" id="chat-reply-input" placeholder="Digite uma resposta..." />
           </div>
@@ -3990,8 +4001,8 @@ document.getElementById("chat-attach-input").addEventListener("change", async (e
   const file = e.target.files[0];
   e.target.value = ""; // permite escolher o mesmo arquivo de novo depois
   if (!file || !activeChatPhone) return;
-  if (file.size > 10 * 1024 * 1024) {
-    await showAlertModal("Arquivo muito grande (máximo 10MB).");
+  if (file.size > 16 * 1024 * 1024) {
+    await showAlertModal("Arquivo muito grande (máximo 16MB).");
     return;
   }
   const attachBtn = document.getElementById("chat-attach-btn");
@@ -5626,6 +5637,10 @@ let whatsappSignupCancelled = false;
 let whatsappSignupIsCoexistence = false;
 let finalizeWhatsappSignup = null; // setado enquanto uma tentativa de conexão está em andamento
 let whatsappCancelFinalizeTimer = null; // debounce do CANCEL falso, ver comentário abaixo
+// true só quando o motivo de tratar como "cancelado" foi terminar o
+// assistente sem telefone (FINISH_ONLY_WABA) ou com dado incompleto — usa
+// uma mensagem diferente da de cancelamento de verdade (ver finalize()).
+let whatsappSignupIncomplete = false;
 
 window.addEventListener("message", (event) => {
   if (!event.origin.endsWith("facebook.com")) return;
@@ -5636,10 +5651,42 @@ window.addEventListener("message", (event) => {
   try {
     const data = JSON.parse(event.data);
     if (data.type !== "WA_EMBEDDED_SIGNUP") return;
-    // Coexistence usa um evento de finalização próprio (o número já está
-    // registrado no app, então o fluxo não é idêntico ao FINISH normal) —
-    // ver https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users/
-    if (data.event === "FINISH" || data.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING") {
+    // Achado em produção (13/09): um cliente completou o assistente até o
+    // fim (chegou a clicar em algo equivalente a "Finish") e o painel ainda
+    // assim ficou como se nada tivesse acontecido — só funcionou na segunda
+    // tentativa. Causa: a Meta manda **5 variantes** de evento de conclusão
+    // (doc oficial, "Embedded Signup flow errors"), não só as 2 que este
+    // código tratava:
+    //   - FINISH — fluxo padrão (Cloud API)
+    //   - FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING — Coexistence (já tratado)
+    //   - FINISH_OBO_MIGRATION — migração "on-behalf-of" de número já
+    //     existente noutra plataforma; mesma estrutura de dados do FINISH
+    //   - FINISH_GRANT_ONLY_API_ACCESS — concessão de acesso a ativos que
+    //     já existem (reautorização); mesma estrutura de dados do FINISH
+    //   - FINISH_ONLY_WABA — completa SEM telefone (usuário pulou a etapa
+    //     de número) — não dá pra terminar a conexão sem phone_number_id
+    // Antes, qualquer evento fora dos 2 primeiros caía no `else if` de
+    // CANCEL/ERROR (não) nem em lugar nenhum — a mensagem era simplesmente
+    // ignorada, e o "code" que já tinha chegado via FB.login ficava parado
+    // pra sempre esperando um whatsappSignupData que nunca vinha, até o
+    // timer de 3min destravar o botão silenciosamente.
+    if (
+      data.event === "FINISH" ||
+      data.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING" ||
+      data.event === "FINISH_OBO_MIGRATION" ||
+      data.event === "FINISH_GRANT_ONLY_API_ACCESS"
+    ) {
+      // Guarda defensiva: se por algum motivo essa variante não vier com os
+      // dois IDs (não deveria acontecer nas 4 acima, mas o comportamento
+      // exato de OBO_MIGRATION/GRANT_ONLY_API_ACCESS não está 100%
+      // documentado pela Meta), cai no mesmo tratamento do FINISH_ONLY_WABA
+      // abaixo em vez de travar silenciosamente com dado incompleto.
+      if (!data.data?.waba_id || !data.data?.phone_number_id) {
+        whatsappSignupCancelled = true;
+        whatsappSignupIncomplete = true;
+        if (finalizeWhatsappSignup) finalizeWhatsappSignup();
+        return;
+      }
       whatsappSignupIsCoexistence = data.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING";
       whatsappSignupData = { wabaId: data.data.waba_id, phoneNumberId: data.data.phone_number_id };
       advanceWhatsappProgress(1);
@@ -5653,16 +5700,33 @@ window.addEventListener("message", (event) => {
         whatsappCancelFinalizeTimer = null;
       }
       if (finalizeWhatsappSignup) finalizeWhatsappSignup();
+    } else if (data.event === "FINISH_ONLY_WABA") {
+      // Usuário completou o assistente sem adicionar/verificar um número de
+      // telefone — a Meta manda esse evento só com waba_id, sem
+      // phone_number_id. Nosso backend (POST .../connect/callback) exige os
+      // dois pra salvar a conexão — sem suporte ainda pra "conectar a WABA
+      // agora, adicionar o número depois". Melhor avisar claramente do que
+      // deixar o botão travado 3min como se nada tivesse acontecido.
+      whatsappSignupCancelled = true;
+      whatsappSignupIncomplete = true;
+      if (finalizeWhatsappSignup) finalizeWhatsappSignup();
     } else if (data.event === "CANCEL" || data.event === "ERROR") {
       whatsappSignupCancelled = true;
       // Não finaliza na hora: espera um pouco pra dar chance de um FINISH
       // real chegar logo em seguida (ver comentário acima). Só trata como
       // cancelamento de verdade se, passado esse intervalo, nada mais mudou.
+      // Janela aumentada de 1.5s pra 5s (13/09) — 1.5s se mostrou curto
+      // demais num caso real: o CANCEL "falso" do meio do fluxo (troca de
+      // passo) e o FINISH de verdade podem ficar mais de 1.5s separados
+      // dependendo de quanto tempo o cliente leva na etapa seguinte, e
+      // quando isso acontece o FINISH chega DEPOIS do timer já ter tratado
+      // como cancelamento de verdade — a conexão nunca é salva, e só a
+      // segunda tentativa (sem esse CANCEL falso no caminho) funciona.
       if (whatsappCancelFinalizeTimer) clearTimeout(whatsappCancelFinalizeTimer);
       whatsappCancelFinalizeTimer = setTimeout(() => {
         whatsappCancelFinalizeTimer = null;
         if (whatsappSignupCancelled && finalizeWhatsappSignup) finalizeWhatsappSignup();
-      }, 1500);
+      }, 5000);
     }
   } catch {
     // Mensagens de outras origens/formatos no mesmo canal — ignora.
@@ -6016,6 +6080,16 @@ async function loadWhatsappConnectStatus() {
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         await showAlertModal(data?.error || "Erro ao desconectar o WhatsApp.");
+      } else if (data?.meta_released === false) {
+        // Desconectou aqui no painel, mas a tentativa de liberar o número
+        // de verdade do lado da Meta falhou (token expirado, app sem
+        // acesso à WABA etc.) — sem isso, tentar conectar esse MESMO
+        // número numa conta nova (aqui ou em outro app) provavelmente cai
+        // no erro "already registered to another account" da Meta, mesmo
+        // não aparecendo mais como conectado por aqui.
+        await showAlertModal(
+          "Desconectado por aqui, mas não consegui liberar o número de verdade do lado da Meta agora. Se for conectar esse mesmo número em outra conta, pode aparecer \"já registrado em outra conta\" — nesse caso, é preciso liberar direto pelo WhatsApp Manager (business.facebook.com) ou pelo suporte da Meta."
+        );
       }
     } catch {
       await showAlertModal("Erro de conexão com o servidor.");
@@ -6035,6 +6109,7 @@ async function loadWhatsappConnectStatus() {
       const connectMode = getWhatsappConnectMode();
       whatsappSignupData = null;
       whatsappSignupCancelled = false;
+      whatsappSignupIncomplete = false;
       whatsappSignupIsCoexistence = false; // definitivo só quando o evento FINISH_* chegar
       if (whatsappCancelFinalizeTimer) {
         clearTimeout(whatsappCancelFinalizeTimer);
@@ -6069,7 +6144,11 @@ async function loadWhatsappConnectStatus() {
           btn.disabled = false;
           btn.textContent = "Conectar meu WhatsApp";
           setWhatsappProgressStep(null);
-          await showAlertModal("Conexão cancelada. Quando quiser, é só clicar em \"Conectar meu WhatsApp\" de novo.");
+          await showAlertModal(
+            whatsappSignupIncomplete
+              ? "Não deu pra concluir: parece que você terminou o assistente sem adicionar (ou verificar) um número de telefone. Clique em \"Conectar meu WhatsApp\" de novo e complete até a etapa do número."
+              : "Conexão cancelada. Quando quiser, é só clicar em \"Conectar meu WhatsApp\" de novo."
+          );
           return;
         }
         if (!whatsappSignupCode || !whatsappSignupData) {
@@ -6186,6 +6265,42 @@ function updatePlanBadge(status, plan) {
   el.style.display = "inline-flex";
 }
 
+// Contador de teste grátis (banner fixo, visível em qualquer aba — ver o
+// <div id="trial-countdown-banner"> logo no início do <main>). Só entra em
+// jogo com status "trialing"; qualquer outro status esconde o banner —
+// inclusive "active" (assinou) e "canceled" (trial venceu de vez, aí quem
+// barra o acesso é o billingGate/requireBillingOk, não esse aviso).
+function updateTrialBanner(status, trialEndsAt) {
+  const banner = document.getElementById("trial-countdown-banner");
+  if (status !== "trialing" || !trialEndsAt) {
+    banner.style.display = "none";
+    return;
+  }
+  const msLeft = new Date(trialEndsAt).getTime() - Date.now();
+  // Arredonda pra cima: "faltam 0 dias" só quando já passou da meia-noite
+  // do último dia — enquanto ainda for hoje (mesmo passando das 23h),
+  // mostra "1 dia" em vez de "0 dias", que soaria como já ter acabado.
+  const daysLeft = Math.max(0, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
+  const urgent = daysLeft <= 3;
+  banner.style.background = urgent ? "var(--danger-soft)" : "var(--warn-soft)";
+  const dateText = fmtDate(trialEndsAt);
+  let text;
+  if (msLeft <= 0) {
+    text = `Seu teste grátis venceu hoje (${dateText}). Assine um plano pra não perder o acesso ao painel e ao atendimento automático.`;
+  } else if (daysLeft === 1) {
+    text = `Seu teste grátis acaba amanhã (${dateText}). Assine um plano pra não perder o acesso.`;
+  } else {
+    text = `Faltam ${daysLeft} dias pro fim do seu teste grátis (até ${dateText}). Assine um plano pra continuar sem interrupção.`;
+  }
+  document.getElementById("trial-countdown-text").innerHTML =
+    `<svg class="icon" id="trial-countdown-icon" style="color:${urgent ? "var(--danger)" : "var(--warn)"};"><use href="#icon-alert-triangle"></use></svg> ${escapeHtml(text)}`;
+  banner.style.display = "flex";
+}
+document.getElementById("trial-countdown-cta").addEventListener("click", () => {
+  document.querySelector('#page-tabs button[data-page="configuracoes"]')?.click();
+  setTimeout(() => document.getElementById("billing-hint")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+});
+
 async function loadBillingStatus() {
   const data = await (await fetch("/api/billing/status")).json();
   const hint = document.getElementById("billing-hint");
@@ -6195,6 +6310,7 @@ async function loadBillingStatus() {
   const pillEl = document.getElementById("billing-plan-pill");
 
   updatePlanBadge(data.status, data.plan);
+  updateTrialBanner(data.status, data.trial_ends_at);
   const pillInfo = planBadgeInfo(data.status, data.plan);
   if (pillInfo) {
     pillEl.className = `plan-badge ${pillInfo.cls}`;
@@ -6678,6 +6794,16 @@ document.querySelectorAll("#page-tabs button").forEach((btn) => {
       // aba abre garante que o canvas já está visível na hora de medir.
       await Promise.all([loadRevenueChart(), loadOccupancyChart(), loadRevenueTrend(), loadBarberPerformance(), loadPayouts()]);
     }
+    if (page === "overview") {
+      // Mesmo motivo do "sem gate" de Métricas acima, adaptado: o card
+      // "Primeiros passos" só recarregava no boot (loadAll()) e a cada 60s
+      // (setInterval) — achado em produção (12/09): quem completa um passo
+      // (ex: cadastra um serviço em Configurações → Serviços) e volta pra
+      // Visão Geral via essa aba via o card ainda marcado como pendente,
+      // precisando de F5 pra ver o check. Recarregar toda vez que a aba
+      // abre resolve sem precisar rastrear cada ponto que completa um item.
+      await loadOnboardingChecklist();
+    }
     if (page === "agenda" && !agendaLoaded) {
       agendaLoaded = true;
       await renderAgenda();
@@ -7010,12 +7136,16 @@ async function setupPush() {
   await loadAll();
   setupPush();
   setInterval(loadAll, 60000);
-  // Selo de plano no header precisa aparecer mesmo sem o dono abrir a aba
-  // Configurações — loadBillingStatus() normal só roda lá (lazy), então
-  // busca só o necessário pro badge aqui, na inicialização da página.
+  // Selo de plano no header e o banner de contagem do trial precisam
+  // aparecer mesmo sem o dono abrir a aba Configurações —
+  // loadBillingStatus() normal só roda lá (lazy), então busca só o
+  // necessário aqui, na inicialização da página.
   fetch("/api/billing/status")
     .then((r) => r.json())
-    .then((data) => updatePlanBadge(data.status, data.plan))
+    .then((data) => {
+      updatePlanBadge(data.status, data.plan);
+      updateTrialBanner(data.status, data.trial_ends_at);
+    })
     .catch(() => {});
 })();
 </script>
