@@ -203,6 +203,177 @@ describe("pruneStaleAppointmentHistory", () => {
     const messages: Anthropic.MessageParam[] = [{ role: "user", content: "Oi" }];
     expect(pruneStaleAppointmentHistory(messages, TODAY)).not.toBe(messages);
   });
+
+  // Bug real em produção (13/09, sessão de teste 1:554797760610): cliente
+  // pediu "Carlos amanhã 17h", o bot chamou verificar_horarios_disponiveis,
+  // achou vaga e perguntou "confirma?" — mas o cliente nunca respondeu "sim"
+  // (nem criar_agendamento chegou a ser chamado). Dias depois, só mandando
+  // "Olá" solto, o bot continuava reoferecendo esse MESMO horário como se
+  // ainda fosse válido, porque só agendamento JÁ CONFIRMADO com data velha
+  // era podado — uma checagem de disponibilidade pendente, nunca confirmada,
+  // não tinha poda nenhuma e ficava ancorando a conversa pra sempre.
+  it("remove verificar_horarios_disponiveis com data vencida, mesmo sem ter virado agendamento", () => {
+    const messages: Anthropic.MessageParam[] = [
+      { role: "user", content: "Carlos amanhã 17h" },
+      ...toolExchange(
+        "t1",
+        "verificar_horarios_disponiveis",
+        { data: "2026-09-05", servico_id: 2, barbeiro_id: 3 },
+        { data: "2026-09-05", horarios_disponiveis: ["17:00"] }
+      ),
+      {
+        role: "assistant",
+        content: [{ type: "text", text: "17:00 está disponível! Corte Masculino com Carlos, amanhã (05/09). Confirma?" }],
+      },
+      { role: "user", content: "Olá" },
+    ];
+    const pruned = pruneStaleAppointmentHistory(messages, TODAY);
+    expect(pruned).toEqual([
+      { role: "user", content: "Carlos amanhã 17h" },
+      { role: "user", content: "Olá" },
+    ]);
+  });
+
+  it("remove buscar_proximo_horario_disponivel cuja data_inicial já passou", () => {
+    const messages = toolExchange(
+      "t1",
+      "buscar_proximo_horario_disponivel",
+      { data_inicial: "2026-09-05", servico_id: 2, barbeiro_id: 3 },
+      { encontrado: true, data: "2026-09-05" }
+    );
+    expect(pruneStaleAppointmentHistory(messages, TODAY)).toEqual([]);
+  });
+
+  it("NÃO remove verificar_horarios_disponiveis cuja data ainda não chegou", () => {
+    const messages = toolExchange(
+      "t1",
+      "verificar_horarios_disponiveis",
+      { data: "2026-09-07", servico_id: 2, barbeiro_id: 3 },
+      { data: "2026-09-07", horarios_disponiveis: ["17:00"] }
+    );
+    expect(pruneStaleAppointmentHistory(messages, TODAY)).toEqual(messages);
+  });
+
+  // Bateria de cenários adicionais (13/09) — mesmo espírito das baterias já
+  // usadas nos bugs de data anteriores: um caso único que passa não prova
+  // nada sobre os outros formatos que a mesma conversa real pode assumir.
+  it("remove DUAS ofertas vencidas empilhadas (datas diferentes, nenhuma confirmada)", () => {
+    const messages: Anthropic.MessageParam[] = [
+      { role: "user", content: "Quero cabelo amanhã" },
+      ...toolExchange(
+        "t1",
+        "verificar_horarios_disponiveis",
+        { data: "2026-09-04", servico_id: 2, barbeiro_id: 3 },
+        { data: "2026-09-04", horarios_disponiveis: [] }
+      ),
+      { role: "assistant", content: [{ type: "text", text: "Sem vaga dia 04/09, que tal 05/09?" }] },
+      { role: "user", content: "Pode ser" },
+      ...toolExchange(
+        "t2",
+        "verificar_horarios_disponiveis",
+        { data: "2026-09-05", servico_id: 2, barbeiro_id: 3 },
+        { data: "2026-09-05", horarios_disponiveis: ["17:00"] }
+      ),
+      { role: "assistant", content: [{ type: "text", text: "17:00 disponível dia 05/09! Confirma?" }] },
+      { role: "user", content: "Olá" },
+    ];
+    const pruned = pruneStaleAppointmentHistory(messages, TODAY);
+    expect(pruned).toEqual([
+      { role: "user", content: "Quero cabelo amanhã" },
+      { role: "user", content: "Pode ser" },
+      { role: "user", content: "Olá" },
+    ]);
+  });
+
+  it("remove uma checagem pendente vencida E um agendamento confirmado vencido no mesmo histórico, independentemente", () => {
+    const messages: Anthropic.MessageParam[] = [
+      ...toolExchange(
+        "t1",
+        "criar_agendamento",
+        { data: "2026-09-01", horario: "10:00", servico_id: 2, barbeiro_id: 2, nome_cliente: "Wesley" },
+        { agendamento_id: 100, confirmado: true, resumo: "..." }
+      ),
+      { role: "assistant", content: [{ type: "text", text: "Prontinho! Corte confirmado dia 01/09 às 10h." }] },
+      { role: "user", content: "Quero barba também" },
+      ...toolExchange(
+        "t2",
+        "verificar_horarios_disponiveis",
+        { data: "2026-09-05", servico_id: 3, barbeiro_id: 2 },
+        { data: "2026-09-05", horarios_disponiveis: ["09:00"] }
+      ),
+      { role: "assistant", content: [{ type: "text", text: "09:00 disponível dia 05/09 pra barba! Confirma?" }] },
+      { role: "user", content: "Olá" },
+    ];
+    const pruned = pruneStaleAppointmentHistory(messages, TODAY);
+    expect(pruned).toEqual([
+      { role: "user", content: "Quero barba também" },
+      { role: "user", content: "Olá" },
+    ]);
+  });
+
+  it("mantém uma checagem vencida antiga removida mas preserva uma checagem nova (fresca) do mesmo serviço logo depois", () => {
+    const messages: Anthropic.MessageParam[] = [
+      ...toolExchange(
+        "t1",
+        "verificar_horarios_disponiveis",
+        { data: "2026-09-01", servico_id: 2, barbeiro_id: 3 },
+        { data: "2026-09-01", horarios_disponiveis: ["17:00"] }
+      ),
+      { role: "assistant", content: [{ type: "text", text: "17:00 disponível dia 01/09! Confirma?" }] },
+      { role: "user", content: "Não pude, e amanhã?" },
+      ...toolExchange(
+        "t2",
+        "verificar_horarios_disponiveis",
+        { data: "2026-09-07", servico_id: 2, barbeiro_id: 3 },
+        { data: "2026-09-07", horarios_disponiveis: ["17:00"] }
+      ),
+      { role: "assistant", content: [{ type: "text", text: "17:00 disponível dia 07/09! Confirma?" }] },
+    ];
+    const pruned = pruneStaleAppointmentHistory(messages, TODAY);
+    expect(pruned).toEqual([
+      { role: "user", content: "Não pude, e amanhã?" },
+      ...toolExchange(
+        "t2",
+        "verificar_horarios_disponiveis",
+        { data: "2026-09-07", servico_id: 2, barbeiro_id: 3 },
+        { data: "2026-09-07", horarios_disponiveis: ["17:00"] }
+      ),
+      { role: "assistant", content: [{ type: "text", text: "17:00 disponível dia 07/09! Confirma?" }] },
+    ]);
+  });
+
+  // Reprodução mais fiel da sessão real de produção (1:554797760610, 13/09):
+  // oferta pendente + vários "Olá" soltos do cliente sem responder — a poda
+  // precisa sobreviver a essa sequência longa e ainda assim limpar tudo.
+  it("reproduz a sessão real: oferta pendente + vários 'Olá' soltos do cliente, tudo depois é removido", () => {
+    const staleOffer = toolExchange(
+      "t1",
+      "verificar_horarios_disponiveis",
+      { data: "2026-09-05", servico_id: 2, barbeiro_id: 3 },
+      { data: "2026-09-05", horarios_disponiveis: ["17:00"] }
+    );
+    const messages: Anthropic.MessageParam[] = [
+      { role: "user", content: "Carlos amanha 17h" },
+      ...staleOffer,
+      { role: "assistant", content: [{ type: "text", text: "17:00 está disponível! Confirmando: Corte Masculino, Carlos, 05/09 às 17:00. Confirma?" }] },
+      { role: "user", content: "Olá" },
+      { role: "user", content: "Olá" },
+      { role: "user", content: "Olá" },
+      {
+        role: "assistant",
+        content: [{ type: "text", text: "Ainda temos aquele agendamento de Corte Masculino com o Carlos amanhã (05/09) às 17:00 — só falta confirmar." }],
+      },
+      { role: "user", content: "Olá" },
+    ];
+    const pruned = pruneStaleAppointmentHistory(messages, TODAY);
+    expect(pruned).toEqual([
+      { role: "user", content: "Carlos amanha 17h" },
+      { role: "user", content: "Olá" },
+      { role: "user", content: "Olá" },
+      { role: "user", content: "Olá" },
+      { role: "user", content: "Olá" },
+    ]);
+  });
 });
 
 // Achado em produção (2026-09-07): créditos da Anthropic zeraram e o bot

@@ -233,7 +233,23 @@ function buildDynamicContext(
 ${identityBlock}${reviewBlock}${upcomingBlock}`;
 }
 
-const STALE_BOOKING_TOOLS = new Set(["criar_agendamento", "reagendar_agendamento"]);
+// Cobre tanto agendamento JÁ CONFIRMADO com data velha (criar_agendamento/
+// reagendar_agendamento) quanto uma CHECAGEM DE DISPONIBILIDADE que nunca
+// foi confirmada e envelheceu (verificar_horarios_disponiveis/
+// buscar_proximo_horario_disponivel) — achado em produção (13/09): cliente
+// pergunta um horário, o bot checa e pergunta "confirma?", cliente não
+// responde por dias, e o bot ficava reoferecendo esse mesmo horário como se
+// ainda fosse válido pra sempre, porque só o agendamento CONFIRMADO era
+// podado — uma oferta pendente nunca era. Mesmo mecanismo de poda dos dois
+// casos: se a data da chamada já passou, tool_use/tool_result somem do que
+// vai pra API e o texto livre que cita aquela data (DD/MM ou DD/MM/AAAA)
+// também é removido, senão a IA continua ancorada na própria fala antiga.
+const STALE_BOOKING_TOOLS = new Set([
+  "criar_agendamento",
+  "reagendar_agendamento",
+  "verificar_horarios_disponiveis",
+  "buscar_proximo_horario_disponivel",
+]);
 
 // Achado em produção (2026-09-06): mesmo com "hoje é" correto e a lista de
 // agendamentos futuros (fresca, do banco) dizendo explicitamente "nenhum
@@ -301,8 +317,8 @@ export function pruneStaleAppointmentHistory(messages: Anthropic.MessageParam[],
     if (m.role !== "assistant" || !Array.isArray(m.content)) continue;
     for (const block of m.content) {
       if (block.type !== "tool_use" || !STALE_BOOKING_TOOLS.has(block.name)) continue;
-      const input = block.input as { data?: string; nova_data?: string };
-      const date = input.data || input.nova_data;
+      const input = block.input as { data?: string; nova_data?: string; data_inicial?: string };
+      const date = input.data || input.nova_data || input.data_inicial;
       if (typeof date === "string" && date < todayIso) {
         staleToolUseIds.add(block.id);
         dateTextVariants(date).forEach((v) => staleDateVariants.add(v));
