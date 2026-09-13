@@ -1053,6 +1053,17 @@
     <button class="btn-secondary" id="resend-verify-btn" style="padding:6px 12px; font-size:12px;">Reenviar e-mail</button>
   </div>
 
+  <!-- Contador de teste grátis — visível em qualquer aba do painel (não só
+       Visão Geral), de propósito: é um aviso com prazo, igual o de e-mail
+       acima. Cor/texto mudam conforme a urgência (ver updateTrialBanner) —
+       neutro com dias de sobra, vermelho nos últimos 3 dias. Só aparece com
+       status "trialing" (nunca em "active"/"past_due"/"canceled" nem quando
+       cobrança não está configurada no servidor). -->
+  <div id="trial-countdown-banner" style="display:none; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; border:1px solid var(--card-border); border-radius:14px; padding:10px 16px; margin-bottom:16px; font-size:12.5px; color:var(--text-primary);">
+    <span id="trial-countdown-text"><svg class="icon" id="trial-countdown-icon"><use href="#icon-alert-triangle"></use></svg></span>
+    <button class="btn-primary" id="trial-countdown-cta" style="padding:6px 12px; font-size:12px;">Ver planos</button>
+  </div>
+
   <div id="page-overview" class="page-section">
   <div class="greeting-header">
     <div>
@@ -6069,6 +6080,16 @@ async function loadWhatsappConnectStatus() {
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         await showAlertModal(data?.error || "Erro ao desconectar o WhatsApp.");
+      } else if (data?.meta_released === false) {
+        // Desconectou aqui no painel, mas a tentativa de liberar o número
+        // de verdade do lado da Meta falhou (token expirado, app sem
+        // acesso à WABA etc.) — sem isso, tentar conectar esse MESMO
+        // número numa conta nova (aqui ou em outro app) provavelmente cai
+        // no erro "already registered to another account" da Meta, mesmo
+        // não aparecendo mais como conectado por aqui.
+        await showAlertModal(
+          "Desconectado por aqui, mas não consegui liberar o número de verdade do lado da Meta agora. Se for conectar esse mesmo número em outra conta, pode aparecer \"já registrado em outra conta\" — nesse caso, é preciso liberar direto pelo WhatsApp Manager (business.facebook.com) ou pelo suporte da Meta."
+        );
       }
     } catch {
       await showAlertModal("Erro de conexão com o servidor.");
@@ -6244,6 +6265,42 @@ function updatePlanBadge(status, plan) {
   el.style.display = "inline-flex";
 }
 
+// Contador de teste grátis (banner fixo, visível em qualquer aba — ver o
+// <div id="trial-countdown-banner"> logo no início do <main>). Só entra em
+// jogo com status "trialing"; qualquer outro status esconde o banner —
+// inclusive "active" (assinou) e "canceled" (trial venceu de vez, aí quem
+// barra o acesso é o billingGate/requireBillingOk, não esse aviso).
+function updateTrialBanner(status, trialEndsAt) {
+  const banner = document.getElementById("trial-countdown-banner");
+  if (status !== "trialing" || !trialEndsAt) {
+    banner.style.display = "none";
+    return;
+  }
+  const msLeft = new Date(trialEndsAt).getTime() - Date.now();
+  // Arredonda pra cima: "faltam 0 dias" só quando já passou da meia-noite
+  // do último dia — enquanto ainda for hoje (mesmo passando das 23h),
+  // mostra "1 dia" em vez de "0 dias", que soaria como já ter acabado.
+  const daysLeft = Math.max(0, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
+  const urgent = daysLeft <= 3;
+  banner.style.background = urgent ? "var(--danger-soft)" : "var(--warn-soft)";
+  const dateText = fmtDate(trialEndsAt);
+  let text;
+  if (msLeft <= 0) {
+    text = `Seu teste grátis venceu hoje (${dateText}). Assine um plano pra não perder o acesso ao painel e ao atendimento automático.`;
+  } else if (daysLeft === 1) {
+    text = `Seu teste grátis acaba amanhã (${dateText}). Assine um plano pra não perder o acesso.`;
+  } else {
+    text = `Faltam ${daysLeft} dias pro fim do seu teste grátis (até ${dateText}). Assine um plano pra continuar sem interrupção.`;
+  }
+  document.getElementById("trial-countdown-text").innerHTML =
+    `<svg class="icon" id="trial-countdown-icon" style="color:${urgent ? "var(--danger)" : "var(--warn)"};"><use href="#icon-alert-triangle"></use></svg> ${escapeHtml(text)}`;
+  banner.style.display = "flex";
+}
+document.getElementById("trial-countdown-cta").addEventListener("click", () => {
+  document.querySelector('#page-tabs button[data-page="configuracoes"]')?.click();
+  setTimeout(() => document.getElementById("billing-hint")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+});
+
 async function loadBillingStatus() {
   const data = await (await fetch("/api/billing/status")).json();
   const hint = document.getElementById("billing-hint");
@@ -6253,6 +6310,7 @@ async function loadBillingStatus() {
   const pillEl = document.getElementById("billing-plan-pill");
 
   updatePlanBadge(data.status, data.plan);
+  updateTrialBanner(data.status, data.trial_ends_at);
   const pillInfo = planBadgeInfo(data.status, data.plan);
   if (pillInfo) {
     pillEl.className = `plan-badge ${pillInfo.cls}`;
@@ -7078,12 +7136,16 @@ async function setupPush() {
   await loadAll();
   setupPush();
   setInterval(loadAll, 60000);
-  // Selo de plano no header precisa aparecer mesmo sem o dono abrir a aba
-  // Configurações — loadBillingStatus() normal só roda lá (lazy), então
-  // busca só o necessário pro badge aqui, na inicialização da página.
+  // Selo de plano no header e o banner de contagem do trial precisam
+  // aparecer mesmo sem o dono abrir a aba Configurações —
+  // loadBillingStatus() normal só roda lá (lazy), então busca só o
+  // necessário aqui, na inicialização da página.
   fetch("/api/billing/status")
     .then((r) => r.json())
-    .then((data) => updatePlanBadge(data.status, data.plan))
+    .then((data) => {
+      updatePlanBadge(data.status, data.plan);
+      updateTrialBanner(data.status, data.trial_ends_at);
+    })
     .catch(() => {});
 })();
 </script>

@@ -13,6 +13,7 @@ const registerPhoneNumberMock = vi.fn();
 const subscribeAppToWabaMock = vi.fn();
 const getDisplayPhoneNumberMock = vi.fn();
 const createTemplatesMock = vi.fn();
+const deregisterPhoneNumberMock = vi.fn();
 vi.mock("./whatsappConnect.service.js", () => ({
   whatsappConnectConfigured: true,
   exchangeCodeForToken: (...args: [string]) => exchangeCodeForTokenMock(...args),
@@ -21,6 +22,7 @@ vi.mock("./whatsappConnect.service.js", () => ({
   subscribeAppToWaba: (...args: [string, string]) => subscribeAppToWabaMock(...args),
   getDisplayPhoneNumber: (...args: [string, string]) => getDisplayPhoneNumberMock(...args),
   createTemplates: (...args: [string, string]) => createTemplatesMock(...args),
+  deregisterPhoneNumber: (...args: [string, string]) => deregisterPhoneNumberMock(...args),
 }));
 
 const { createApp } = await import("@/app.js");
@@ -53,6 +55,8 @@ describe("rotas de /api/manage/whatsapp/connect (Coexistence vs normal)", () => 
     createTemplatesMock.mockReset();
     createTemplatesMock.mockResolvedValue([]);
     subscribeAppToWabaMock.mockResolvedValue(undefined);
+    deregisterPhoneNumberMock.mockReset();
+    deregisterPhoneNumberMock.mockResolvedValue(true);
     // Reseta a conexão antes de cada teste, pra não vazar estado entre eles.
     await prisma.business.update({
       where: { id: business.id },
@@ -155,5 +159,61 @@ describe("rotas de /api/manage/whatsapp/connect (Coexistence vs normal)", () => 
     const saved = await prisma.business.findUnique({ where: { id: business.id } });
     expect(saved?.whatsappCoexistence).toBe(false);
     expect(saved?.whatsappConnectionStatus).toBe("not_connected");
+  });
+
+  // Achado em produção (13/09): antes disconnect só limpava nosso banco — o
+  // número continuava registrado de verdade na Cloud API da Meta, e conectar
+  // ele em outra conta caía em "already registered to another account"
+  // mesmo já não aparecendo mais conectado por aqui.
+  describe("desconectar tenta liberar o número de verdade na Meta (deregister)", () => {
+    it("chama deregisterPhoneNumber com o token certo e devolve meta_released:true quando funciona", async () => {
+      exchangeCodeForTokenMock.mockResolvedValue("access-token-deregister-ok");
+      generateRegistrationPinMock.mockReturnValue("123456");
+      registerPhoneNumberMock.mockResolvedValue(undefined);
+      getDisplayPhoneNumberMock.mockResolvedValue("+55 11 90000-0005");
+      deregisterPhoneNumberMock.mockResolvedValue(true);
+      const agent = await loginAgent();
+
+      await agent.post("/api/manage/whatsapp/connect/callback").send({
+        code: "code-deregister-ok",
+        waba_id: "waba-deregister-ok",
+        phone_number_id: "phone-deregister-ok",
+      });
+      const res = await agent.post("/api/manage/whatsapp/connect/disconnect");
+
+      expect(res.status).toBe(200);
+      expect(res.body.meta_released).toBe(true);
+      expect(deregisterPhoneNumberMock).toHaveBeenCalledWith("phone-deregister-ok", "access-token-deregister-ok");
+    });
+
+    it("devolve meta_released:false (mas ainda desconecta por aqui) quando o deregister falha", async () => {
+      exchangeCodeForTokenMock.mockResolvedValue("access-token-deregister-fail");
+      generateRegistrationPinMock.mockReturnValue("123456");
+      registerPhoneNumberMock.mockResolvedValue(undefined);
+      getDisplayPhoneNumberMock.mockResolvedValue("+55 11 90000-0006");
+      deregisterPhoneNumberMock.mockResolvedValue(false);
+      const agent = await loginAgent();
+
+      await agent.post("/api/manage/whatsapp/connect/callback").send({
+        code: "code-deregister-fail",
+        waba_id: "waba-deregister-fail",
+        phone_number_id: "phone-deregister-fail",
+      });
+      const res = await agent.post("/api/manage/whatsapp/connect/disconnect");
+
+      expect(res.status).toBe(200);
+      expect(res.body.meta_released).toBe(false);
+      // Mesmo com a Meta falhando, o desconectar local acontece normalmente.
+      const saved = await prisma.business.findUnique({ where: { id: business.id } });
+      expect(saved?.whatsappConnectionStatus).toBe("not_connected");
+    });
+
+    it("não chama deregisterPhoneNumber quando não havia conexão nenhuma", async () => {
+      const agent = await loginAgent();
+      const res = await agent.post("/api/manage/whatsapp/connect/disconnect");
+      expect(res.status).toBe(200);
+      expect(res.body.meta_released).toBeNull();
+      expect(deregisterPhoneNumberMock).not.toHaveBeenCalled();
+    });
   });
 });

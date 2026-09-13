@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from "vitest";
 
 process.env.DATABASE_URL ??= "postgresql://user:pass@localhost:5432/db";
 process.env.DIRECT_URL ??= "postgresql://user:pass@localhost:5432/db";
@@ -17,7 +17,9 @@ process.env.SESSION_SECRET ??= "test-session-secret";
 const alertPlatformOperatorMock = vi.fn().mockResolvedValue(undefined);
 vi.mock("@/lib/alerts.js", () => ({ alertPlatformOperator: alertPlatformOperatorMock }));
 
-const { createTemplates, markWhatsappDisconnectedIfNeeded, markWhatsappReconnectedIfNeeded } = await import("./whatsappConnect.service.js");
+const { createTemplates, markWhatsappDisconnectedIfNeeded, markWhatsappReconnectedIfNeeded, deregisterPhoneNumber } = await import(
+  "./whatsappConnect.service.js"
+);
 const { TEMPLATE_DEFINITIONS } = await import("./templates.js");
 const { prisma } = await import("@/lib/prisma.js");
 
@@ -69,6 +71,52 @@ describe("createTemplates (payload real mandado pra Meta)", () => {
     expect(body.category).toBe("MARKETING");
 
     vi.unstubAllGlobals();
+  });
+});
+
+// Achado em produção (13/09): disconnect (whatsappConnect.routes.ts) só
+// limpava nosso banco — o número continuava registrado de verdade na Cloud
+// API da Meta, travando uma tentativa posterior de conectar ele em outra
+// conta com "already registered to another account". deregisterPhoneNumber
+// é o best-effort que tenta liberar de verdade — nunca lança, sempre
+// devolve true/false pra quem chamou decidir o que fazer.
+describe("deregisterPhoneNumber", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("chama POST /{phone_number_id}/deregister com o token certo e devolve true quando a Meta aceita", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: async () => "" });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await deregisterPhoneNumber("phone-123", "token-abc");
+
+    expect(result).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith("https://graph.facebook.com/v21.0/phone-123/deregister", {
+      method: "POST",
+      headers: { Authorization: "Bearer token-abc" },
+    });
+  });
+
+  it("devolve false (não lança) quando a Meta rejeita", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 400, text: async () => '{"error":{"code":100,"error_subcode":33}}' });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await deregisterPhoneNumber("phone-123", "token-expirado");
+
+    expect(result).toBe(false);
+  });
+
+  it("devolve false (não lança) numa falha de rede", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error("timeout de rede"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await deregisterPhoneNumber("phone-123", "token-abc");
+
+    expect(result).toBe(false);
   });
 });
 

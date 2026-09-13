@@ -8,6 +8,7 @@ import {
   assertBarberLimitNotExceeded,
   assertProPlan,
   getBillingOverview,
+  isBillingBlocked,
 } from "./billing.service.js";
 import { env } from "@/config/env.js";
 
@@ -107,6 +108,55 @@ describe("billing.service (sem Stripe)", () => {
 
     await prisma.subscription.deleteMany({ where: { businessId: { in: [pastShop.id, futureShop.id] } } });
     await prisma.business.deleteMany({ where: { id: { in: [pastShop.id, futureShop.id] } } });
+  });
+
+  // Achado em produção (13/09): o bloqueio dependia só do cron diário
+  // (expireOverdueTrials) já ter virado o status pra "canceled" — alguém
+  // cujo trial vencia às 14h continuava liberado até o cron rodar de novo
+  // na manhã seguinte. isBillingBlocked agora checa trialEndsAt diretamente,
+  // sem depender do cron já ter passado.
+  describe("isBillingBlocked", () => {
+    it("libera quando não há assinatura nenhuma", async () => {
+      await prisma.subscription.deleteMany({ where: { businessId: shop.id } });
+      expect(await isBillingBlocked(shop.id)).toBe(false);
+    });
+
+    it("libera trial dentro do prazo", async () => {
+      await prisma.subscription.upsert({
+        where: { businessId: shop.id },
+        update: { status: "trialing", trialEndsAt: new Date(Date.now() + 60_000) },
+        create: { businessId: shop.id, status: "trialing", trialEndsAt: new Date(Date.now() + 60_000) },
+      });
+      expect(await isBillingBlocked(shop.id)).toBe(false);
+    });
+
+    // O caso que motivou a mudança: trial já passou de trialEndsAt, mas o
+    // status no banco ainda está "trialing" (cron diário ainda não rodou
+    // pra virar "canceled") — precisa bloquear mesmo assim, na hora.
+    it("bloqueia trial vencido mesmo com status ainda 'trialing' (cron não rodou ainda)", async () => {
+      await prisma.subscription.update({
+        where: { businessId: shop.id },
+        data: { status: "trialing", trialEndsAt: new Date(Date.now() - 60_000) },
+      });
+      expect(await isBillingBlocked(shop.id)).toBe(true);
+    });
+
+    it("libera trialing sem trialEndsAt definido (não trava por dado ausente)", async () => {
+      await prisma.subscription.update({ where: { businessId: shop.id }, data: { status: "trialing", trialEndsAt: null } });
+      expect(await isBillingBlocked(shop.id)).toBe(false);
+    });
+
+    it("bloqueia canceled", async () => {
+      await prisma.subscription.update({ where: { businessId: shop.id }, data: { status: "canceled" } });
+      expect(await isBillingBlocked(shop.id)).toBe(true);
+    });
+
+    it("libera active e past_due", async () => {
+      for (const status of ["active", "past_due"] as const) {
+        await prisma.subscription.update({ where: { businessId: shop.id }, data: { status } });
+        expect(await isBillingBlocked(shop.id)).toBe(false);
+      }
+    });
   });
 
   describe("assertBarberLimitNotExceeded", () => {

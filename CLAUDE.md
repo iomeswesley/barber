@@ -295,6 +295,52 @@ Sources sobre transcrição gratuita: [Groq pricing 2026 — eesel AI](https://w
 - Não portado pro `odonto-saas` ainda — o mesmo código de Embedded Signup existe lá, mesma classe de bug
   provavelmente presente.
 
+### Sessão de 13/09: contador de trial, bloqueio imediato e deregister real no desconectar
+
+Pedido do usuário: (1) mostrar na Visão Geral quanto falta pro trial acabar; (2) confirmar que o bloqueio ao
+vencer o trial funciona de verdade; (3) esclarecer se desconectar o WhatsApp de uma conta pra conectar em
+outra dentro da plataforma funciona.
+
+- **Banner de contagem do trial (`admin.html`)**: novo `<div id="trial-countdown-banner">`, no mesmo nível do
+  `email-verify-banner` (visível em **qualquer aba** do painel, não só Visão Geral — decisão deliberada, é um
+  aviso com prazo). `updateTrialBanner(status, trialEndsAt)` só aparece com `status === "trialing"`; texto e
+  cor mudam com a urgência (`--warn-soft` com mais de 3 dias, `--danger-soft` nos últimos 3, "acaba amanhã"/
+  "venceu hoje" como casos especiais de texto). Botão "Ver planos" leva pra Configurações → Cobrança. Chamado
+  tanto no boot da página (fetch já existente pro selo de plano no header) quanto em `loadBillingStatus()`
+  (aba Configurações). Validado no dev server local com uma barbearia `[teste]` em trial de 2 dias — banner,
+  cor e navegação do CTA conferidos via browser automatizado antes de limpar os dados de teste.
+- **Bloqueio de trial vencido agora é imediato, não depende do cron diário (`billing.service.ts`)**: antes,
+  `isBillingBlocked` só bloqueava `status === "canceled"` — e o único jeito de uma barbearia em trial vencido
+  virar "canceled" era o cron `/api/cron/reminders` (`expireOverdueTrials`, roda 1x/dia às 8h BRT) já ter
+  passado. Na prática, alguém cujo trial vencia às 14h continuava com acesso liberado (painel + bot) até a
+  manhã seguinte — quase 24h de folga indevida. Corrigido: `isBillingBlocked` agora também bloqueia
+  `status === "trialing"` com `trialEndsAt` já no passado, checado direto na hora, sem depender do cron ter
+  rodado. O cron continua existindo — só não é mais quem decide o bloqueio, é quem formaliza o status no banco
+  pra relatórios/superadmin refletirem certo depois. Cobre painel (`requireBillingOk`) e bot (mesmo helper
+  usado em `chatEngine.sendMessage`) automaticamente, sem mudança nos dois pontos de uso. Testes novos:
+  `isBillingBlocked` em `billing.service.test.ts` (5 casos) + regressão HTTP em `middleware/billing.test.ts`
+  (trial vencido bloqueia com 402 mesmo com status ainda "trialing" no banco).
+- **Desconectar de uma conta pra conectar em outra dentro da plataforma — confirmado que NÃO funcionava, e
+  corrigido**: o botão "Desconectar" só limpava `whatsappPhoneNumberId`/`whatsappWabaId`/etc no NOSSO banco —
+  nunca tocava no registro de verdade da Cloud API da Meta (documentado desde sempre no comentário de
+  `clearWhatsappConnection`). Na prática, isso significava que o mesmo número continuava preso do lado da
+  Meta depois de "desconectado" por aqui — exatamente o problema investigado na sessão de 12/09 (ver acima,
+  WABA "Innova IA"/ClienteTest), só que dessa vez identificado como um gap real no próprio fluxo normal de
+  desconectar, não um caso isolado. **Corrigido**: `deregisterPhoneNumber` novo
+  (`whatsappConnect.service.ts`, `POST /{phone_number_id}/deregister` na Graph API) — a rota de disconnect
+  agora lê o `phoneNumberId`/token salvos **antes** de limpar o banco, tenta liberar de verdade na Meta
+  (best-effort: nunca bloqueia o desconectar local se falhar) e devolve `meta_released: true|false|null` na
+  resposta. `admin.html` avisa o dono explicitamente quando `meta_released === false` — "desconectou aqui, mas
+  pode aparecer 'já registrado em outra conta' se tentar noutra conta; nesse caso precisa liberar direto pelo
+  WhatsApp Manager ou suporte da Meta" — em vez de deixar ele descobrir isso do jeito difícil, testando às
+  cegas. Só resolve o caso normal (conexão ainda saudável, token ainda válido) — se o app já perdeu acesso à
+  WABA por algum motivo externo (como aconteceu no caso da Vintage em 10/09), o deregister falha do mesmo jeito
+  e ainda cai no caminho manual documentado. Testes novos: `deregisterPhoneNumber` em
+  `whatsappConnect.service.test.ts` (3 casos, fetch mockado) + 3 casos HTTP em `whatsappConnect.routes.test.ts`
+  (chama com o token certo, `meta_released` reflete sucesso/falha, não chama nada quando não havia conexão).
+- Suíte completa depois de tudo: 40 arquivos, 269 testes, `tsc --noEmit` limpo.
+- Nada disso foi portado pro `odonto-saas` ainda.
+
 ## Login de demonstração
 
 Senha `barbearia123` para todos. Dono: `barbearia-vintage.dono` (3 barbeiros — `carlos`, `rafael`, `diego`) ou `barbearia-solo.dono` (barbeiro único — `marcos`, pra testar o modo barbeiro-único vs múltiplos; criada por `scripts/seed-solo-barbershop.ts`, seguro rodar de novo).

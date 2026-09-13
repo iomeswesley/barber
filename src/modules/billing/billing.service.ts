@@ -14,19 +14,33 @@ export function getSubscription(businessId: number) {
 
 // Trava real de acesso (painel + bot de WhatsApp, ver requireBillingOk em
 // src/middleware/billing.ts e o check equivalente em chatEngine.sendMessage)
-// — só bloqueia "canceled" (trial vencido sem virar pagamento, ou assinatura
-// paga cancelada/com falha definitiva no Stripe). NUNCA bloqueia por falta de
-// linha de Subscription: barbearias de demonstração criadas fora do fluxo de
-// onboarding (seed/prisma/seed.ts) nunca tiveram uma Subscription criada e
-// não podem ser trancadas por isso. "past_due" (cartão recusado, Stripe ainda
-// tentando cobrar de novo) também segue liberado — período de graça padrão
-// de SaaS, só bloqueia quando o Stripe desiste de vez e o status vira
-// "canceled" (ver handleSubscriptionUpdated/handleSubscriptionDeleted).
+// — bloqueia "canceled" (assinatura paga cancelada/com falha definitiva no
+// Stripe) e trial vencido. NUNCA bloqueia por falta de linha de Subscription:
+// barbearias de demonstração criadas fora do fluxo de onboarding
+// (seed/prisma/seed.ts) nunca tiveram uma Subscription criada e não podem
+// ser trancadas por isso. "past_due" (cartão recusado, Stripe ainda tentando
+// cobrar de novo) também segue liberado — período de graça padrão de SaaS,
+// só bloqueia quando o Stripe desiste de vez e o status vira "canceled"
+// (ver handleSubscriptionUpdated/handleSubscriptionDeleted).
 // Sem Stripe configurado no servidor, cobrança é só informativa — nunca bloqueia.
+//
+// Trial vencido: checa `trialEndsAt < agora` diretamente aqui, em vez de
+// depender só do cron diário (expireOverdueTrials, roda 1x/dia às 8h BRT)
+// já ter virado o status pra "canceled" — achado em produção (13/09): sem
+// isso, alguém cujo trial vence às 14h continua com acesso liberado até o
+// cron rodar de novo no dia seguinte de manhã, quase 24h de folga que não
+// deveria existir ("precisamos ter certeza que ao finalizar a pessoa é
+// obrigada a comprar o plano"). O cron continua existindo e rodando — ele
+// formaliza o status no banco pro painel de superadmin/relatórios refletirem
+// certo — mas o bloqueio em si agora é imediato, não depende do cron ter
+// passado.
 export async function isBillingBlocked(businessId: number): Promise<boolean> {
   if (!stripeConfigured) return false;
   const sub = await getSubscription(businessId);
-  return sub?.status === "canceled";
+  if (!sub) return false;
+  if (sub.status === "canceled") return true;
+  if (sub.status === "trialing" && sub.trialEndsAt && sub.trialEndsAt.getTime() < Date.now()) return true;
+  return false;
 }
 
 // Visão de conjunto pro painel de superadmin — parte de TODAS as barbearias

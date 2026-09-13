@@ -2,7 +2,7 @@ import { Router } from "express";
 import { requireAuth, requireOwner } from "@/middleware/auth.js";
 import { AppError } from "@/middleware/errorHandler.js";
 import { env } from "@/config/env.js";
-import { encryptSecret } from "@/lib/crypto.js";
+import { encryptSecret, decryptSecret } from "@/lib/crypto.js";
 import {
   whatsappConnectConfigured,
   exchangeCodeForToken,
@@ -11,8 +11,14 @@ import {
   subscribeAppToWaba,
   getDisplayPhoneNumber,
   createTemplates,
+  deregisterPhoneNumber,
 } from "./whatsappConnect.service.js";
-import { getWhatsappConnection, saveWhatsappConnection, clearWhatsappConnection } from "./whatsappConnect.repository.js";
+import {
+  getWhatsappConnection,
+  saveWhatsappConnection,
+  clearWhatsappConnection,
+  getWhatsappAccessTokenEnc,
+} from "./whatsappConnect.repository.js";
 
 export const whatsappConnectRouter = Router();
 
@@ -99,8 +105,33 @@ whatsappConnectRouter.post("/api/manage/whatsapp/connect/callback", requireAuth,
 whatsappConnectRouter.post("/api/manage/whatsapp/connect/disconnect", requireAuth, requireOwner, async (req, res, next) => {
   try {
     const businessId = req.session.user!.businessId;
+
+    // Antes só limpava nosso banco — o número continuava registrado de
+    // verdade na Cloud API da Meta, e uma tentativa posterior de conectar
+    // ele em outra conta (nossa ou não) era rejeitada com "already
+    // registered to another account", mesmo já não aparecendo mais
+    // conectado no nosso painel (achado em produção, 13/09). Tenta liberar
+    // de verdade primeiro (best-effort — token/dados precisam ser lidos
+    // ANTES de clearWhatsappConnection apagar tudo).
+    const connection = await getWhatsappConnection(businessId);
+    let metaReleased: boolean | null = null;
+    if (connection?.whatsappPhoneNumberId) {
+      const tokenEnc = await getWhatsappAccessTokenEnc(businessId);
+      if (tokenEnc) {
+        try {
+          const accessToken = decryptSecret(tokenEnc);
+          metaReleased = await deregisterPhoneNumber(connection.whatsappPhoneNumberId, accessToken);
+        } catch (err) {
+          console.error("[WHATSAPP CONNECT] Falha ao descriptografar token pra desregistrar o número:", (err as Error).message);
+          metaReleased = false;
+        }
+      } else {
+        metaReleased = false; // Coexistence sem token próprio salvo, ou nunca teve — nada pra chamar
+      }
+    }
+
     await clearWhatsappConnection(businessId);
-    res.json({ status: "not_connected" });
+    res.json({ status: "not_connected", meta_released: metaReleased });
   } catch (err) {
     next(err);
   }
