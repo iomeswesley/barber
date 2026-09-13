@@ -5626,6 +5626,10 @@ let whatsappSignupCancelled = false;
 let whatsappSignupIsCoexistence = false;
 let finalizeWhatsappSignup = null; // setado enquanto uma tentativa de conexão está em andamento
 let whatsappCancelFinalizeTimer = null; // debounce do CANCEL falso, ver comentário abaixo
+// true só quando o motivo de tratar como "cancelado" foi terminar o
+// assistente sem telefone (FINISH_ONLY_WABA) ou com dado incompleto — usa
+// uma mensagem diferente da de cancelamento de verdade (ver finalize()).
+let whatsappSignupIncomplete = false;
 
 window.addEventListener("message", (event) => {
   if (!event.origin.endsWith("facebook.com")) return;
@@ -5636,10 +5640,42 @@ window.addEventListener("message", (event) => {
   try {
     const data = JSON.parse(event.data);
     if (data.type !== "WA_EMBEDDED_SIGNUP") return;
-    // Coexistence usa um evento de finalização próprio (o número já está
-    // registrado no app, então o fluxo não é idêntico ao FINISH normal) —
-    // ver https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users/
-    if (data.event === "FINISH" || data.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING") {
+    // Achado em produção (13/09): um cliente completou o assistente até o
+    // fim (chegou a clicar em algo equivalente a "Finish") e o painel ainda
+    // assim ficou como se nada tivesse acontecido — só funcionou na segunda
+    // tentativa. Causa: a Meta manda **5 variantes** de evento de conclusão
+    // (doc oficial, "Embedded Signup flow errors"), não só as 2 que este
+    // código tratava:
+    //   - FINISH — fluxo padrão (Cloud API)
+    //   - FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING — Coexistence (já tratado)
+    //   - FINISH_OBO_MIGRATION — migração "on-behalf-of" de número já
+    //     existente noutra plataforma; mesma estrutura de dados do FINISH
+    //   - FINISH_GRANT_ONLY_API_ACCESS — concessão de acesso a ativos que
+    //     já existem (reautorização); mesma estrutura de dados do FINISH
+    //   - FINISH_ONLY_WABA — completa SEM telefone (usuário pulou a etapa
+    //     de número) — não dá pra terminar a conexão sem phone_number_id
+    // Antes, qualquer evento fora dos 2 primeiros caía no `else if` de
+    // CANCEL/ERROR (não) nem em lugar nenhum — a mensagem era simplesmente
+    // ignorada, e o "code" que já tinha chegado via FB.login ficava parado
+    // pra sempre esperando um whatsappSignupData que nunca vinha, até o
+    // timer de 3min destravar o botão silenciosamente.
+    if (
+      data.event === "FINISH" ||
+      data.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING" ||
+      data.event === "FINISH_OBO_MIGRATION" ||
+      data.event === "FINISH_GRANT_ONLY_API_ACCESS"
+    ) {
+      // Guarda defensiva: se por algum motivo essa variante não vier com os
+      // dois IDs (não deveria acontecer nas 4 acima, mas o comportamento
+      // exato de OBO_MIGRATION/GRANT_ONLY_API_ACCESS não está 100%
+      // documentado pela Meta), cai no mesmo tratamento do FINISH_ONLY_WABA
+      // abaixo em vez de travar silenciosamente com dado incompleto.
+      if (!data.data?.waba_id || !data.data?.phone_number_id) {
+        whatsappSignupCancelled = true;
+        whatsappSignupIncomplete = true;
+        if (finalizeWhatsappSignup) finalizeWhatsappSignup();
+        return;
+      }
       whatsappSignupIsCoexistence = data.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING";
       whatsappSignupData = { wabaId: data.data.waba_id, phoneNumberId: data.data.phone_number_id };
       advanceWhatsappProgress(1);
@@ -5653,16 +5689,33 @@ window.addEventListener("message", (event) => {
         whatsappCancelFinalizeTimer = null;
       }
       if (finalizeWhatsappSignup) finalizeWhatsappSignup();
+    } else if (data.event === "FINISH_ONLY_WABA") {
+      // Usuário completou o assistente sem adicionar/verificar um número de
+      // telefone — a Meta manda esse evento só com waba_id, sem
+      // phone_number_id. Nosso backend (POST .../connect/callback) exige os
+      // dois pra salvar a conexão — sem suporte ainda pra "conectar a WABA
+      // agora, adicionar o número depois". Melhor avisar claramente do que
+      // deixar o botão travado 3min como se nada tivesse acontecido.
+      whatsappSignupCancelled = true;
+      whatsappSignupIncomplete = true;
+      if (finalizeWhatsappSignup) finalizeWhatsappSignup();
     } else if (data.event === "CANCEL" || data.event === "ERROR") {
       whatsappSignupCancelled = true;
       // Não finaliza na hora: espera um pouco pra dar chance de um FINISH
       // real chegar logo em seguida (ver comentário acima). Só trata como
       // cancelamento de verdade se, passado esse intervalo, nada mais mudou.
+      // Janela aumentada de 1.5s pra 5s (13/09) — 1.5s se mostrou curto
+      // demais num caso real: o CANCEL "falso" do meio do fluxo (troca de
+      // passo) e o FINISH de verdade podem ficar mais de 1.5s separados
+      // dependendo de quanto tempo o cliente leva na etapa seguinte, e
+      // quando isso acontece o FINISH chega DEPOIS do timer já ter tratado
+      // como cancelamento de verdade — a conexão nunca é salva, e só a
+      // segunda tentativa (sem esse CANCEL falso no caminho) funciona.
       if (whatsappCancelFinalizeTimer) clearTimeout(whatsappCancelFinalizeTimer);
       whatsappCancelFinalizeTimer = setTimeout(() => {
         whatsappCancelFinalizeTimer = null;
         if (whatsappSignupCancelled && finalizeWhatsappSignup) finalizeWhatsappSignup();
-      }, 1500);
+      }, 5000);
     }
   } catch {
     // Mensagens de outras origens/formatos no mesmo canal — ignora.
@@ -6035,6 +6088,7 @@ async function loadWhatsappConnectStatus() {
       const connectMode = getWhatsappConnectMode();
       whatsappSignupData = null;
       whatsappSignupCancelled = false;
+      whatsappSignupIncomplete = false;
       whatsappSignupIsCoexistence = false; // definitivo só quando o evento FINISH_* chegar
       if (whatsappCancelFinalizeTimer) {
         clearTimeout(whatsappCancelFinalizeTimer);
@@ -6069,7 +6123,11 @@ async function loadWhatsappConnectStatus() {
           btn.disabled = false;
           btn.textContent = "Conectar meu WhatsApp";
           setWhatsappProgressStep(null);
-          await showAlertModal("Conexão cancelada. Quando quiser, é só clicar em \"Conectar meu WhatsApp\" de novo.");
+          await showAlertModal(
+            whatsappSignupIncomplete
+              ? "Não deu pra concluir: parece que você terminou o assistente sem adicionar (ou verificar) um número de telefone. Clique em \"Conectar meu WhatsApp\" de novo e complete até a etapa do número."
+              : "Conexão cancelada. Quando quiser, é só clicar em \"Conectar meu WhatsApp\" de novo."
+          );
           return;
         }
         if (!whatsappSignupCode || !whatsappSignupData) {

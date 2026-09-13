@@ -265,6 +265,36 @@ Sources sobre transcrição gratuita: [Groq pricing 2026 — eesel AI](https://w
   `/api/manage/onboarding-checklist` é chamada de novo ao voltar pra Visão Geral depois de visitar outra aba).
 - `barber.html` não tem esse card (checklist é só pro dono) — nada a mudar lá.
 
+### Bug real: primeira tentativa de conectar WhatsApp "não dava certo" mesmo indo até o Finish (13/09)
+
+- **Sintoma**: um cliente relatou que a primeira tentativa de "Conectar meu WhatsApp" (Embedded Signup) pareceu
+  não fazer nada — mesmo completando o assistente da Meta até o fim e clicando em algo equivalente a "Finish",
+  o painel continuava mostrando como se não tivesse conectado. A segunda tentativa funcionou normalmente.
+- **Causa raiz (confirmada contra a doc oficial da Meta, "Embedded Signup flow errors")**: a Meta manda **5
+  variantes** de evento de conclusão via `postMessage` (`WA_EMBEDDED_SIGNUP`), não só as 2 que `admin.html`
+  tratava (`FINISH` e `FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING`, pro Coexistence). As outras 3 —
+  `FINISH_OBO_MIGRATION` (migração de número já existente noutra plataforma), `FINISH_GRANT_ONLY_API_ACCESS`
+  (reautorização de ativos já existentes) e `FINISH_ONLY_WABA` (completou sem telefone) — caíam no vazio: nem
+  no `if` de FINISH, nem no `else if` de CANCEL/ERROR. O "code" que já tinha chegado via `FB.login()` ficava
+  esperando pra sempre um `whatsappSignupData` que nunca vinha, até o timer de 3min destravar o botão
+  silenciosamente (sem erro nenhum visível) — batendo exatamente com "pareceu que não deu certo".
+- **Corrigido**: `admin.html` agora trata `FINISH_OBO_MIGRATION`/`FINISH_GRANT_ONLY_API_ACCESS` igual ao
+  `FINISH` normal (mesma estrutura de dados, `waba_id`+`phone_number_id`), com uma guarda defensiva pro caso
+  raro de vir sem os dois IDs. `FINISH_ONLY_WABA` (sem telefone — não dá pra completar a conexão sem
+  `phone_number_id`, backend exige os dois) ganhou um aviso claro pedindo pra completar a etapa do número, em
+  vez de travar silenciosamente.
+- **Achado secundário no mesmo código**: a janela de debounce que decide se um `CANCEL` é "falso" (a Meta manda
+  um `CANCEL` intermediário ao trocar de passo, seguido do `FINISH` real logo depois) estava em **1.5s** — curta
+  demais pra clientes mais lentos numa etapa entre o `CANCEL` falso e o `FINISH` de verdade, o que faria o
+  `CANCEL` ser tratado como definitivo antes do `FINISH` chegar (mesmo sintoma: pareceu não conectar). Aumentada
+  pra **5s**.
+- Validado no dev server local (typecheck limpo, página carrega e renderiza normalmente, sem erro de sintaxe
+  no script). **Não foi possível reproduzir o evento real de um popup de verdade da Meta nesta sessão** — a
+  correção é baseada na doc oficial + leitura cuidadosa do código, não numa reprodução ao vivo do bug. Vale
+  confirmar com o próximo cliente que passar por isso se o problema realmente some.
+- Não portado pro `odonto-saas` ainda — o mesmo código de Embedded Signup existe lá, mesma classe de bug
+  provavelmente presente.
+
 ## Login de demonstração
 
 Senha `barbearia123` para todos. Dono: `barbearia-vintage.dono` (3 barbeiros — `carlos`, `rafael`, `diego`) ou `barbearia-solo.dono` (barbeiro único — `marcos`, pra testar o modo barbeiro-único vs múltiplos; criada por `scripts/seed-solo-barbershop.ts`, seguro rodar de novo).
