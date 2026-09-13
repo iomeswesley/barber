@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig, configDefaults } from "vitest/config";
 import path from "node:path";
 
 // Carrega o .env pro processo de teste igual os scripts (`tsx --env-file=.env`)
@@ -36,5 +36,14 @@ export default defineConfig({
     // exatamente o caso de uso documentado pelo próprio vitest pra "recurso
     // externo compartilhado que não aguenta acesso concorrente".
     fileParallelism: false,
+    // Sem isso, `vitest run` da raiz varre também qualquer worktree criada
+    // em .claude/worktrees/* (ex: sessões isoladas do Claude Code) — os
+    // testes de lá rodam junto com os daqui, no MESMO banco único de
+    // produção, e colidem (dois testes criando o mesmo id/telefone ao
+    // mesmo tempo). Achado em produção (13/09): rodar a suíte com uma
+    // worktree ativa gerou falhas fantasma que sumiam ao rodar cada lado
+    // isolado. As exclusões padrão do vitest (node_modules etc.) não cobrem
+    // isso por padrão.
+    exclude: [...configDefaults.exclude, ".claude/worktrees/**"],
   },
 });
