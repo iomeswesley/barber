@@ -260,6 +260,38 @@ function dateTextVariants(isoDate: string): string[] {
   return [`${d}/${m}/${y}`, `${d}/${m}`];
 }
 
+// Marca cache_control no último bloco da última mensagem — só na cópia
+// passada pra API nesta chamada, nunca em `apiMessages`/`session.messages`
+// (que continuam crescendo "limpos", sem essa marca). Sem isso, o histórico
+// da conversa inteiro é reenviado a preço cheio em toda chamada — dentro de
+// um mesmo turno do cliente, quando o bot faz várias idas e vindas de
+// ferramenta (ver o loop em sendMessage), isso significa pagar de novo,
+// bloco de tool_result por bloco de tool_result, por texto que a chamada
+// anterior já mandou. Movendo a marca pro fim do array a cada chamada, a
+// Anthropic reaproveita como cache read (10% do preço) tudo que já apareceu
+// numa marca anterior com o mesmo prefixo — só o pedaço realmente novo desde
+// a última chamada é cobrado a preço cheio (ou de cache write, 1.25x).
+// Medido em produção (13/09): sem isso, um turno de 10 idas e vindas de
+// ferramenta acumulou ~14.400 tokens de input a preço cheio só de histórico
+// repetido. Prefixos menores que ~1024 tokens simplesmente não são
+// cacheados pela Anthropic (sem erro, só não tem efeito), então é seguro
+// aplicar sempre, mesmo em conversas curtas.
+function withTrailingCacheControl(messages: Anthropic.MessageParam[]): Anthropic.MessageParam[] {
+  if (messages.length === 0) return messages;
+  const last = messages[messages.length - 1]!;
+  const blocks: Anthropic.ContentBlockParam[] = Array.isArray(last.content)
+    ? last.content
+    : [{ type: "text", text: last.content }];
+  if (blocks.length === 0) return messages;
+  // Só text/tool_use/tool_result aparecem de fato neste array (não usamos
+  // extended thinking) — os únicos tipos de bloco sem `cache_control` na
+  // union do SDK (ex.: ThinkingBlockParam) nunca ocorrem aqui na prática.
+  const lastBlock = blocks[blocks.length - 1]! as Anthropic.TextBlockParam | Anthropic.ToolUseBlockParam | Anthropic.ToolResultBlockParam;
+  const cachedLastBlock = { ...lastBlock, cache_control: { type: "ephemeral" as const } };
+  const cachedBlocks: Anthropic.ContentBlockParam[] = [...blocks.slice(0, -1), cachedLastBlock];
+  return [...messages.slice(0, -1), { ...last, content: cachedBlocks }];
+}
+
 export function pruneStaleAppointmentHistory(messages: Anthropic.MessageParam[], todayIso: string): Anthropic.MessageParam[] {
   const staleToolUseIds = new Set<string>();
   const staleAppointmentIds = new Set<string>();
@@ -992,7 +1024,7 @@ export async function sendMessage(
               max_tokens: 1024,
               system,
               tools,
-              messages: apiMessages,
+              messages: withTrailingCacheControl(apiMessages),
               output_config: { effort: "medium" },
             });
           } catch (err) {

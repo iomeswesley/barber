@@ -132,6 +132,16 @@ async function setTwoStepPin(phoneNumberId: string, accessToken: string, pin: st
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
+    // Número nunca registrado na Cloud API antes (1º registro de verdade,
+    // não reconexão de um número que já tinha PIN de uma vez anterior) — a
+    // Meta rejeita redefinir o PIN de uma conta que ainda não existe (code
+    // 133010/error_subcode 2593006, "The account is not registered... Use
+    // /register API to create an account first"). Achado em produção
+    // (13/09): sem esse tratamento, todo primeiro registro de um número
+    // novo quebrava aqui, antes mesmo de chegar no /register. Como não há
+    // PIN antigo pra conflitar nesse caso, é seguro pular esse passo e
+    // deixar o /register logo abaixo criar a conta já com o PIN novo.
+    if (/"code"\s*:\s*133010\b/.test(body) && /"error_subcode"\s*:\s*2593006\b/.test(body)) return;
     throw new AppError(`Falha ao definir o PIN de verificação do WhatsApp (${res.status}): ${body}`, 502);
   }
 }
