@@ -299,9 +299,11 @@ function withTrailingCacheControl(messages: Anthropic.MessageParam[]): Anthropic
     ? last.content
     : [{ type: "text", text: last.content }];
   if (blocks.length === 0) return messages;
-  // Só text/tool_use/tool_result aparecem de fato neste array (não usamos
-  // extended thinking) — os únicos tipos de bloco sem `cache_control` na
-  // union do SDK (ex.: ThinkingBlockParam) nunca ocorrem aqui na prática.
+  // O SDK também pode incluir um bloco "thinking" (com effort medium/high,
+  // achado em produção 13/09) — mas ele sempre vem ANTES de tool_use/text
+  // no array, nunca por último, então o cast abaixo (que exclui
+  // ThinkingBlockParam, que não aceita `cache_control`) continua seguro
+  // pro ÚLTIMO bloco especificamente.
   const lastBlock = blocks[blocks.length - 1]! as Anthropic.TextBlockParam | Anthropic.ToolUseBlockParam | Anthropic.ToolResultBlockParam;
   const cachedLastBlock = { ...lastBlock, cache_control: { type: "ephemeral" as const } };
   const cachedBlocks: Anthropic.ContentBlockParam[] = [...blocks.slice(0, -1), cachedLastBlock];
@@ -364,11 +366,27 @@ export function pruneStaleAppointmentHistory(messages: Anthropic.MessageParam[],
   // DD/MM/AAAA), não só pelo link.
   return messages.filter((m) => {
     if (Array.isArray(m.content)) {
-      const isStaleToolExchange = m.content.every(
-        (block) =>
-          (block.type === "tool_use" && staleToolUseIds.has(block.id)) ||
-          (block.type === "tool_result" && staleToolUseIds.has(block.tool_use_id))
-      );
+      // Bug crítico achado em produção (13/09): com effort medium/high o
+      // modelo manda um bloco "thinking" (mesmo vazio) ANTES do tool_use na
+      // mesma mensagem — o `every()` original não reconhecia esse tipo de
+      // bloco, então uma mensagem [thinking, tool_use] nunca batia "todo
+      // mundo é stale" e ficava de fora da poda, enquanto a mensagem
+      // tool_result correspondente (sem thinking, só o resultado) BATIA e
+      // era removida — descasando tool_use de tool_result e derrubando a
+      // chamada à Anthropic com 400 ("tool_use ids were found without
+      // tool_result blocks"). Corrigido: blocos que não são tool_use/
+      // tool_result (thinking, etc.) não contam nem a favor nem contra —
+      // só os tool_use/tool_result de fato presentes precisam ser todos
+      // stale, e precisa existir pelo menos um pra a mensagem virar
+      // candidata a remoção.
+      const toolBlocks = m.content.filter((block) => block.type === "tool_use" || block.type === "tool_result");
+      const isStaleToolExchange =
+        toolBlocks.length > 0 &&
+        toolBlocks.every(
+          (block) =>
+            (block.type === "tool_use" && staleToolUseIds.has(block.id)) ||
+            (block.type === "tool_result" && staleToolUseIds.has(block.tool_use_id))
+        );
       if (isStaleToolExchange) return false;
     }
     if (m.role === "assistant" && Array.isArray(m.content)) {

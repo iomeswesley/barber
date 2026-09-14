@@ -374,6 +374,63 @@ describe("pruneStaleAppointmentHistory", () => {
       { role: "user", content: "Olá" },
     ]);
   });
+
+  // BUG CRÍTICO real em produção (13/09), achado imediatamente depois de
+  // subir a extensão acima: com effort medium/high o modelo manda um bloco
+  // "thinking" (mesmo vazio) ANTES do tool_use na mesma mensagem. O filtro
+  // original checava `content.every(bloco é tool_use/tool_result stale)` —
+  // como "thinking" não é nem um nem outro, o `every()` dava falso pra
+  // mensagem [thinking, tool_use], que ficava de fora da poda; mas a
+  // mensagem tool_result correspondente (sem thinking) BATIA e era
+  // removida — descasando tool_use de tool_result e derrubando a chamada
+  // real à Anthropic com 400 ("tool_use ids were found without tool_result
+  // blocks"). Sessão real de produção travada até esse fix.
+  it("poda corretamente uma troca com bloco 'thinking' antes do tool_use (não deixa tool_use órfão)", () => {
+    const messages: Anthropic.MessageParam[] = [
+      { role: "user", content: "Quero cabelo amanhã" },
+      {
+        role: "assistant",
+        content: [
+          { type: "thinking", thinking: "", signature: "abc" } as any,
+          { type: "tool_use", id: "t1", name: "verificar_horarios_disponiveis", input: { data: "2026-09-05", servico_id: 2, barbeiro_id: 3 } },
+        ],
+      },
+      { role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: JSON.stringify({ data: "2026-09-05", horarios_disponiveis: ["17:00"] }) }] },
+      { role: "assistant", content: [{ type: "text", text: "17:00 disponível dia 05/09! Confirma?" }] },
+      { role: "user", content: "Olá" },
+    ];
+    const pruned = pruneStaleAppointmentHistory(messages, TODAY);
+    expect(pruned).toEqual([
+      { role: "user", content: "Quero cabelo amanhã" },
+      { role: "user", content: "Olá" },
+    ]);
+    // Garantia estrutural: nenhum tool_use sobrevivente sem o tool_result
+    // imediatamente depois — é exatamente essa invariante que a Anthropic
+    // exige e cujo rompimento derrubou a sessão real.
+    pruned.forEach((m, i) => {
+      if (!Array.isArray(m.content)) return;
+      for (const block of m.content) {
+        if (block.type !== "tool_use") continue;
+        const next = pruned[i + 1];
+        const hasResult = Array.isArray(next?.content) && (next!.content as any[]).some((b) => b.type === "tool_result" && b.tool_use_id === block.id);
+        expect(hasResult).toBe(true);
+      }
+    });
+  });
+
+  it("mantém intacta uma troca com 'thinking' + tool_use cuja data ainda não chegou", () => {
+    const messages: Anthropic.MessageParam[] = [
+      {
+        role: "assistant",
+        content: [
+          { type: "thinking", thinking: "", signature: "abc" } as any,
+          { type: "tool_use", id: "t1", name: "verificar_horarios_disponiveis", input: { data: "2026-09-07", servico_id: 2, barbeiro_id: 3 } },
+        ],
+      },
+      { role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: JSON.stringify({ data: "2026-09-07", horarios_disponiveis: ["17:00"] }) }] },
+    ];
+    expect(pruneStaleAppointmentHistory(messages, TODAY)).toEqual(messages);
+  });
 });
 
 // Achado em produção (2026-09-07): créditos da Anthropic zeraram e o bot
