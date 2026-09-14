@@ -180,7 +180,7 @@ interface Identity {
   pushName?: string | null;
 }
 
-function buildDynamicContext(
+export function buildDynamicContext(
   identity: Identity,
   pendingReview: Awaited<ReturnType<typeof getUnreviewedCompletedAppointment>>,
   upcomingAppointments: Awaited<ReturnType<typeof getAppointmentsByClientPhone>>
@@ -194,6 +194,23 @@ function buildDynamicContext(
   // prompt/histórico, o dado de entrada é que já vinha errado.
   const todayIso = localDateStr(now);
   const weekday = WEEKDAYS[now.getDay()];
+  // Acha em produção (14/09): mesmo com "hoje é" correto, o modelo às
+  // vezes erra a CONTA de "amanhã" (chamou verificar_horarios_disponiveis
+  // com a data de HOJE quando o cliente pediu "amanhã") — erro residual
+  // de aritmética já documentado antes (medido, não hipotético: mesmo em
+  // effort alto não é garantia de 100%). Pedido do usuário no mesmo dia:
+  // cobrir não só "amanhã", mas também dia da semana solto ("quinta",
+  // "sexta"). Em vez de confiar na IA somar dias/mapear nome de dia da
+  // semana de cabeça, o servidor entrega os próximos 8 dias (hoje + 7)
+  // já calculados — cobre qualquer nome de dia da semana dentro de uma
+  // volta inteira do calendário, sem ambiguidade de "essa sexta ou a que
+  // vem" (a mais próxima é sempre a intenção padrão nesse tipo de pedido).
+  const nextDays = Array.from({ length: 8 }, (_, i) => {
+    const d = new Date(now);
+    d.setDate(d.getDate() + i);
+    return { iso: localDateStr(d), weekday: WEEKDAYS[d.getDay()] };
+  });
+  const tomorrowIso = nextDays[1]!.iso;
 
   const { client } = vertical;
   const clientCap = client.charAt(0).toUpperCase() + client.slice(1);
@@ -224,10 +241,17 @@ function buildDynamicContext(
           )}\nEssa lista pode ter mudado desde a última vez que você mencionou um agendamento nesta conversa (cancelamento, reagendamento, ou o horário já passou). NUNCA cite um agendamento, data ou horário que não esteja EXATAMENTE nesta lista — mesmo que você mesmo tenha dito isso antes nesta conversa.`
       : `\n\nIMPORTANTE — verificado agora mesmo, direto do banco de dados: este ${client} NÃO tem nenhum agendamento futuro confirmado. Mesmo que uma mensagem anterior SUA nesta conversa tenha mencionado um agendamento (ex: "amanhã às HH:MM"), isso pode estar desatualizado — o agendamento pode já ter acontecido, sido cancelado, ou a data mudou. NÃO diga "você já tem um agendamento" nem repita nenhuma data/horário de agendamento anterior desta conversa. Se perguntarem sobre agendamento existente, a resposta correta agora é que não há nenhum.`;
 
+  const nextDaysBlock = nextDays.map((d, i) => `  ${d.weekday}: ${d.iso}${i === 0 ? " (hoje)" : i === 1 ? " (amanhã)" : ""}`).join("\n");
+
   return `Contexto atual:
-- Hoje é ${weekday}, ${todayIso} (formato YYYY-MM-DD). Essa é a ÚNICA referência de "hoje" válida —
-  ignore qualquer data mencionada em mensagens anteriores desta conversa ao calcular "hoje",
-  "amanhã" ou qualquer data relativa, mesmo que a conversa seja antiga ou já tenha falado de
+- Hoje é ${weekday}, ${todayIso} (formato YYYY-MM-DD).
+- Próximos dias já calculados pra você — NÃO some dias nem mapeie nome de dia da semana de cabeça,
+  use direto esta tabela pra "amanhã", "quinta", "sexta" etc.:
+${nextDaysBlock}
+  Se o ${client} disser um dia da semana que não está nesta lista (mais de uma semana à frente,
+  ex: "sexta que vem" quando hoje já é sexta), calcule a partir de ${todayIso} com cuidado.
+  Essas são as ÚNICAS referências válidas de data relativa — ignore qualquer data mencionada em
+  mensagens anteriores desta conversa, mesmo que a conversa seja antiga ou já tenha falado de
   outros agendamentos em datas passadas. Nunca chame verificar_horarios_disponiveis,
   buscar_proximo_horario_disponivel ou criar_agendamento com uma data anterior a ${todayIso}.
 ${identityBlock}${reviewBlock}${upcomingBlock}`;

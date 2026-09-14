@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import Anthropic from "@anthropic-ai/sdk";
 
 // Ver comentário em crypto.test.ts: preenche o env obrigatório antes do
@@ -11,8 +11,48 @@ process.env.DATABASE_URL ??= "postgresql://user:pass@localhost:5432/db";
 process.env.DIRECT_URL ??= "postgresql://user:pass@localhost:5432/db";
 process.env.SESSION_SECRET ??= "test-session-secret";
 
-const { formatPrice, describeClientPlanBenefit, normalizeWhatsappFormatting, pruneStaleAppointmentHistory, isAnthropicAuthOrCreditError } =
+const { formatPrice, describeClientPlanBenefit, normalizeWhatsappFormatting, pruneStaleAppointmentHistory, isAnthropicAuthOrCreditError, buildDynamicContext } =
   await import("./chatEngine.js");
+
+// Achado em produção (14/09): mesmo com "hoje é" correto no prompt, o
+// modelo às vezes erra a CONTA de "amanhã" (chamou verificar_horarios_
+// disponiveis com a data de HOJE quando o cliente pediu "amanhã") — erro
+// residual de aritmética, não bug de dado de entrada. Pedido do usuário no
+// mesmo dia: cobrir também dia da semana solto ("quinta", "sexta"), não só
+// "amanhã". buildDynamicContext agora entrega os próximos 8 dias (hoje +7)
+// já calculados no texto do prompt, tirando a conta de cabeça do modelo.
+describe("buildDynamicContext", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("informa 'amanhã' já calculado, não só 'hoje', pra tirar a conta de cabeça do modelo", () => {
+    vi.setSystemTime(new Date("2026-09-14T17:49:00-03:00")); // segunda-feira
+    const text = buildDynamicContext({ existingClient: null, pushName: "Wesley" }, null, []);
+    expect(text).toContain("Hoje é segunda-feira, 2026-09-14");
+    expect(text).toContain("segunda-feira: 2026-09-14 (hoje)");
+    expect(text).toContain("terça-feira: 2026-09-15 (amanhã)");
+  });
+
+  it("lista os próximos 8 dias (hoje + 7), cobrindo qualquer dia da semana solto ('quinta', 'sexta')", () => {
+    vi.setSystemTime(new Date("2026-09-14T17:49:00-03:00")); // segunda-feira
+    const text = buildDynamicContext({ existingClient: null, pushName: "Wesley" }, null, []);
+    expect(text).toContain("quinta-feira: 2026-09-17");
+    expect(text).toContain("sexta-feira: 2026-09-18");
+    expect(text).toContain("segunda-feira: 2026-09-21"); // a semana seguinte, sem marca (hoje)/(amanhã)
+  });
+
+  it("calcula certo na virada de mês", () => {
+    vi.setSystemTime(new Date("2026-09-30T10:00:00-03:00"));
+    const text = buildDynamicContext({ existingClient: null, pushName: "Wesley" }, null, []);
+    expect(text).toContain("Hoje é quarta-feira, 2026-09-30");
+    expect(text).toContain("quarta-feira: 2026-09-30 (hoje)");
+    expect(text).toContain("quinta-feira: 2026-10-01 (amanhã)");
+  });
+});
 
 describe("formatPrice", () => {
   it("converte centavos pra reais arredondados, sem casas decimais", () => {
