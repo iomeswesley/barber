@@ -300,6 +300,37 @@ function dateTextVariants(isoDate: string): string[] {
   return [`${d}/${m}/${y}`, `${d}/${m}`];
 }
 
+// Achado em produção (14/09), variante mais insidiosa do bug de ancoragem
+// já documentado: o modelo calculou "amanhã" errado (usou a data de HOJE)
+// ANTES do fix de buildDynamicContext, disse isso em texto livre, e
+// continuou repetindo essa mesma frase errada em turnos SEGUINTES — mesmo
+// já com o prompt corrigido dizendo o "amanhã" certo. Diferente do bug de
+// agendamento vencido (que só passa a ser stale quando a data já ficou no
+// passado), esse texto já estava ERRADO desde que foi dito — não tem
+// tool_use pra ancorar a poda (o tool_use por trás foi verificar_
+// horarios_disponiveis com a data de HOJE, que não é "stale" por definição
+// de data passada). Por isso precisa de checagem própria: compara o DD/MM
+// que aparece ao lado de "amanhã" no texto contra o "amanhã" certo
+// calculado agora — se não bater, é lixo de uma resposta antiga errada.
+function computeTomorrowIso(todayIso: string): string {
+  const [y, m, d] = todayIso.split("-").map(Number);
+  const dt = new Date(y!, m! - 1, d! + 1);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+}
+
+function hasWrongTomorrowMention(text: string, todayIso: string): boolean {
+  const tomorrowIso = computeTomorrowIso(todayIso);
+  const match = tomorrowIso.match(/^\d{4}-(\d{2})-(\d{2})$/);
+  if (!match) return false;
+  const [, correctMonth, correctDay] = match;
+  const regex = /amanh[ãa][^\d]{0,12}(\d{2})\/(\d{2})/gi;
+  for (const m of text.matchAll(regex)) {
+    const [, day, month] = m;
+    if (day !== correctDay || month !== correctMonth) return true;
+  }
+  return false;
+}
+
 // Marca cache_control no último bloco da última mensagem — só na cópia
 // passada pra API nesta chamada, nunca em `apiMessages`/`session.messages`
 // (que continuam crescendo "limpos", sem essa marca). Sem isso, o histórico
@@ -351,6 +382,11 @@ export function pruneStaleAppointmentHistory(messages: Anthropic.MessageParam[],
       }
     }
   }
+  // Independente de tool_use vencido — ver hasWrongTomorrowMention acima.
+  const anyWrongTomorrowMention = messages.some(
+    (m) => m.role === "assistant" && Array.isArray(m.content) && m.content.some((b) => b.type === "text" && hasWrongTomorrowMention(b.text, todayIso))
+  );
+
   // Sempre um array NOVO, nunca a mesma referência de `messages` — o
   // chamador (sendMessage) mantém `session.messages` (histórico completo)
   // e o retorno daqui (`apiMessages`, só o que vai pra API) como duas
@@ -361,7 +397,7 @@ export function pruneStaleAppointmentHistory(messages: Anthropic.MessageParam[],
   // a mensagem que aquele push já tinha adicionado, e a Anthropic rejeitava
   // com "tool_use ids must be unique" (achado rodando uma conversa real de
   // múltiplos turnos, 2026-09-06).
-  if (staleToolUseIds.size === 0) return [...messages];
+  if (staleToolUseIds.size === 0 && !anyWrongTomorrowMention) return [...messages];
 
   // Segunda passada: acha o agendamento_id devolvido pelos tool_result
   // correspondentes, pra também conseguir identificar (e remover) textos
@@ -420,7 +456,8 @@ export function pruneStaleAppointmentHistory(messages: Anthropic.MessageParam[],
           ([...staleAppointmentIds].some((id) => block.text.includes(`/appointments/${id}/ics`)) ||
             [...staleDateVariants].some((v) => block.text.includes(v)))
       );
-      if (mentionsStaleAppointment) return false;
+      const mentionsWrongTomorrow = m.content.some((block) => block.type === "text" && hasWrongTomorrowMention(block.text, todayIso));
+      if (mentionsStaleAppointment || mentionsWrongTomorrow) return false;
     }
     return true;
   });

@@ -471,6 +471,59 @@ describe("pruneStaleAppointmentHistory", () => {
     ];
     expect(pruneStaleAppointmentHistory(messages, TODAY)).toEqual(messages);
   });
+
+  // BUG real em produção (14/09): a IA calculou "amanhã" errado (usou a
+  // data de HOJE) antes de um fix no prompt, disse isso em texto livre —
+  // sem nenhum tool_use por trás (o tool_use real foi com a data de hoje,
+  // que não é "stale" por definição de data passada) — e continuou
+  // REPETINDO essa mesma frase errada em turnos seguintes, mesmo já com o
+  // prompt corrigido dizendo o "amanhã" certo. Diferente dos outros casos
+  // desta suíte, esse texto nunca teve um tool_use vencido associado.
+  it("remove texto livre com 'amanhã (DD/MM)' que não bate com o amanhã de verdade, mesmo sem tool_use nenhum por trás", () => {
+    const messages: Anthropic.MessageParam[] = [
+      { role: "user", content: "O que tem pra amanhã" },
+      { role: "assistant", content: [{ type: "text", text: "Pro Corte Masculino com o Carlos amanhã (06/09), os horários livres são 16:00 e 16:30." }] },
+      { role: "user", content: "Olá" },
+    ];
+    // TODAY = "2026-09-06" (domingo) — amanhã de verdade é 07/09, não 06/09.
+    const pruned = pruneStaleAppointmentHistory(messages, TODAY);
+    expect(pruned).toEqual([
+      { role: "user", content: "O que tem pra amanhã" },
+      { role: "user", content: "Olá" },
+    ]);
+  });
+
+  it("NÃO remove texto livre com 'amanhã (DD/MM)' quando a data bate com o amanhã de verdade", () => {
+    const messages: Anthropic.MessageParam[] = [
+      { role: "assistant", content: [{ type: "text", text: "Pro Corte Masculino amanhã (07/09), tenho 16:00 e 16:30." }] },
+    ];
+    expect(pruneStaleAppointmentHistory(messages, TODAY)).toEqual(messages);
+  });
+
+  it("não mexe em texto que não menciona 'amanhã' nenhum", () => {
+    const messages: Anthropic.MessageParam[] = [{ role: "assistant", content: [{ type: "text", text: "Corte Masculino custa R$40." }] }];
+    expect(pruneStaleAppointmentHistory(messages, TODAY)).toEqual(messages);
+  });
+
+  it("reproduz o caso real: 4 respostas repetindo 'amanhã (DD/MM)' errado ao longo de vários turnos, todas removidas", () => {
+    const messages: Anthropic.MessageParam[] = [
+      { role: "user", content: "Carlos amanha 17h" },
+      { role: "assistant", content: [{ type: "text", text: "Vi aqui que às 17h o Carlos não tem horário livre amanhã (06/09) pro Corte Masculino." }] },
+      { role: "user", content: "Olá" },
+      { role: "assistant", content: [{ type: "text", text: "Vamos lá: pro Corte Masculino com o Carlos amanhã (06/09), tenho 16:00, 16:30 ou 18:30." }] },
+      { role: "user", content: "Olá" },
+      { role: "assistant", content: [{ type: "text", text: "Ainda sobre o corte com o Carlos amanhã (06/09) — tenho 16:00, 16:30 ou 18:30." }] },
+      { role: "user", content: "O que tem pra amanhã" },
+      { role: "assistant", content: [{ type: "text", text: "Pro Corte Masculino com o Carlos amanhã (06/09), os horários livres são 16:00, 16:30 ou 18:30." }] },
+    ];
+    const pruned = pruneStaleAppointmentHistory(messages, TODAY);
+    expect(pruned).toEqual([
+      { role: "user", content: "Carlos amanha 17h" },
+      { role: "user", content: "Olá" },
+      { role: "user", content: "Olá" },
+      { role: "user", content: "O que tem pra amanhã" },
+    ]);
+  });
 });
 
 // Achado em produção (2026-09-07): créditos da Anthropic zeraram e o bot
