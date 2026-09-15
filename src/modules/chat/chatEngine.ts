@@ -1167,6 +1167,20 @@ export async function generateReplyFromHistory(
       await tx.$queryRaw`SELECT 1 FROM "chat_sessions" WHERE "session_id" = ${key} FOR UPDATE`;
 
       const session = await loadSession(tx, sessionId, businessId);
+
+      // Reconfere o toggle "IA Ativa" (por conversa OU geral) aqui dentro,
+      // não só em recordIncomingMessage: essa função só roda depois da
+      // espera de debounce (até WHATSAPP_REPLY_DEBOUNCE_MS) no webhook real
+      // — se o dono desativar a IA enquanto uma mensagem já gravada estava
+      // nessa janela de espera, sem essa segunda checagem o bot respondia
+      // mesmo assim (bug real relatado em produção: "desativei o toggle mas
+      // continua respondendo sozinho"). `barbershop` já foi buscado fresco
+      // no início desta função, depois de qualquer espera.
+      if (session.aiPaused || barbershop.aiGloballyPaused) {
+        await tx.chatSession.update({ where: { sessionId: key }, data: { needsAttention: true } });
+        return null;
+      }
+
       // Cópia podada (ver pruneStaleAppointmentHistory) — só o que vai pra
       // API. session.messages continua completo pra salvar no banco (painel
       // de Conversas mostra o histórico real, sem essa poda).
