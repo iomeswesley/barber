@@ -4,7 +4,7 @@ import { AppError } from "@/middleware/errorHandler.js";
 import { generateVerificationToken, verificationTokenExpiry, sendVerificationEmail } from "@/lib/email.js";
 import { env, vertical } from "@/config/env.js";
 
-const TRIAL_DAYS = 7;
+const TRIAL_DAYS = 14;
 // Mesmo padrão usado no seed de demonstração: 09h-19h, fechado domingo
 // (weekday 0). O dono ajusta depois pela aba de Configurações.
 const DEFAULT_OPENS_AT = "09:00";
