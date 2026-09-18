@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Privacy Policy / Politique de confidentialité</title>
+<meta name="theme-color" content="#f8f9fa" />
+<script src="/assets/theme-init.js"></script>
+<script src="/assets/i18n.js"></script>
+<link rel="stylesheet" href="/assets/theme.css">
+<script src="/assets/icons.js" defer></script>
+<style>
+  body { padding: 40px 16px 60px; position: relative; z-index: 0; }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  .card { padding: 32px 30px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  .updated { color: var(--text-muted); font-size: 12px; margin: 0 0 26px; }
+  h2 { font-size: 15px; margin: 28px 0 10px; }
+  p, li { font-size: 13.5px; line-height: 1.7; color: var(--text-secondary); }
+  ul { margin: 8px 0; padding-left: 20px; }
+  a { color: var(--brand); }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 8px 0; }
+  th, td { border: 1px solid var(--card-border); padding: 7px 9px; text-align: left; vertical-align: top; color: var(--text-secondary); }
+  th { color: var(--text-primary); }
+  .tablewrap { overflow-x: auto; }
+  .todo { background: var(--warn-soft, #fff4d6); border-radius: 6px; padding: 1px 5px; }
+  .back-link { display: inline-block; margin-bottom: 18px; color: var(--text-muted); font-size: 12.5px; text-decoration: none; }
+  .back-link:hover { color: var(--brand); }
+  /* Duas línguas no mesmo arquivo: o i18n.js seta <html lang>; pt-BR cai em inglês. */
+  html[lang="fr"] [data-l="en"], html[lang="en"] [data-l="fr"], html[lang="pt-BR"] [data-l="fr"] { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back-link" href="/login.html">&larr; <span data-l="en">Back</span><span data-l="fr">Retour</span></a>
+  <div class="card">
+
+  <!-- ===================== ENGLISH ===================== -->
+  <div data-l="en" data-no-i18n>
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: <span class="todo">[date]</span> — <b>draft for legal review before publication.</b></p>
+
+    <h2>1. Who is responsible for your data</h2>
+    <p>This platform lets barbershops manage appointments and answer clients over WhatsApp with an AI assistant. There are two roles:</p>
+    <ul>
+      <li><b>The barbershop</b> you book with is the <b>data controller</b> for its own clients' data (name, phone, appointment history, conversations). It decides why and how that data is used.</li>
+      <li><b>The platform operator</b> — <span class="todo">[legal entity name, address, company number]</span> — acts as <b>data processor</b> for that data, and as <b>data controller</b> for the data of account holders (owners and staff who sign in to the dashboard).</li>
+    </ul>
+    <p>Contact for privacy requests: <span class="todo">[privacy contact email]</span>. Supervisory authority in Luxembourg: <b>Commission nationale pour la protection des données (CNPD)</b>, <a href="https://cnpd.public.lu" rel="noopener">cnpd.public.lu</a>.</p>
+
+    <h2>2. Data we process</h2>
+    <ul>
+      <li><b>Clients</b>: name, WhatsApp phone number, optional date of birth, appointments, services and products purchased, the content of messages exchanged with the WhatsApp assistant (including the text transcribed from voice messages), and the marketing-consent status.</li>
+      <li><b>Account holders (owners/staff)</b>: name, username, email address, password (stored only as a hash), profile picture (optional), audit-log entries of actions taken in the dashboard.</li>
+      <li><b>Technical data</b>: a session cookie required to stay signed in, and preferences stored in your browser (theme, language).</li>
+    </ul>
+
+    <h2>3. Purposes and legal bases (Art. 6 GDPR)</h2>
+    <table><tbody>
+      <tr><th>Purpose</th><th>Legal basis</th></tr>
+      <tr><td>Booking, rescheduling, cancelling and reminding appointments; running the AI assistant</td><td>Performance of a contract / pre-contractual steps (Art. 6(1)(b))</td></tr>
+      <tr><td>Accounting, commissions, tax and legal obligations</td><td>Legal obligation (Art. 6(1)(c))</td></tr>
+      <tr><td>Promotional messages (e.g. an invitation to come back)</td><td><b>Consent</b> (Art. 6(1)(a)), given when confirming a booking on WhatsApp; you can withdraw it at any time</td></tr>
+      <tr><td>Security, fraud prevention, audit log, service improvement</td><td>Legitimate interest (Art. 6(1)(f))</td></tr>
+    </tbody></table>
+
+    <h2>4. Recipients and sub-processors</h2>
+    <p>We do not sell personal data. We use the following providers to run the service:</p>
+    <div class="tablewrap"><table><tbody>
+      <tr><th>Provider</th><th>Purpose</th><th>Location</th></tr>
+      <tr><td>Vercel</td><td>Application hosting</td><td><span class="todo">[EU region, e.g. Frankfurt]</span></td></tr>
+      <tr><td>Supabase</td><td>Database</td><td><span class="todo">[EU region]</span></td></tr>
+      <tr><td>Meta (WhatsApp Business Platform)</td><td>Delivery of WhatsApp messages</td><td>EU / USA</td></tr>
+      <tr><td>Anthropic</td><td>AI language model that writes the assistant's replies</td><td>USA</td></tr>
+      <tr><td>Groq</td><td>Transcription of voice messages</td><td>USA</td></tr>
+      <tr><td>Stripe</td><td>Subscription payments</td><td>EU / USA</td></tr>
+      <tr><td>Resend</td><td>Transactional emails (account confirmation, password reset)</td><td>USA / EU</td></tr>
+      <tr><td>Sentry</td><td>Error monitoring</td><td><span class="todo">[region]</span></td></tr>
+      <tr><td>Google (optional)</td><td>Calendar sync, only if the barber connects it</td><td>EU / USA</td></tr>
+    </tbody></table></div>
+    <p><b>International transfers.</b> Some providers process data in the United States. Transfers rely on the EU–US Data Privacy Framework or on Standard Contractual Clauses, as applicable. <span class="todo">[confirm per provider]</span></p>
+
+    <h2>5. Retention</h2>
+    <p>Data is kept while the barbershop uses the platform, and afterwards only as long as required by law (e.g. accounting records). Past appointments are anonymised when a client asks for deletion. Backups are rotated on a fixed schedule. <span class="todo">[confirm retention periods]</span></p>
+
+    <h2>6. Your rights</h2>
+    <p>Under the GDPR you may request access, rectification, erasure, restriction of processing, portability, and object to processing; you may withdraw consent at any time without affecting earlier processing. To delete your data use the <a href="/excluir-dados.html">data deletion page</a> (your phone number is enough). For other requests, contact the barbershop you book with or <span class="todo">[privacy contact email]</span>. You may also lodge a complaint with the CNPD.</p>
+
+    <h2>7. Automated decisions</h2>
+    <p>Replies are generated by an AI assistant to help with bookings. It does not take decisions producing legal or similarly significant effects on you, and a human can take over the conversation on request.</p>
+
+    <h2>8. Cookies and browser storage</h2>
+    <p>We only use a strictly necessary session cookie and local preferences (theme, language). No advertising or tracking cookies.</p>
+  </div>
+
+  <!-- ===================== FRANÇAIS ===================== -->
+  <div data-l="fr" data-no-i18n>
+    <h1>Politique de confidentialité</h1>
+    <p class="updated">Dernière mise à jour : <span class="todo">[date]</span> — <b>projet à faire valider juridiquement avant publication.</b></p>
+
+    <h2>1. Qui est responsable de vos données</h2>
+    <p>Cette plateforme permet aux barbershops de gérer leurs rendez-vous et de répondre à leurs clients sur WhatsApp grâce à un assistant IA. Il y a deux rôles :</p>
+    <ul>
+      <li><b>Le barbershop</b> chez qui vous réservez est le <b>responsable du traitement</b> des données de ses propres clients (nom, téléphone, historique de rendez-vous, conversations). Il décide de la finalité et des moyens du traitement.</li>
+      <li><b>L'exploitant de la plateforme</b> — <span class="todo">[dénomination sociale, adresse, numéro d'entreprise]</span> — agit comme <b>sous-traitant</b> pour ces données, et comme <b>responsable du traitement</b> pour les données des titulaires de compte (propriétaires et équipe qui se connectent au tableau de bord).</li>
+    </ul>
+    <p>Contact pour vos demandes : <span class="todo">[e-mail de contact vie privée]</span>. Autorité de contrôle au Luxembourg : <b>Commission nationale pour la protection des données (CNPD)</b>, <a href="https://cnpd.public.lu" rel="noopener">cnpd.public.lu</a>.</p>
+
+    <h2>2. Données traitées</h2>
+    <ul>
+      <li><b>Clients</b> : nom, numéro WhatsApp, date de naissance (facultative), rendez-vous, services et produits achetés, contenu des messages échangés avec l'assistant WhatsApp (y compris le texte transcrit des messages vocaux) et statut du consentement marketing.</li>
+      <li><b>Titulaires de compte (propriétaires/équipe)</b> : nom, identifiant, adresse e-mail, mot de passe (stocké uniquement sous forme de hash), photo de profil (facultative), journal d'audit des actions dans le tableau de bord.</li>
+      <li><b>Données techniques</b> : un cookie de session nécessaire pour rester connecté et des préférences stockées dans votre navigateur (thème, langue).</li>
+    </ul>
+
+    <h2>3. Finalités et bases légales (art. 6 RGPD)</h2>
+    <table><tbody>
+      <tr><th>Finalité</th><th>Base légale</th></tr>
+      <tr><td>Prise, report, annulation et rappel des rendez-vous ; fonctionnement de l'assistant IA</td><td>Exécution d'un contrat / mesures précontractuelles (art. 6, § 1, b)</td></tr>
+      <tr><td>Comptabilité, commissions, obligations fiscales et légales</td><td>Obligation légale (art. 6, § 1, c)</td></tr>
+      <tr><td>Messages promotionnels (ex. invitation à revenir)</td><td><b>Consentement</b> (art. 6, § 1, a), donné lors de la confirmation d'un rendez-vous sur WhatsApp ; retirable à tout moment</td></tr>
+      <tr><td>Sécurité, prévention de la fraude, journal d'audit, amélioration du service</td><td>Intérêt légitime (art. 6, § 1, f)</td></tr>
+    </tbody></table>
+
+    <h2>4. Destinataires et sous-traitants ultérieurs</h2>
+    <p>Nous ne vendons pas les données personnelles. Nous faisons appel aux prestataires suivants :</p>
+    <div class="tablewrap"><table><tbody>
+      <tr><th>Prestataire</th><th>Finalité</th><th>Localisation</th></tr>
+      <tr><td>Vercel</td><td>Hébergement de l'application</td><td><span class="todo">[région UE, ex. Francfort]</span></td></tr>
+      <tr><td>Supabase</td><td>Base de données</td><td><span class="todo">[région UE]</span></td></tr>
+      <tr><td>Meta (WhatsApp Business Platform)</td><td>Acheminement des messages WhatsApp</td><td>UE / États-Unis</td></tr>
+      <tr><td>Anthropic</td><td>Modèle d'IA qui rédige les réponses de l'assistant</td><td>États-Unis</td></tr>
+      <tr><td>Groq</td><td>Transcription des messages vocaux</td><td>États-Unis</td></tr>
+      <tr><td>Stripe</td><td>Paiement des abonnements</td><td>UE / États-Unis</td></tr>
+      <tr><td>Resend</td><td>E-mails transactionnels (confirmation de compte, réinitialisation du mot de passe)</td><td>États-Unis / UE</td></tr>
+      <tr><td>Sentry</td><td>Suivi des erreurs</td><td><span class="todo">[région]</span></td></tr>
+      <tr><td>Google (facultatif)</td><td>Synchronisation d'agenda, uniquement si le barbier la connecte</td><td>UE / États-Unis</td></tr>
+    </tbody></table></div>
+    <p><b>Transferts internationaux.</b> Certains prestataires traitent des données aux États-Unis. Les transferts reposent sur le cadre de protection des données UE–États-Unis (DPF) ou sur des clauses contractuelles types, selon le cas. <span class="todo">[à confirmer par prestataire]</span></p>
+
+    <h2>5. Durée de conservation</h2>
+    <p>Les données sont conservées tant que le barbershop utilise la plateforme, puis uniquement pendant la durée exigée par la loi (ex. pièces comptables). Les rendez-vous passés sont anonymisés lorsqu'un client demande la suppression. Les sauvegardes tournent selon un calendrier fixe. <span class="todo">[à confirmer : durées]</span></p>
+
+    <h2>6. Vos droits</h2>
+    <p>Vous pouvez demander l'accès, la rectification, l'effacement, la limitation du traitement, la portabilité, vous opposer au traitement et retirer votre consentement à tout moment, sans effet sur les traitements antérieurs. Pour supprimer vos données, utilisez la <a href="/excluir-dados.html">page de suppression des données</a> (votre numéro de téléphone suffit). Pour toute autre demande, contactez le barbershop chez qui vous réservez ou <span class="todo">[e-mail de contact vie privée]</span>. Vous pouvez aussi introduire une réclamation auprès de la CNPD.</p>
+
+    <h2>7. Décisions automatisées</h2>
+    <p>Les réponses sont générées par un assistant IA pour faciliter la prise de rendez-vous. Il ne prend aucune décision produisant des effets juridiques ou significatifs à votre égard, et une personne peut reprendre la conversation sur demande.</p>
+
+    <h2>8. Cookies et stockage du navigateur</h2>
+    <p>Nous utilisons uniquement un cookie de session strictement nécessaire et des préférences locales (thème, langue). Aucun cookie publicitaire ni de suivi.</p>
+  </div>
+
+  </div>
+</div>
+<div data-lang-switch style="position:fixed;bottom:12px;left:12px;z-index:60;"></div>
+</body>
+</html>

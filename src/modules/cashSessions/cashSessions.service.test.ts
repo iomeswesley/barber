@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { prisma } from "@/lib/prisma.js";
 import { createFinancialAccount } from "@/modules/financialAccounts/financialAccounts.repository.js";
 import { openCashSession, closeCashSession, getCashSessionStatus } from "./cashSessions.service.js";
-import { localDateStr } from "@/lib/time.js";
+import { localDateStr, dateOnly } from "@/lib/time.js";
 
 // Teste de integração: banco real, dados "[teste]". Cobre a regra de negócio
 // central — "esperado" soma só o que foi marcado como dinheiro (agendamento
@@ -64,30 +64,30 @@ describe("cashSessions (abertura/fechamento de caixa)", () => {
     await prisma.appointment.create({
       data: {
         businessId: business.id, professionalId: barber.id, serviceId: service.id, clientId: client.id,
-        date: new Date(`${today}T00:00:00`), startTime: t, endTime: t, status: "confirmed", paymentMethod: "dinheiro",
+        date: dateOnly(today), startTime: t, endTime: t, status: "confirmed", paymentMethod: "dinheiro",
       },
     });
     // concluído, pix — NÃO conta
     await prisma.appointment.create({
       data: {
         businessId: business.id, professionalId: barber.id, serviceId: service.id, clientId: client.id,
-        date: new Date(`${today}T00:00:00`), startTime: t, endTime: t, status: "confirmed", paymentMethod: "pix",
+        date: dateOnly(today), startTime: t, endTime: t, status: "confirmed", paymentMethod: "pix",
       },
     });
     // futuro, dinheiro — NÃO conta (ainda não aconteceu)
     await prisma.appointment.create({
       data: {
         businessId: business.id, professionalId: barber.id, serviceId: service.id, clientId: client.id,
-        date: new Date("2099-01-01T00:00:00"), startTime: "09:00", endTime: "09:30", status: "confirmed", paymentMethod: "dinheiro",
+        date: dateOnly("2099-01-01"), startTime: "09:00", endTime: "09:30", status: "confirmed", paymentMethod: "dinheiro",
       },
     });
     // venda de produto em dinheiro — CONTA
     await prisma.productSale.create({
-      data: { businessId: business.id, clientId: client.id, productId: product.id, quantity: 2, date: new Date(`${today}T00:00:00`), paymentMethod: "dinheiro" },
+      data: { businessId: business.id, clientId: client.id, productId: product.id, quantity: 2, date: dateOnly(today), paymentMethod: "dinheiro" },
     });
     // venda de produto em cartão — NÃO conta
     await prisma.productSale.create({
-      data: { businessId: business.id, clientId: client.id, productId: product.id, quantity: 1, date: new Date(`${today}T00:00:00`), paymentMethod: "cartao" },
+      data: { businessId: business.id, clientId: client.id, productId: product.id, quantity: 1, date: dateOnly(today), paymentMethod: "cartao" },
     });
 
     const status = await getCashSessionStatus(business.id, account.id);

@@ -1,7 +1,8 @@
 import { getAppointmentsNeedingReminder, getTodaysAppointmentsForReminder, ensureConfirmationToken } from "@/modules/appointments/appointments.service.js";
 import { markReminderSent } from "@/modules/appointments/appointments.repository.js";
 import { getBarbershop } from "@/modules/businesses/businesses.repository.js";
-import { metaLanguageCode } from "@/lib/locale.js";
+import { metaLanguageCode, normalizeLocale, type Locale } from "@/lib/locale.js";
+import { rescheduleNoticeText, comeBackHint, comeBackText, reminderText } from "@/lib/messageCopy.js";
 import { sendWhatsappText, sendWhatsappTemplate, whatsappConfigured, resolveBarbershopAccessToken } from "@/lib/whatsapp.js";
 import { markWhatsappDisconnectedIfNeeded, markWhatsappReconnectedIfNeeded } from "@/modules/whatsappConnect/whatsappConnect.service.js";
 import { tryConsumeWhatsappTrialBudget } from "@/modules/billing/billing.service.js";
@@ -40,21 +41,25 @@ async function sendWhatsAppTemplateMessage(
   businessId: number,
   phone: string,
   templateName: string,
-  params: string[],
-  fallbackText: string
+  // Params do template e texto de fallback dependem do idioma (o template
+  // aprovado na Meta é por idioma), então quem chama passa uma função em vez
+  // dos valores prontos — o idioma só é conhecido aqui, depois de saber se o
+  // negócio usa a WABA própria ou o número compartilhado.
+  build: (locale: Locale) => { params: string[]; fallbackText: string }
 ) {
   const barbershop = await getBarbershop(businessId);
   const accessToken = resolveBarbershopAccessToken(barbershop);
   const usingSharedToken = !accessToken;
+  // Número compartilhado da plataforma (sem token próprio) só tem os templates
+  // pt_BR aprovados; o idioma do negócio só vale na WABA própria, onde
+  // createTemplates criou o conjunto no idioma dele.
+  const locale: Locale = accessToken ? normalizeLocale(barbershop?.locale) : "pt-BR";
+  const { params, fallbackText } = build(locale);
   if (barbershop?.whatsappPhoneNumberId && (accessToken || whatsappConfigured)) {
     const withinBudget = await tryConsumeWhatsappTrialBudget(businessId, usingSharedToken, templateName);
     if (withinBudget) {
       try {
-        // Número compartilhado da plataforma (sem token próprio) só tem os
-        // templates pt_BR aprovados; idioma do negócio só vale na WABA própria,
-        // onde createTemplates criou o conjunto no idioma dele.
-        const language = accessToken ? metaLanguageCode(barbershop.locale) : "pt_BR";
-        await sendWhatsappTemplate(barbershop.whatsappPhoneNumberId, phone, templateName, params, language, accessToken);
+        await sendWhatsappTemplate(barbershop.whatsappPhoneNumberId, phone, templateName, params, metaLanguageCode(locale), accessToken);
         await markWhatsappReconnectedIfNeeded(businessId);
         return;
       } catch (err) {
@@ -73,33 +78,24 @@ export async function sendRescheduleNotice(businessId: number, appointment: Appo
     businessId,
     appointment.clientPhone,
     "appointment_reschedule_notice",
-    [appointment.clientName, appointment.serviceName, appointment.barberName, appointment.startTime, appointment.date],
-    buildRescheduleNoticeText(appointment)
+    (locale) => ({
+      params: [appointment.clientName, appointment.serviceName, appointment.barberName, appointment.startTime, appointment.date],
+      fallbackText: buildRescheduleNoticeText(appointment, locale),
+    })
   );
 }
 
-export function buildRescheduleNoticeText(appointment: AppointmentDTO): string {
-  return (
-    `Olá, ${appointment.clientName}! 😥 Precisamos remarcar seu horário de ${appointment.serviceName} ` +
-    `com ${appointment.barberName} às ${appointment.startTime} no dia ${appointment.date} por um imprevisto ` +
-    `na nossa agenda. Desculpe o transtorno!\n\n` +
-    `Poderia responder aqui pra gente já encontrar um novo horário que funcione pra você? 🙏`
-  );
+export function buildRescheduleNoticeText(appointment: AppointmentDTO, locale: string = "pt-BR"): string {
+  return rescheduleNoticeText(locale, appointment);
 }
 
-function comeBackServiceHint(lastAppointment: AppointmentDTO | null): string {
-  return lastAppointment
-    ? `Que tal já garantir um novo ${lastAppointment.serviceName} com ${lastAppointment.barberName}?`
-    : `Que tal já garantir seu próximo horário antes que a agenda fique cheia?`;
-}
-
-export function buildComeBackText(clientName: string, barbershopName: string, lastAppointment: AppointmentDTO | null = null): string {
-  return (
-    `Oi, ${clientName}! 👋 Faz um tempinho que a gente não te vê por aqui na ${barbershopName}... ` +
-    `sentimos sua falta! ${vertical.brandEmoji}😄\n\n` +
-    `${comeBackServiceHint(lastAppointment)} ` +
-    `É só responder aqui que a gente já encaixa você. Esperamos por você! 🙌`
-  );
+export function buildComeBackText(
+  clientName: string,
+  barbershopName: string,
+  lastAppointment: AppointmentDTO | null = null,
+  locale: string = "pt-BR"
+): string {
+  return comeBackText(locale, clientName, barbershopName, lastAppointment, vertical.brandEmoji);
 }
 
 // Mensagem de "reconquista" é categoria MARKETING na Meta — exige opt-in
@@ -116,8 +112,10 @@ export async function sendComeBackMessage(
     businessId,
     phone,
     "come_back_message",
-    [clientName, barbershopName, comeBackServiceHint(lastAppointment)],
-    buildComeBackText(clientName, barbershopName, lastAppointment)
+    (locale) => ({
+      params: [clientName, barbershopName, comeBackHint(locale, lastAppointment)],
+      fallbackText: buildComeBackText(clientName, barbershopName, lastAppointment, locale),
+    })
   );
 }
 
@@ -128,15 +126,8 @@ function confirmationUrl(token: string): string {
   return `${env.PUBLIC_BASE_URL || ""}/api/public/appointments/confirm?token=${token}`;
 }
 
-function buildReminderText(appointment: AppointmentDTO, confirmUrl: string): string {
-  return (
-    `Olá, ${appointment.clientName}! 👋 Passando pra lembrar do seu horário hoje:\n\n` +
-    `${vertical.brandEmoji} ${appointment.serviceName} com ${appointment.barberName}\n` +
-    `🕐 ${appointment.startTime}\n` +
-    `📍 ${appointment.barbershopName}\n\n` +
-    `Confirme sua presença: ${confirmUrl}\n\n` +
-    `Se precisar remarcar, é só responder aqui.`
-  );
+function buildReminderText(appointment: AppointmentDTO, confirmUrl: string, locale: string = "pt-BR"): string {
+  return reminderText(locale, appointment, confirmUrl, vertical.brandEmoji);
 }
 
 function reminderTemplateParams(appointment: AppointmentDTO, confirmUrl: string): string[] {
@@ -152,8 +143,10 @@ export async function checkAndSendReminders() {
       appointment.businessId,
       appointment.clientPhone,
       "appointment_reminder",
-      reminderTemplateParams(appointment, confirmUrl),
-      buildReminderText(appointment, confirmUrl)
+      (locale) => ({
+        params: reminderTemplateParams(appointment, confirmUrl),
+        fallbackText: buildReminderText(appointment, confirmUrl, locale),
+      })
     );
     await markReminderSent(appointment.id);
   }
@@ -170,8 +163,10 @@ export async function sendDailyReminders() {
       appointment.businessId,
       appointment.clientPhone,
       "appointment_reminder",
-      reminderTemplateParams(appointment, confirmUrl),
-      buildReminderText(appointment, confirmUrl)
+      (locale) => ({
+        params: reminderTemplateParams(appointment, confirmUrl),
+        fallbackText: buildReminderText(appointment, confirmUrl, locale),
+      })
     );
     await markReminderSent(appointment.id);
   }

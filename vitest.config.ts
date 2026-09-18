@@ -13,6 +13,12 @@ try {
   // sem .env local (ex: CI) — segue com o que já estiver em process.env
 }
 
+// Mesmo fuso que src/lib/timezone.ts fixa no servidor (APP_TIMEZONE, padrão
+// America/Sao_Paulo) — os testes de data/hora não dependem mais do fuso da
+// máquina de quem roda, e dá pra rodar a suíte inteira num fuso de outra
+// região (ex: APP_TIMEZONE=Europe/Luxembourg npx vitest run).
+process.env.TZ = process.env.APP_TIMEZONE || "America/Sao_Paulo";
+
 // Alias "@/*" -> "src/*", igual ao paths do tsconfig.json — sem isso, os
 // testes não conseguem resolver os mesmos imports "@/lib/..." usados no
 // resto do código-fonte.

@@ -26,8 +26,12 @@ onboardingRouter.post("/api/signup", signupRateLimiter, async (req, res, next) =
       throw new AppError("Usuário deve conter só letras, números, ponto, traço ou underline");
     }
     const normalizedPhone = normalizePhone(phone);
-    if (normalizedPhone.length < 10) {
-      throw new AppError("Telefone inválido — inclua o DDD");
+    // Brasil: DDD + número (10-11 dígitos). Outros países: número com código do
+    // país (ex: +352 621 123 456 = 12 dígitos), o mínimo aceito é menor.
+    if (env.APP_DEFAULT_COUNTRY === "BR") {
+      if (normalizedPhone.length < 10) throw new AppError("Telefone inválido — inclua o DDD");
+    } else if (normalizedPhone.length < 8) {
+      throw new AppError("Telefone inválido — inclua o código do país");
     }
     const normalizedEmail = String(email).trim().toLowerCase();
     if (!EMAIL_RE.test(normalizedEmail)) {

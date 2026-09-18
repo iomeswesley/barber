@@ -1,4 +1,16 @@
 import type { AppointmentDTO } from "@/modules/appointments/appointments.types.js";
+import { env } from "@/config/env.js";
+import { formatMoney } from "@/lib/locale.js";
+
+// Descrição do evento no idioma/moeda da região do deploy (APP_DEFAULT_LOCALE/
+// APP_DEFAULT_CURRENCY) — o DTO do agendamento não carrega o locale do negócio,
+// e cada deploy atende uma região só.
+function appointmentDescription(a: AppointmentDTO): string {
+  const price = formatMoney(a.priceCents, env.APP_DEFAULT_CURRENCY, env.APP_DEFAULT_LOCALE);
+  if (env.APP_DEFAULT_LOCALE === "fr") return `Rendez-vous avec ${a.barberName}. Service : ${a.serviceName}. Prix : ${price}`;
+  if (env.APP_DEFAULT_LOCALE === "en") return `Appointment with ${a.barberName}. Service: ${a.serviceName}. Price: ${price}`;
+  return `Agendamento com ${a.barberName}. Serviço: ${a.serviceName}. Valor: ${price}`;
+}
 
 function pad(n: number): string {
   return n.toString().padStart(2, "0");
@@ -23,23 +35,21 @@ function escapeText(text: unknown): string {
 // nada — o usuário precisa saber abrir com o app de agenda manualmente).
 // Google Calendar aceita esse endpoint sem autenticação nenhuma: os dados
 // do evento vão direto na URL, não expõe nada que o próprio cliente não
-// tenha acabado de receber do bot. `ctz` fixo em America/Sao_Paulo porque o
-// resto do projeto já assume fuso único do Brasil (mesma convenção de
+// tenha acabado de receber do bot. `ctz` = fuso do deploy (APP_TIMEZONE) porque o
+// resto do projeto assume um fuso único por deploy (mesma convenção de
 // toIcsDateTime abaixo, sem componente de timezone).
 export function generateGoogleCalendarUrl(appointment: AppointmentDTO): string {
   const dtStart = toIcsDateTime(appointment.date, appointment.startTime);
   const dtEnd = toIcsDateTime(appointment.date, appointment.endTime);
   const summary = `${appointment.serviceName} - ${appointment.barbershopName}`;
-  const description = `Agendamento com ${appointment.barberName}. Serviço: ${appointment.serviceName}. Valor: R$ ${Math.round(
-    appointment.priceCents / 100
-  )}`;
+  const description = appointmentDescription(appointment);
   const params = new URLSearchParams({
     action: "TEMPLATE",
     text: summary,
     dates: `${dtStart}/${dtEnd}`,
     details: description,
     location: appointment.barbershopName,
-    ctz: "America/Sao_Paulo",
+    ctz: env.APP_TIMEZONE,
   });
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
@@ -51,9 +61,7 @@ export function generateIcs(appointment: AppointmentDTO): string {
   const dtStamp = now.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
 
   const summary = `${appointment.serviceName} - ${appointment.barbershopName}`;
-  const description = `Agendamento com ${appointment.barberName}. Serviço: ${appointment.serviceName}. Valor: R$ ${Math.round(
-    appointment.priceCents / 100
-  )}`;
+  const description = appointmentDescription(appointment);
 
   const lines = [
     "BEGIN:VCALENDAR",

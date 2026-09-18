@@ -12,7 +12,7 @@
 import type { AppointmentDTO } from "@/modules/appointments/appointments.types.js";
 import type { Professional, Service, Product, TimeBlock, Escalation, AuditLog, BusinessHours, Business, ClientPlan, ProfessionalPayout, Expense, Coupon, Supplier, StockMovement, WaitlistEntry, FinancialAccount, CashSession } from "@prisma/client";
 import type { ClientStatsRow } from "@/modules/dashboard/clientStats.service.js";
-import { localDateStr } from "@/lib/time.js";
+import { dbDateToStr } from "@/lib/time.js";
 
 // Usado só na rota pública /api/barbershops (tela de reserva sem login) —
 // omite whatsapp_phone_number_id e created_at, que não têm por que sair pra
@@ -108,10 +108,6 @@ export function toApiProduct(p: Product & { supplier?: { name: string } | null }
 // mesmo dateToStr (ISO, sem conversão de fuso) que appointments.types.ts usa
 // pro mesmo tipo de coluna. localDateStr é pra Date "agora" (hora local);
 // usá-lo aqui deslocaria a data um dia pra trás em fuso negativo (Brasil).
-function dbDateToStr(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
 export function toApiPayout(p: ProfessionalPayout & { professional: { name: string } }) {
   const totalCents = p.serviceCommissionCents + p.productCommissionCents + p.adjustmentCents;
   return {
@@ -362,7 +358,7 @@ export function toApiClientVisit(a: {
 }) {
   return {
     id: a.id,
-    date: localDateStr(a.date),
+    date: dbDateToStr(a.date),
     start_time: a.startTime,
     status: a.status,
     notes: a.notes,

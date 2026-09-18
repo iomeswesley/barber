@@ -117,12 +117,16 @@ describe("createAppointment / getAvailableSlots (isolamento entre tenants)", () 
   // era rejeitado como "data que já passou" e a IA calculava "amanhã" dois
   // dias à frente do real. Corrigido usando localDateStr (getters de Date
   // que respeitam TZ=America/Sao_Paulo, setado em src/lib/timezone.ts).
+  const WEST_OF_UTC = new Date().getTimezoneOffset() > 0;
   describe("cálculo de 'hoje' respeita o fuso de Brasília, não UTC (achado em produção 2026-09-06)", () => {
     afterEach(() => {
       vi.useRealTimers();
     });
 
-    it("createAppointment NÃO rejeita o próprio dia de hoje quando são 22h13 em Brasília (01h13 UTC do dia seguinte)", async () => {
+    // O cenário "dia local ≠ dia UTC às 22h" só existe a oeste de UTC (Brasil);
+    // a leste (ex: Luxemburgo) o risco é outro — gravar/ler o dia certo em
+    // colunas @db.Date — coberto em src/lib/time.test.ts.
+    it.skipIf(!WEST_OF_UTC)("createAppointment NÃO rejeita o próprio dia de hoje quando são 22h13 em Brasília (01h13 UTC do dia seguinte)", async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-09-06T22:13:00-03:00"));
 
@@ -139,7 +143,7 @@ describe("createAppointment / getAvailableSlots (isolamento entre tenants)", () 
       await prisma.appointment.delete({ where: { id: appt.id } });
     });
 
-    it("getAvailableSlots NÃO trata o dia de hoje como passado quando são 22h13 em Brasília", async () => {
+    it.skipIf(!WEST_OF_UTC)("getAvailableSlots NÃO trata o dia de hoje como passado quando são 22h13 em Brasília", async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-09-06T22:13:00-03:00"));
 

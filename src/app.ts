@@ -180,6 +180,15 @@ export function createApp() {
   // diferentes conforme o modo (src/ no dev via tsx, dist/src/ compilado),
   // mas o processo sempre roda a partir da raiz do projeto em todos os
   // ambientes (dev, npm start, função serverless do Vercel).
+  // Fora do Brasil as páginas legais são as versões GDPR (fr/en no mesmo
+  // arquivo) — a LGPD (privacidade.html/termos.html) não vale na UE. Precisa
+  // vir ANTES do express.static, senão o arquivo brasileiro responde primeiro.
+  if (env.APP_DEFAULT_COUNTRY !== "BR") {
+    const webroot = path.join(process.cwd(), "webroot");
+    app.get("/privacidade.html", (_req, res) => res.sendFile(path.join(webroot, "privacy-eu.html")));
+    app.get("/termos.html", (_req, res) => res.sendFile(path.join(webroot, "terms-eu.html")));
+  }
+
   app.use(express.static(path.join(process.cwd(), "webroot")));
 
   // Acionado pelo Vercel Cron (ver vercel.json) em vez do setInterval de

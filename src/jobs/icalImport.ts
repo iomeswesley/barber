@@ -6,6 +6,7 @@
 // isso já roda 1x/dia, cadência suficiente pra esse caso de uso.
 import { prisma } from "@/lib/prisma.js";
 import { parseIcs } from "@/lib/icsParser.js";
+import { dateOnly } from "@/lib/time.js";
 
 // Só olha os próximos N dias — evita reimportar histórico de anos de um
 // calendário grande a cada varredura, sem ganho nenhum (dia passado não
@@ -49,7 +50,7 @@ export async function runIcalImport(): Promise<{ businessesProcessed: number; bl
             professionalId: null, // bloqueia a barbearia toda — v1 não distingue por barbeiro
             type: "outro",
             label: e.summary.slice(0, 120),
-            date: new Date(`${e.date}T00:00:00`),
+            date: dateOnly(e.date),
             startTime: e.startTime,
             endTime: e.endTime,
             recurring: false,

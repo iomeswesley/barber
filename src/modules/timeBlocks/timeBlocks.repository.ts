@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma.js";
-import { timeToMinutes } from "@/lib/time.js";
+import { timeToMinutes, dateOnly } from "@/lib/time.js";
 
 export interface TimeBlockInput {
   professionalId?: number | null;
@@ -68,7 +68,7 @@ export function deleteTimeBlock(id: number) {
 // Aplica-se a este barbeiro especificamente, OU à barbearia toda (professionalId nulo).
 // Ou casa uma data fixa, ou é um bloqueio recorrente diário.
 export async function getBlocksFor(businessId: number, professionalId: number, date: string) {
-  const dateObj = new Date(`${date}T00:00:00`);
+  const dateObj = dateOnly(date);
   const blocks = await prisma.timeBlock.findMany({
     where: {
       businessId,

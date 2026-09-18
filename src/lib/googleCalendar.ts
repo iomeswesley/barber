@@ -105,8 +105,8 @@ export async function upsertCalendarEvent(
   const body = {
     summary: input.summary,
     description: input.description,
-    start: { dateTime: toRfc3339(input.date, input.startTime), timeZone: input.timeZone || "America/Sao_Paulo" },
-    end: { dateTime: toRfc3339(input.date, input.endTime), timeZone: input.timeZone || "America/Sao_Paulo" },
+    start: { dateTime: toRfc3339(input.date, input.startTime), timeZone: input.timeZone || env.APP_TIMEZONE },
+    end: { dateTime: toRfc3339(input.date, input.endTime), timeZone: input.timeZone || env.APP_TIMEZONE },
   };
   const url = eventId
     ? `${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`

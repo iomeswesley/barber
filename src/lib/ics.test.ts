@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { env } from "@/config/env.js";
 import { generateIcs, generateGoogleCalendarUrl } from "./ics.js";
 import type { AppointmentDTO } from "@/modules/appointments/appointments.types.js";
 
@@ -62,7 +63,7 @@ describe("generateGoogleCalendarUrl", () => {
     expect(parsed.searchParams.get("text")).toBe("Corte Masculino - Barbearia Vintage");
     expect(parsed.searchParams.get("dates")).toBe("20260720T140000/20260720T144500");
     expect(parsed.searchParams.get("location")).toBe("Barbearia Vintage");
-    expect(parsed.searchParams.get("ctz")).toBe("America/Sao_Paulo");
+    expect(parsed.searchParams.get("ctz")).toBe(env.APP_TIMEZONE);
   });
 
   it("inclui barbeiro, serviço e preço na descrição", () => {

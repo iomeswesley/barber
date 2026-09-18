@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma.js";
+import { dateOnly } from "@/lib/time.js";
 
 export function getExpenses(businessId: number, { status }: { status?: "open" | "paid" } = {}) {
   return prisma.expense.findMany({
@@ -20,7 +21,7 @@ export function createExpense(
       businessId,
       description: data.description,
       amountCents: data.amountCents,
-      dueDate: new Date(`${data.dueDate}T00:00:00`),
+      dueDate: dateOnly(data.dueDate),
       category: data.category || null,
     },
   });
@@ -35,7 +36,7 @@ export function updateExpense(
     data: {
       description: data.description,
       amountCents: data.amountCents,
-      dueDate: new Date(`${data.dueDate}T00:00:00`),
+      dueDate: dateOnly(data.dueDate),
       category: data.category || null,
     },
   });

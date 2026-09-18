@@ -32,6 +32,7 @@ import { prisma } from "@/lib/prisma.js";
 import { env, vertical } from "@/config/env.js";
 import { localDateStr } from "@/lib/time.js";
 import { formatMoney, weekdayName, languageLabel } from "@/lib/locale.js";
+import { botNotice } from "@/lib/messageCopy.js";
 import { logChatUsage } from "./chatUsage.js";
 import { isBillingBlocked } from "@/modules/billing/billing.service.js";
 import type { Business, Prisma } from "@prisma/client";
@@ -1074,7 +1075,7 @@ export async function recordIncomingMessage(
       await tx.chatSession.update({ where: { sessionId: key }, data: { needsAttention: true } });
       return {
         status: "immediate",
-        reply: "No momento não estamos com o atendimento automático disponível. Em breve alguém vai te responder por aqui, obrigado pela paciência!",
+        reply: botNotice(barbershop.locale, "billingBlocked"),
       };
     }
 
@@ -1225,7 +1226,7 @@ export async function generateReplyFromHistory(
               .map((b) => b.text)
               .join("\n")
               .trim();
-            return normalizeWhatsappFormatting(text) || "Desculpe, pode repetir?";
+            return normalizeWhatsappFormatting(text) || botNotice(barbershop.locale, "repeat");
           }
 
           const toolResults: Anthropic.ToolResultBlockParam[] = [];
@@ -1247,7 +1248,7 @@ export async function generateReplyFromHistory(
           apiMessages = [...apiMessages, { role: "user", content: toolResults }];
         }
 
-        return "Desculpe, tive um problema para processar seu pedido. Pode tentar novamente?";
+        return botNotice(barbershop.locale, "problem");
       } finally {
         // Salva o que foi acumulado até aqui mesmo se um erro interromper o
         // loop no meio — melhor manter o progresso parcial da conversa do que

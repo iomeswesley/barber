@@ -13,6 +13,30 @@ const envSchema = z.object({
   // variável não for setada em algum ambiente, cada repo cai no seu próprio
   // vertical, nunca no do outro.
   VERTICAL: z.enum(["odonto", "barbearia"]).default("barbearia"),
+  // Região deste deploy (mesmo código, um deploy por região — ex: Brasil e
+  // Luxemburgo, cada um com seu banco e, no caso da UE, região de dados na UE
+  // por causa do GDPR). O fuso do PROCESSO é único (process.env.TZ, ver
+  // src/lib/timezone.ts, que roda antes de tudo) e toda a lógica de "hoje",
+  // "horário já passou" e janela de lembrete depende dele — por isso o fuso é
+  // do deploy, não de cada negócio. Os defaults abaixo preenchem os campos
+  // Business.locale/country/timezone/currency no cadastro de negócio novo.
+  APP_TIMEZONE: z
+    .string()
+    .default("America/Sao_Paulo")
+    .refine(
+      (tz) => {
+        try {
+          new Intl.DateTimeFormat("en", { timeZone: tz });
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      { message: "APP_TIMEZONE precisa ser um fuso IANA válido (ex: Europe/Luxembourg)" }
+    ),
+  APP_DEFAULT_LOCALE: z.enum(["pt-BR", "fr", "en"]).default("pt-BR"),
+  APP_DEFAULT_COUNTRY: z.string().length(2).default("BR"),
+  APP_DEFAULT_CURRENCY: z.string().length(3).default("BRL"),
   PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_URL: z.string().min(1, "DATABASE_URL é obrigatório"),
   // Conexão direta (sem pooler em modo transaction) — exigida pelo Prisma

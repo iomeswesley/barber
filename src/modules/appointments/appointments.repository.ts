@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma.js";
 import { appointmentInclude, toAppointmentDTO, type AppointmentDTO, type AppointmentWithRelations } from "./appointments.types.js";
+import { dateOnly } from "@/lib/time.js";
 
 export async function getAppointmentById(id: number): Promise<AppointmentDTO | null> {
   const appointment = await prisma.appointment.findUnique({
@@ -24,12 +25,12 @@ export async function getAppointments(filter: GetAppointmentsFilter = {}): Promi
       status: { not: "cancelled" },
       ...(businessId ? { businessId } : {}),
       ...(professionalId ? { professionalId } : {}),
-      ...(date ? { date: new Date(`${date}T00:00:00`) } : {}),
+      ...(date ? { date: dateOnly(date) } : {}),
       ...(dateFrom || dateTo
         ? {
             date: {
-              ...(dateFrom ? { gte: new Date(`${dateFrom}T00:00:00`) } : {}),
-              ...(dateTo ? { lte: new Date(`${dateTo}T00:00:00`) } : {}),
+              ...(dateFrom ? { gte: dateOnly(dateFrom) } : {}),
+              ...(dateTo ? { lte: dateOnly(dateTo) } : {}),
             },
           }
         : {}),
@@ -58,7 +59,7 @@ export async function insertAppointment(data: {
       professionalId: data.professionalId,
       serviceId: data.serviceId,
       clientId: data.clientId,
-      date: new Date(`${data.date}T00:00:00`),
+      date: dateOnly(data.date),
       startTime: data.startTime,
       endTime: data.endTime,
       priceChargedCents: data.priceChargedCents ?? null,
@@ -80,7 +81,7 @@ export async function findConflict(
   return prisma.appointment.findFirst({
     where: {
       professionalId,
-      date: new Date(`${date}T00:00:00`),
+      date: dateOnly(date),
       status: { not: "cancelled" },
       startTime: { lt: endTime },
       endTime: { gt: startTime },

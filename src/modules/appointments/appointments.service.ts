@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma.js";
 import { AppError } from "@/middleware/errorHandler.js";
-import { timeToMinutes, minutesToTime, localDateStr, normalizePhone } from "@/lib/time.js";
+import { timeToMinutes, minutesToTime, localDateStr, normalizePhone, dateOnly } from "@/lib/time.js";
 import { getBarbershop, getBusinessHoursForDate } from "@/modules/businesses/businesses.repository.js";
 import { getService } from "@/modules/services/services.repository.js";
 import { getBarber } from "@/modules/professionals/professionals.repository.js";
@@ -43,7 +43,7 @@ export async function getAvailableSlots(
   const duration = service.durationMin;
 
   const existing = await prisma.appointment.findMany({
-    where: { professionalId, date: new Date(`${date}T00:00:00`), status: { not: "cancelled" } },
+    where: { professionalId, date: dateOnly(date), status: { not: "cancelled" } },
     select: { startTime: true, endTime: true },
   });
   const busy = existing.map((a) => ({ start: timeToMinutes(a.startTime), end: timeToMinutes(a.endTime) }));
@@ -179,7 +179,7 @@ export async function rescheduleAppointment(id: number, newDate: string, newStar
 
   await prisma.appointment.update({
     where: { id },
-    data: { date: new Date(`${newDate}T00:00:00`), startTime: newStartTime, endTime: newEndTime },
+    data: { date: dateOnly(newDate), startTime: newStartTime, endTime: newEndTime },
   });
   const rescheduled = (await getAppointmentById(id))!;
   // Se já existia evento espelhado (googleEventId), isso vira um PATCH no
@@ -325,9 +325,9 @@ export async function getAppointmentsByClientPhone(
       ...(upcomingOnly
         ? {
             OR: [
-              { date: { gt: new Date(`${localDateStr(now)}T00:00:00`) } },
+              { date: { gt: dateOnly(localDateStr(now)) } },
               {
-                date: new Date(`${localDateStr(now)}T00:00:00`),
+                date: dateOnly(localDateStr(now)),
                 endTime: { gt: `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}` },
               },
             ],
@@ -350,7 +350,7 @@ export async function getClientAppointmentHistory(
   const client = await getClientByPhone(clientPhone);
   if (!client) return [];
   const now = new Date();
-  const todayDate = new Date(`${localDateStr(now)}T00:00:00`);
+  const todayDate = dateOnly(localDateStr(now));
   const nowTimeStr = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
 
   const appointments = await prisma.appointment.findMany({
@@ -369,7 +369,7 @@ export async function getClientAppointmentHistory(
 
 export async function getClientLastAppointment(clientId: number, businessId: number): Promise<AppointmentDTO | null> {
   const now = new Date();
-  const todayDate = new Date(`${localDateStr(now)}T00:00:00`);
+  const todayDate = dateOnly(localDateStr(now));
   const nowTimeStr = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
   const appointment = await prisma.appointment.findFirst({
     where: {
@@ -417,7 +417,7 @@ export async function getAppointmentsNeedingReminder(windowStartMin = 55, window
 export async function getTodaysAppointmentsForReminder(): Promise<AppointmentDTO[]> {
   const today = localDateStr(new Date());
   const appointments = await prisma.appointment.findMany({
-    where: { status: { not: "cancelled" }, reminderSentAt: null, date: new Date(`${today}T00:00:00`) },
+    where: { status: { not: "cancelled" }, reminderSentAt: null, date: dateOnly(today) },
     include: appointmentInclude,
   });
   return appointments.map((a) => toAppointmentDTO(a as AppointmentWithRelations));
@@ -445,7 +445,7 @@ export async function getUnreviewedCompletedAppointment(clientPhone: string, bus
   const client = await getClientByPhone(normalizePhone(clientPhone) ? clientPhone : clientPhone);
   if (!client) return null;
   const now = new Date();
-  const todayDate = new Date(`${localDateStr(now)}T00:00:00`);
+  const todayDate = dateOnly(localDateStr(now));
   const nowTimeStr = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
   const appointment = await prisma.appointment.findFirst({
     where: {

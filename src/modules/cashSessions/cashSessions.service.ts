@@ -3,7 +3,7 @@ import { AppError } from "@/middleware/errorHandler.js";
 import { getAppointments } from "@/modules/appointments/appointments.repository.js";
 import { computeApptStatus } from "@/modules/dashboard/dashboardStats.service.js";
 import { getFinancialAccount } from "@/modules/financialAccounts/financialAccounts.repository.js";
-import { localDateStr } from "@/lib/time.js";
+import { localDateStr, dateOnly } from "@/lib/time.js";
 import { getOpenSession, createSession, getSession, closeSessionRow, listSessions } from "./cashSessions.repository.js";
 
 // Quanto dinheiro físico deveria ter entrado desde a abertura do caixa —
@@ -23,7 +23,7 @@ async function computeCashInflowCents(businessId: number, openedDateStr: string,
     where: {
       businessId,
       paymentMethod: "dinheiro",
-      date: { gte: new Date(`${openedDateStr}T00:00:00`), lte: new Date(`${untilDateStr}T00:00:00`) },
+      date: { gte: dateOnly(openedDateStr), lte: dateOnly(untilDateStr) },
     },
     include: { product: { select: { priceCents: true } } },
   });

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma.js";
+import { dateOnly } from "@/lib/time.js";
 
 const includeNames = {
   client: { select: { name: true, phone: true } },
@@ -16,8 +17,8 @@ export function createWaitlistEntry(
       clientId: data.clientId,
       professionalId: data.professionalId || null,
       serviceId: data.serviceId || null,
-      desiredDateStart: new Date(`${data.desiredDateStart}T00:00:00`),
-      desiredDateEnd: new Date(`${data.desiredDateEnd}T00:00:00`),
+      desiredDateStart: dateOnly(data.desiredDateStart),
+      desiredDateEnd: dateOnly(data.desiredDateEnd),
     },
   });
 }
@@ -39,7 +40,7 @@ export function getWaitlistEntry(id: number) {
 // professionalId/serviceId nulos na entrada = cliente aceita qualquer
 // profissional/serviço, então casam com qualquer slot liberado.
 export function findMatchingWaitlistEntries(businessId: number, professionalId: number, serviceId: number, date: string) {
-  const d = new Date(`${date}T00:00:00`);
+  const d = dateOnly(date);
   return prisma.waitlistEntry.findMany({
     where: {
       businessId,

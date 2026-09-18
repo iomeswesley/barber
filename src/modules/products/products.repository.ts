@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma.js";
+import { dateOnly } from "@/lib/time.js";
 
 export function getProducts(businessId: number, { includeInactive = false } = {}) {
   return prisma.product.findMany({
@@ -127,7 +128,7 @@ export async function createProductSale(
       clientId,
       productId,
       quantity: qty,
-      date: new Date(`${date}T00:00:00`),
+      date: dateOnly(date),
       appointmentId: appointmentId || null,
       paymentMethod: paymentMethod || null,
     },
@@ -194,8 +195,8 @@ export async function getProductSalesRevenue(businessId: number, { dateFrom, dat
       ...(dateFrom || dateTo
         ? {
             date: {
-              ...(dateFrom ? { gte: new Date(`${dateFrom}T00:00:00`) } : {}),
-              ...(dateTo ? { lte: new Date(`${dateTo}T00:00:00`) } : {}),
+              ...(dateFrom ? { gte: dateOnly(dateFrom) } : {}),
+              ...(dateTo ? { lte: dateOnly(dateTo) } : {}),
             },
           }
         : {}),
@@ -224,8 +225,8 @@ export async function getProductSalesWithAppointment(
       ...(dateFrom || dateTo
         ? {
             date: {
-              ...(dateFrom ? { gte: new Date(`${dateFrom}T00:00:00`) } : {}),
-              ...(dateTo ? { lte: new Date(`${dateTo}T00:00:00`) } : {}),
+              ...(dateFrom ? { gte: dateOnly(dateFrom) } : {}),
+              ...(dateTo ? { lte: dateOnly(dateTo) } : {}),
             },
           }
         : {}),

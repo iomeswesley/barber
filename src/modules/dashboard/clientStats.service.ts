@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma.js";
-import { localDateStr } from "@/lib/time.js";
+import { localDateStr, dateOnly, dbDateToStr } from "@/lib/time.js";
 
 export interface ClientStatsRow {
   id: number;
@@ -25,7 +25,7 @@ export async function getClientStats(businessId: number): Promise<ClientStatsRow
     include: { client: true, service: { select: { priceCents: true } } },
   });
 
-  const isCompleted = (date: Date, endTime: string) => `${localDateStr(date)} ${endTime}` <= nowStr;
+  const isCompleted = (date: Date, endTime: string) => `${dbDateToStr(date)} ${endTime}` <= nowStr;
 
   const byClient = new Map<number, { client: (typeof appointments)[number]["client"]; rows: typeof appointments }>();
   for (const a of appointments) {
@@ -52,7 +52,7 @@ export async function getClientStats(businessId: number): Promise<ClientStatsRow
     const completed = rows.filter((a) => (a.status === "confirmed" || a.status === "scheduled") && isCompleted(a.date, a.endTime));
     const visitCount = completed.length;
     const totalRevenueCents = completed.reduce((sum, a) => sum + a.service.priceCents, 0) + (productRevenueByClient.get(client.id) || 0);
-    const dates = [...new Set(completed.map((a) => localDateStr(a.date)))].sort();
+    const dates = [...new Set(completed.map((a) => dbDateToStr(a.date)))].sort();
     const lastVisitDate = dates.length ? dates[dates.length - 1]! : null;
 
     let avgFrequencyDays: number | null = null;
@@ -65,9 +65,9 @@ export async function getClientStats(businessId: number): Promise<ClientStatsRow
 
     let dueStatus: "atrasado" | "em_dia" | null = null;
     if (avgFrequencyDays && lastVisitDate) {
-      const expectedNext = new Date(lastVisitDate);
-      expectedNext.setDate(expectedNext.getDate() + avgFrequencyDays);
-      dueStatus = localDateStr(expectedNext) < todayStr ? "atrasado" : "em_dia";
+      const expectedNext = dateOnly(lastVisitDate);
+      expectedNext.setUTCDate(expectedNext.getUTCDate() + avgFrequencyDays);
+      dueStatus = dbDateToStr(expectedNext) < todayStr ? "atrasado" : "em_dia";
     }
 
     result.push({

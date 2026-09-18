@@ -10,6 +10,7 @@ import {
   downloadWhatsappMedia,
 } from "@/lib/whatsapp.js";
 import { transcribeAudio, transcriptionConfigured } from "@/lib/transcription.js";
+import { botNotice } from "@/lib/messageCopy.js";
 import { getBarbershopByWhatsappPhoneNumberId } from "@/modules/businesses/businesses.repository.js";
 import { recordIncomingMessage, generateReplyFromHistory, hasNewerCustomerMessage } from "@/modules/chat/chatEngine.js";
 import { setWhatsappConnectionStatusByWabaId } from "@/modules/whatsappConnect/whatsappConnect.repository.js";
@@ -182,8 +183,8 @@ whatsappRouter.post("/api/whatsapp/webhook", async (req, res) => {
           if (!textToUse) {
             await sendBotReply(
               transcriptionConfigured
-                ? "Não consegui entender esse áudio 🙏 Pode tentar mandar de novo, ou escrever o que você precisa?"
-                : "Por enquanto só consigo entender mensagens de texto 🙏 Pode escrever o que você precisa?"
+                ? botNotice(barbershop.locale, "audioNotUnderstood")
+                : botNotice(barbershop.locale, "textOnly")
             );
             continue;
           }
@@ -193,7 +194,7 @@ whatsappRouter.post("/api/whatsapp/webhook", async (req, res) => {
         // vai pra IA (só entende texto) — sem isso, o cliente mandaria algo
         // e não receberia resposta nenhuma, parecendo que o bot travou.
         if (!textToUse) {
-          await sendBotReply("Por enquanto só consigo entender mensagens de texto ou áudio 🙏 Pode escrever ou gravar o que você precisa?");
+          await sendBotReply(botNotice(barbershop.locale, "textOrAudioOnly"));
           continue;
         }
 

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma.js";
+import { dateOnly } from "@/lib/time.js";
 
 export function getCoupons(businessId: number, { includeInactive = false } = {}) {
   return prisma.coupon.findMany({
@@ -32,8 +33,8 @@ export function createCoupon(
       code: data.code.toUpperCase(),
       discountType: data.discountType,
       discountValue: data.discountValue,
-      validFrom: data.validFrom ? new Date(`${data.validFrom}T00:00:00`) : null,
-      validTo: data.validTo ? new Date(`${data.validTo}T00:00:00`) : null,
+      validFrom: data.validFrom ? dateOnly(data.validFrom) : null,
+      validTo: data.validTo ? dateOnly(data.validTo) : null,
       usageLimit: data.usageLimit ?? null,
     },
   });

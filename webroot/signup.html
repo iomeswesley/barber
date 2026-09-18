@@ -113,6 +113,11 @@
 
         <button type="submit" id="submit-btn">Criar minha conta</button>
       </form>
+      <script>
+        // Fora do Brasil o telefone vem com código do país (ex: +352 621 123 456),
+        // então o mínimo de dígitos do cliente é menor que DDD+número (BR = 10).
+        if (window.I18N && window.I18N.lang !== "pt-BR") document.getElementById("phone").pattern = "^\\D*(\\d\\D*){8,}$";
+      </script>
       <div class="trial-box">14 dias grátis pra testar, sem cartão de crédito.</div>
       <a class="back-link" href="/login.html"><svg class="icon"><use href="#icon-arrow-left"></use></svg> Já tenho conta</a>
       <p style="text-align:center; margin:14px 0 0; font-size:10.5px; color:var(--text-muted);">

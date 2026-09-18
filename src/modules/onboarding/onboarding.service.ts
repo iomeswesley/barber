@@ -40,7 +40,16 @@ export async function signupBarbershop(input: SignupInput) {
 
   const { barbershop, user } = await prisma.$transaction(async (tx) => {
     const barbershop = await tx.business.create({
-      data: { name: input.shopName, phone: input.phone },
+      // locale/country/currency/timezone = região deste deploy (APP_* em
+      // src/config/env.ts) — negócio novo nasce no idioma/moeda/fuso certos.
+      data: {
+        name: input.shopName,
+        phone: input.phone,
+        locale: env.APP_DEFAULT_LOCALE,
+        country: env.APP_DEFAULT_COUNTRY,
+        currency: env.APP_DEFAULT_CURRENCY,
+        timezone: env.APP_TIMEZONE,
+      },
     });
 
     await tx.businessHours.createMany({
