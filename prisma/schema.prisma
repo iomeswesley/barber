@@ -165,6 +165,17 @@ model Business {
   // needsAttention, igual o comportamento de uma sessão pausada
   // individualmente (ver sendMessage, chatEngine.ts).
   aiGloballyPaused Boolean @default(false) @map("ai_globally_paused")
+
+  // Localização do negócio — configuração do tenant, NUNCA detectada por IP
+  // (um dono brasileiro viajando não muda o país da barbearia). `locale` é BCP47
+  // ("pt-BR" | "fr" | "en", ver src/lib/locale.ts) e dirige idioma padrão do
+  // bot, templates do WhatsApp e formatação; `timezone` é IANA; `currency`
+  // ISO 4217. Strings de propósito (não enum Prisma) pra liberar idioma/país
+  // novo sem migration. Defaults = comportamento histórico (Brasil).
+  locale   String @default("pt-BR") @map("locale")
+  country  String @default("BR") @map("country")
+  timezone String @default("America/Sao_Paulo") @map("timezone")
+  currency String @default("BRL") @map("currency")
   // URL pública de um calendário externo (.ics) — importado periodicamente
   // (src/jobs/icalImport.ts) e virado TimeBlock com source="ical_import"
   // pra IA parar de oferecer esses horários. Um só por barbearia na v1 (não

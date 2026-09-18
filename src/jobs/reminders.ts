@@ -1,6 +1,7 @@
 import { getAppointmentsNeedingReminder, getTodaysAppointmentsForReminder, ensureConfirmationToken } from "@/modules/appointments/appointments.service.js";
 import { markReminderSent } from "@/modules/appointments/appointments.repository.js";
 import { getBarbershop } from "@/modules/businesses/businesses.repository.js";
+import { metaLanguageCode } from "@/lib/locale.js";
 import { sendWhatsappText, sendWhatsappTemplate, whatsappConfigured, resolveBarbershopAccessToken } from "@/lib/whatsapp.js";
 import { markWhatsappDisconnectedIfNeeded, markWhatsappReconnectedIfNeeded } from "@/modules/whatsappConnect/whatsappConnect.service.js";
 import { tryConsumeWhatsappTrialBudget } from "@/modules/billing/billing.service.js";
@@ -49,7 +50,11 @@ async function sendWhatsAppTemplateMessage(
     const withinBudget = await tryConsumeWhatsappTrialBudget(businessId, usingSharedToken, templateName);
     if (withinBudget) {
       try {
-        await sendWhatsappTemplate(barbershop.whatsappPhoneNumberId, phone, templateName, params, "pt_BR", accessToken);
+        // Número compartilhado da plataforma (sem token próprio) só tem os
+        // templates pt_BR aprovados; idioma do negócio só vale na WABA própria,
+        // onde createTemplates criou o conjunto no idioma dele.
+        const language = accessToken ? metaLanguageCode(barbershop.locale) : "pt_BR";
+        await sendWhatsappTemplate(barbershop.whatsappPhoneNumberId, phone, templateName, params, language, accessToken);
         await markWhatsappReconnectedIfNeeded(businessId);
         return;
       } catch (err) {

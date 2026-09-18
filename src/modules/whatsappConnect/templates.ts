@@ -1,4 +1,5 @@
 import { vertical } from "@/config/env.js";
+import { normalizeLocale, type Locale } from "@/lib/locale.js";
 
 // Templates recriados automaticamente na WABA de cada barbearia recém-conectada,
 // pra reminders/reagendamento/reconquista/OTP funcionarem sem depender de o dono
@@ -61,9 +62,94 @@ export const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
   },
 ];
 
+// Mesmos 3 templates (mesmos nomes e mesma ordem de variáveis {{n}} — o código
+// de envio em reminders.ts não muda por idioma) traduzidos pros outros idiomas
+// suportados. A Meta aprova cada idioma separado: nome + language é a chave
+// única, então "appointment_reminder" em pt_BR, fr e en convivem na mesma WABA.
+const TEMPLATE_DEFINITIONS_FR: TemplateDefinition[] = [
+  {
+    name: "appointment_reminder",
+    category: "UTILITY",
+    bodyText: `Bonjour {{1}} ! 👋 Petit rappel de votre rendez-vous aujourd'hui :
+
+${vertical.brandEmoji} {{2}} avec {{3}}
+🕐 {{4}}
+
+Confirmez votre présence : {{5}}
+
+Si vous devez le déplacer, répondez simplement ici.`,
+    paramCount: 5,
+    example: ["Jean", "Coupe de cheveux", "Marc", "aujourd'hui à 15h", "https://agenda-barb.vercel.app/api/public/appointments/confirm?token=abc123"],
+  },
+  {
+    name: "appointment_reschedule_notice",
+    category: "UTILITY",
+    bodyText:
+      "Bonjour {{1}} ! 😥 Nous devons déplacer votre rendez-vous ({{2}} avec {{3}}) prévu à {{4}} le {{5}} en raison d'un imprévu dans notre planning. Nous nous excusons pour la gêne !\n\nPourriez-vous répondre ici afin que nous trouvions ensemble un nouveau créneau qui vous convienne ? 🙏",
+    paramCount: 5,
+    example: ["Jean", "Coupe de cheveux", "Marc", "15h", "10/09"],
+  },
+  {
+    name: "come_back_message",
+    category: "MARKETING",
+    bodyText: "Bonjour {{1}} ! Cela fait un moment que nous ne vous avons pas vu chez {{2}}. {{3}} On prend rendez-vous ?",
+    paramCount: 3,
+    example: ["Jean", "Barbershop Vintage", "Et si vous réserviez dès maintenant votre prochain créneau avant que l'agenda ne se remplisse ?"],
+  },
+];
+
+const TEMPLATE_DEFINITIONS_EN: TemplateDefinition[] = [
+  {
+    name: "appointment_reminder",
+    category: "UTILITY",
+    bodyText: `Hi {{1}}! 👋 Just a reminder of your appointment today:
+
+${vertical.brandEmoji} {{2}} with {{3}}
+🕐 {{4}}
+
+Please confirm you're coming: {{5}}
+
+If you need to reschedule, just reply here.`,
+    paramCount: 5,
+    example: ["John", "Haircut", "Mark", "today at 3 PM", "https://agenda-barb.vercel.app/api/public/appointments/confirm?token=abc123"],
+  },
+  {
+    name: "appointment_reschedule_notice",
+    category: "UTILITY",
+    bodyText:
+      "Hi {{1}}! 😥 We need to reschedule your {{2}} appointment with {{3}} at {{4}} on {{5}} due to an unexpected change in our schedule. Sorry for the inconvenience!\n\nCould you reply here so we can find a new time that works for you? 🙏",
+    paramCount: 5,
+    example: ["John", "Haircut", "Mark", "3 PM", "10/09"],
+  },
+  {
+    name: "come_back_message",
+    category: "MARKETING",
+    bodyText: "Hi {{1}}! It's been a while since we saw you at {{2}}. {{3}} Shall we book a time?",
+    paramCount: 3,
+    example: ["John", "Vintage Barbershop", "Why not grab your next slot now before the schedule fills up?"],
+  },
+];
+
+export const TEMPLATE_DEFINITIONS_BY_LOCALE: Record<Locale, TemplateDefinition[]> = {
+  "pt-BR": TEMPLATE_DEFINITIONS,
+  fr: TEMPLATE_DEFINITIONS_FR,
+  en: TEMPLATE_DEFINITIONS_EN,
+};
+
+export function templateDefinitionsFor(locale: string | null | undefined): TemplateDefinition[] {
+  return TEMPLATE_DEFINITIONS_BY_LOCALE[normalizeLocale(locale)];
+}
+
 // Categoria AUTHENTICATION exige estrutura fixa da Meta (botão OTP obrigatório,
 // sem texto livre no corpo) — tratado à parte de TEMPLATE_DEFINITIONS.
 export const OTP_TEMPLATE_NAME = "client_plan_otp";
+
+// Único texto livre do template de OTP: o rótulo do botão de copiar código.
+export const OTP_BUTTON_TEXT: Record<Locale, string> = {
+  "pt-BR": "Copiar código",
+  fr: "Copier le code",
+  en: "Copy code",
+};
 
 // Garantia de que toda barbearia nova conectada a partir de agora manda
 // template em formato aceitável pra Meta, sem depender de ninguém lembrar
@@ -95,4 +181,4 @@ export function validateTemplateDefinition(tpl: TemplateDefinition): void {
   }
 }
 
-for (const tpl of TEMPLATE_DEFINITIONS) validateTemplateDefinition(tpl);
+for (const defs of Object.values(TEMPLATE_DEFINITIONS_BY_LOCALE)) for (const tpl of defs) validateTemplateDefinition(tpl);

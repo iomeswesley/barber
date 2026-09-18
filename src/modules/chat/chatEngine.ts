@@ -31,6 +31,7 @@ import { generateGoogleCalendarUrl } from "@/lib/ics.js";
 import { prisma } from "@/lib/prisma.js";
 import { env, vertical } from "@/config/env.js";
 import { localDateStr } from "@/lib/time.js";
+import { formatMoney, weekdayName, languageLabel } from "@/lib/locale.js";
 import { logChatUsage } from "./chatUsage.js";
 import { isBillingBlocked } from "@/modules/billing/billing.service.js";
 import type { Business, Prisma } from "@prisma/client";
@@ -74,10 +75,8 @@ interface ChatSession {
   aiPaused: boolean;
 }
 
-const WEEKDAYS = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
-
-export function formatPrice(cents: number): string {
-  return `R$ ${Math.round(cents / 100)}`;
+export function formatPrice(cents: number, currency = "BRL", locale: string | null | undefined = "pt-BR"): string {
+  return formatMoney(cents, currency, locale);
 }
 
 export function describeClientPlanBenefit(
@@ -165,7 +164,8 @@ ${barbershop.toneExamples.map((ex) => `- "${ex}"`).join("\n")}
 - Não invente ${vertical.servicePlural}, ${vertical.professionalPlural}, preços, horários ou IDs de agendamento: sempre use as ferramentas para obter dados reais.
 - Se o ${client} pedir algo fora do escopo que não seja uma reclamação séria ou emergência (ex: pergunta geral), responda educadamente e redirecione para o agendamento.
 - Formatação: isto é WhatsApp, não Markdown. Para negrito use UM asterisco de cada lado (*assim*), NUNCA dois (**assim** está errado e aparece quebrado pro ${client}). Para itálico use underline (_assim_). Não use markdown de título (#), link ([]()) nem tabelas.
-- Data pro ${client}: SEMPRE no formato brasileiro DD/MM ou DD/MM/AAAA (ex: "05/09" ou "05/09/2026"). NUNCA mostre o formato AAAA-MM-DD (ex: "2026-09-05") — esse formato é só pra uso interno das ferramentas, nunca aparece numa mensagem pro ${client}.${
+- Idioma: responda SEMPRE no mesmo idioma em que o ${client} escrever (ele pode mudar de idioma no meio da conversa — acompanhe). Se a mensagem for curta/ambígua demais pra saber (ex: "ok", "👍"), use ${languageLabel(barbershop.locale)}, o idioma padrão desta ${biz}. As ferramentas e este prompt estão em português, mas isso NÃO muda o idioma da sua resposta ao ${client}.
+- Data pro ${client}: SEMPRE no formato DD/MM ou DD/MM/AAAA, dia antes do mês (ex: "05/09" ou "05/09/2026"). NUNCA mostre o formato AAAA-MM-DD (ex: "2026-09-05") — esse formato é só pra uso interno das ferramentas, nunca aparece numa mensagem pro ${client}.${
     barbershop.masterPrompt?.trim()
       ? `
 
@@ -183,7 +183,8 @@ interface Identity {
 export function buildDynamicContext(
   identity: Identity,
   pendingReview: Awaited<ReturnType<typeof getUnreviewedCompletedAppointment>>,
-  upcomingAppointments: Awaited<ReturnType<typeof getAppointmentsByClientPhone>>
+  upcomingAppointments: Awaited<ReturnType<typeof getAppointmentsByClientPhone>>,
+  locale: string | null | undefined = "pt-BR"
 ): string {
   const now = new Date();
   // localDateStr (getters locais, respeitam TZ=America/Sao_Paulo), não
@@ -193,7 +194,7 @@ export function buildDynamicContext(
   // errado com o próprio "hoje é" correto no texto — não era mais bug de
   // prompt/histórico, o dado de entrada é que já vinha errado.
   const todayIso = localDateStr(now);
-  const weekday = WEEKDAYS[now.getDay()];
+  const weekday = weekdayName(locale, now.getDay());
   // Acha em produção (14/09): mesmo com "hoje é" correto, o modelo às
   // vezes erra a CONTA de "amanhã" (chamou verificar_horarios_disponiveis
   // com a data de HOJE quando o cliente pediu "amanhã") — erro residual
@@ -208,7 +209,7 @@ export function buildDynamicContext(
   const nextDays = Array.from({ length: 8 }, (_, i) => {
     const d = new Date(now);
     d.setDate(d.getDate() + i);
-    return { iso: localDateStr(d), weekday: WEEKDAYS[d.getDay()] };
+    return { iso: localDateStr(d), weekday: weekdayName(locale, d.getDay()) };
   });
   const tomorrowIso = nextDays[1]!.iso;
 
@@ -603,7 +604,7 @@ async function executeTool(barbershop: Business, name: string, input: any, custo
   switch (name) {
     case "listar_servicos": {
       const services = await getServices(barbershop.id);
-      return services.map((s) => ({ id: s.id, nome: s.name, preco: formatPrice(s.priceCents), duracao_min: s.durationMin }));
+      return services.map((s) => ({ id: s.id, nome: s.name, preco: formatPrice(s.priceCents, barbershop.currency, barbershop.locale), duracao_min: s.durationMin }));
     }
     case "listar_barbeiros": {
       const barbers = await getBarbers(barbershop.id);
@@ -668,7 +669,7 @@ async function executeTool(barbershop: Business, name: string, input: any, custo
         agendamento_id: appointment.id,
         confirmado: true,
         resumo: `${appointment.serviceName} com ${appointment.barberName} em ${appointment.date} às ${appointment.startTime}`,
-        preco: formatPrice(appointment.priceCents),
+        preco: formatPrice(appointment.priceCents, barbershop.currency, barbershop.locale),
         ics_url: icsUrl(appointment.id, customerPhone),
         // URL do Google Agenda vem enorme (todos os campos do evento na
         // query string) — encurta antes de mandar por WhatsApp, mesmo
@@ -697,7 +698,7 @@ async function executeTool(barbershop: Business, name: string, input: any, custo
         barbeiro: a.barberName,
         data: a.date,
         horario: a.startTime,
-        preco: formatPrice(a.priceCents),
+        preco: formatPrice(a.priceCents, barbershop.currency, barbershop.locale),
       }));
     }
     case "cancelar_agendamento": {
@@ -741,7 +742,7 @@ async function executeTool(barbershop: Business, name: string, input: any, custo
         planos: plans.map((p) => ({
           id: p.id,
           nome: p.name,
-          preco_mensal: formatPrice(p.priceCents),
+          preco_mensal: formatPrice(p.priceCents, barbershop.currency, barbershop.locale),
           beneficio: describeClientPlanBenefit(p, p.serviceId ? serviceNameById.get(p.serviceId) : undefined),
         })),
       };
@@ -1142,7 +1143,7 @@ export async function generateReplyFromHistory(
 
   const system: Anthropic.TextBlockParam[] = [
     { type: "text", text: buildStableSystemPrompt(barbershop), cache_control: { type: "ephemeral" } },
-    { type: "text", text: buildDynamicContext({ existingClient, pushName }, pendingReview, upcomingAppointments) },
+    { type: "text", text: buildDynamicContext({ existingClient, pushName }, pendingReview, upcomingAppointments, barbershop.locale) },
   ];
 
   const key = storageKey(businessId, sessionId);

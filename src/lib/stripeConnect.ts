@@ -44,12 +44,13 @@ export async function getAccountStatus(
 export async function createConnectedProductAndPrice(
   accountId: string,
   name: string,
-  priceCents: number
+  priceCents: number,
+  currency = "BRL"
 ): Promise<{ productId: string; priceId: string }> {
   const client = requireStripe();
   const product = await client.products.create({ name }, { stripeAccount: accountId });
   const price = await client.prices.create(
-    { product: product.id, unit_amount: priceCents, currency: "brl", recurring: { interval: "month" } },
+    { product: product.id, unit_amount: priceCents, currency: currency.toLowerCase(), recurring: { interval: "month" } },
     { stripeAccount: accountId }
   );
   return { productId: product.id, priceId: price.id };

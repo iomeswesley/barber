@@ -72,6 +72,40 @@ describe("createTemplates (payload real mandado pra Meta)", () => {
 
     vi.unstubAllGlobals();
   });
+
+  it("sem locale usa pt_BR (comportamento histórico dos negócios existentes)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}), text: async () => "" });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await createTemplates("waba-teste", "token-teste");
+
+    for (const [, init] of fetchMock.mock.calls) {
+      expect(JSON.parse((init as RequestInit).body as string).language).toBe("pt_BR");
+    }
+
+    vi.unstubAllGlobals();
+  });
+
+  it("locale fr cria os templates traduzidos com language 'fr' (Luxemburgo) e botão de OTP em francês", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}), text: async () => "" });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await createTemplates("waba-teste", "token-teste", "fr");
+
+    expect(fetchMock).toHaveBeenCalledTimes(TEMPLATE_DEFINITIONS.length + 1);
+    const bodies = fetchMock.mock.calls.map(([, init]) => JSON.parse((init as RequestInit).body as string));
+    for (const body of bodies) expect(body.language).toBe("fr");
+
+    const reminder = bodies.find((b) => b.name === "appointment_reminder");
+    expect(reminder.components[0].text).toContain("Bonjour {{1}}");
+    // Mesmos nomes dos templates em pt_BR — o código de envio não muda por idioma.
+    expect(bodies.map((b) => b.name).sort()).toEqual([...TEMPLATE_DEFINITIONS.map((t) => t.name), "client_plan_otp"].sort());
+
+    const otp = bodies.find((b) => b.name === "client_plan_otp");
+    expect(otp.components.find((c: { type: string }) => c.type === "BUTTONS").buttons[0].text).toBe("Copier le code");
+
+    vi.unstubAllGlobals();
+  });
 });
 
 // Achado em produção (13/09): disconnect (whatsappConnect.routes.ts) só

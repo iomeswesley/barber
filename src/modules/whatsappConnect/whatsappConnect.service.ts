@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
 import { env } from "@/config/env.js";
 import { AppError } from "@/middleware/errorHandler.js";
-import { TEMPLATE_DEFINITIONS, OTP_TEMPLATE_NAME } from "./templates.js";
+import { templateDefinitionsFor, OTP_TEMPLATE_NAME, OTP_BUTTON_TEXT } from "./templates.js";
+import { metaLanguageCode, normalizeLocale } from "@/lib/locale.js";
 import { isWhatsappDisconnectionError } from "@/lib/whatsapp.js";
 import { prisma } from "@/lib/prisma.js";
 import { alertPlatformOperator } from "@/lib/alerts.js";
@@ -232,17 +233,22 @@ export async function getDisplayPhoneNumber(phoneNumberId: string, accessToken: 
 // templates.ts) — melhor esforço: erro num template (ex: nome já existe)
 // não derruba os outros, só fica registrado no log pro dono revisar depois
 // se algum recurso (lembrete/reagendamento/reconquista) não funcionar.
-export async function createTemplates(wabaId: string, accessToken: string): Promise<{ name: string; ok: boolean; error?: string }[]> {
+export async function createTemplates(
+  wabaId: string,
+  accessToken: string,
+  locale: string | null | undefined = "pt-BR"
+): Promise<{ name: string; ok: boolean; error?: string }[]> {
   const results: { name: string; ok: boolean; error?: string }[] = [];
+  const language = metaLanguageCode(locale);
 
-  for (const tpl of TEMPLATE_DEFINITIONS) {
+  for (const tpl of templateDefinitionsFor(locale)) {
     try {
       const res = await fetch(`${GRAPH_BASE}/${wabaId}/message_templates`, {
         method: "POST",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           name: tpl.name,
-          language: "pt_BR",
+          language,
           category: tpl.category,
           // "example" é obrigatório pra qualquer variável {{n}} no corpo —
           // sem isso a Meta rejeita com INVALID_FORMAT (achado em produção,
@@ -270,14 +276,14 @@ export async function createTemplates(wabaId: string, accessToken: string): Prom
       headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         name: OTP_TEMPLATE_NAME,
-        language: "pt_BR",
+        language,
         category: "AUTHENTICATION",
         components: [
           { type: "BODY", add_security_recommendation: true },
           { type: "FOOTER", code_expiration_minutes: 10 },
           {
             type: "BUTTONS",
-            buttons: [{ type: "OTP", otp_type: "COPY_CODE", text: "Copiar código" }],
+            buttons: [{ type: "OTP", otp_type: "COPY_CODE", text: OTP_BUTTON_TEXT[normalizeLocale(locale)] }],
           },
         ],
       }),

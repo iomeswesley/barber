@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireAuth, requireOwner } from "@/middleware/auth.js";
 import { AppError } from "@/middleware/errorHandler.js";
 import { env } from "@/config/env.js";
+import { prisma } from "@/lib/prisma.js";
 import { encryptSecret, decryptSecret } from "@/lib/crypto.js";
 import {
   whatsappConnectConfigured,
@@ -90,7 +91,11 @@ whatsappConnectRouter.post("/api/manage/whatsapp/connect/callback", requireAuth,
       coexistence: !!isCoexistence,
     });
 
-    const templateResults = await createTemplates(wabaId, accessToken);
+    // Templates no idioma configurado do negócio (Business.locale) — cada
+    // idioma é aprovado separado pela Meta, então só criamos o do próprio
+    // negócio (pt-BR pros existentes; fr/en pra Luxemburgo).
+    const business = await prisma.business.findUnique({ where: { id: businessId }, select: { locale: true } });
+    const templateResults = await createTemplates(wabaId, accessToken, business?.locale);
     const failed = templateResults.filter((t) => !t.ok);
     if (failed.length > 0) {
       console.error(`[WHATSAPP CONNECT] Falha ao criar templates na WABA ${wabaId}:`, failed);

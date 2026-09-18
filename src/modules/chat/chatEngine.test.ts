@@ -37,6 +37,13 @@ describe("buildDynamicContext", () => {
     expect(text).toContain("terça-feira: 2026-09-15 (amanhã)");
   });
 
+  it("com locale fr entrega a tabela de dias em francês (negócio em Luxemburgo)", () => {
+    vi.setSystemTime(new Date("2026-09-14T17:49:00-03:00")); // segunda-feira
+    const text = buildDynamicContext({ existingClient: null, pushName: "Wesley" }, null, [], "fr");
+    expect(text).toContain("lundi: 2026-09-14 (hoje)");
+    expect(text).toContain("mardi: 2026-09-15 (amanhã)");
+  });
+
   it("lista os próximos 8 dias (hoje + 7), cobrindo qualquer dia da semana solto ('quinta', 'sexta')", () => {
     vi.setSystemTime(new Date("2026-09-14T17:49:00-03:00")); // segunda-feira
     const text = buildDynamicContext({ existingClient: null, pushName: "Wesley" }, null, []);
@@ -51,6 +58,13 @@ describe("buildDynamicContext", () => {
     expect(text).toContain("Hoje é quarta-feira, 2026-09-30");
     expect(text).toContain("quarta-feira: 2026-09-30 (hoje)");
     expect(text).toContain("quinta-feira: 2026-10-01 (amanhã)");
+  });
+});
+
+describe("formatPrice em outra moeda/locale", () => {
+  it("EUR em francês não arredonda centavos", () => {
+    expect(formatPrice(1550, "EUR", "fr")).toContain("15,50");
+    expect(formatPrice(1500, "EUR", "fr")).not.toMatch(/,\d{2}/);
   });
 });
 

@@ -36,9 +36,17 @@ import {
   getClientPlanSubscriptions,
 } from "./clientPlans.repository.js";
 import type { ClientPlanBenefitType } from "@prisma/client";
+import { prisma } from "@/lib/prisma.js";
 import type Stripe from "stripe";
 
 export const clientPlansRouter = Router();
+
+// Moeda do negócio (Business.currency) pros preços de plano no Stripe Connect —
+// antes fixa em BRL. Negócio sem linha/valor cai no padrão histórico.
+async function getBusinessCurrency(businessId: number): Promise<string> {
+  const business = await prisma.business.findUnique({ where: { id: businessId }, select: { currency: true } });
+  return business?.currency || "BRL";
+}
 
 const BENEFIT_TYPES: ClientPlanBenefitType[] = ["services_included", "percent_discount", "unlimited_service"];
 
@@ -145,7 +153,7 @@ clientPlansRouter.post("/api/manage/client-plans", requireAuth, requireOwner, as
     }
 
     const { name, priceCents, benefitType, benefitValue, serviceId } = validatePlanBody(req.body || {});
-    const { productId, priceId } = await createConnectedProductAndPrice(connect.stripeConnectAccountId, name, priceCents);
+    const { productId, priceId } = await createConnectedProductAndPrice(connect.stripeConnectAccountId, name, priceCents, await getBusinessCurrency(businessId));
     const plan = await createClientPlan(businessId, {
       name,
       priceCents,
@@ -177,7 +185,7 @@ clientPlansRouter.put("/api/manage/client-plans/:id", requireAuth, requireOwner,
     if (priceCents !== existing!.priceCents || name !== existing!.name) {
       const connect = await getConnectAccountId(businessId);
       if (!connect?.stripeConnectAccountId) throw new AppError("Conta Stripe Connect não encontrada.", 400);
-      const created = await createConnectedProductAndPrice(connect.stripeConnectAccountId, name, priceCents);
+      const created = await createConnectedProductAndPrice(connect.stripeConnectAccountId, name, priceCents, await getBusinessCurrency(businessId));
       stripeProductId = created.productId;
       stripePriceId = created.priceId;
     }
