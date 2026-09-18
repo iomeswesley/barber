@@ -1956,9 +1956,9 @@ const AVATAR_COLORS_LIGHT = ["#1e8e3e", "#1a73e8", "#d93025", "#a142f4", "#f9ab0
 function isDark() { return document.documentElement.getAttribute("data-theme") === "dark"; }
 
 function currency(v) {
-  return new Intl.NumberFormat("pt-BR", {
+  return new Intl.NumberFormat(I18N.intlLocale, {
     style: "currency",
-    currency: "BRL",
+    currency: I18N.currency,
     maximumFractionDigits: 0,
   }).format(v || 0);
 }
@@ -2024,7 +2024,7 @@ function deltaBadge(percent) {
 
 /* ---------------- Cabeçalho: saudação + avatar (topo da Visão geral) ---------------- */
 function renderGreetingDate() {
-  const text = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const text = new Date().toLocaleDateString(I18N.intlLocale, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   document.getElementById("greeting-date-text").textContent = text.charAt(0).toUpperCase() + text.slice(1);
 }
 document.addEventListener("themechange", () => { if (lastMe) applyMeToHeader(lastMe); });
@@ -2425,7 +2425,7 @@ async function loadRevenueChart() {
           ticks: {
             color: tickColor,
             font: { size: 11 },
-            callback: (v) => "R$ " + v,
+            callback: (v) => I18N.currencySymbol + " " + v,
           },
         },
       },
@@ -2711,7 +2711,7 @@ async function loadBarberPerformance() {
         x: {
           stacked: true,
           grid: { color: isDark() ? "rgba(255,255,255,0.06)" : "rgba(20,22,28,0.06)" },
-          ticks: { color: cssVar("--text-muted"), font: { size: 11 }, callback: (v) => "R$ " + v },
+          ticks: { color: cssVar("--text-muted"), font: { size: 11 }, callback: (v) => I18N.currencySymbol + " " + v },
         },
         y: {
           stacked: true,
@@ -3062,7 +3062,7 @@ async function openClientApptModal(appt) {
           <span class="vh-date">${v.date} · ${v.start_time}</span>
           <span class="vh-price">${currency(v.price_cents / 100)}</span>
         </div>
-        <div class="vh-meta">${v.service_name} com ${v.barber_name}${v.status === "no_show" ? " · Não compareceu" : ""}</div>
+        <div class="vh-meta">${t("{s} com {b}", { s: v.service_name, b: v.barber_name })}${v.status === "no_show" ? " · " + t("Não compareceu") : ""}</div>
         ${v.products.length > 0 ? `<div class="vh-products">${v.products.map((p) => `<span class="vh-product-chip">${p.name}${p.quantity > 1 ? ` ×${p.quantity}` : ""}</span>`).join("")}</div>` : ""}
         ${v.notes ? `<div class="vh-notes" style="margin-top:4px; font-size:12px; color:var(--text-secondary); font-style:italic;">"${escapeHtml(v.notes)}"</div>` : ""}
       </div>`
@@ -3213,7 +3213,7 @@ function timeAgo(dateStr) {
   if (diffDays <= 0) return "hoje";
   if (diffDays === 1) return "ontem";
   if (diffDays < 30) return `há ${diffDays} dias`;
-  return then.toLocaleDateString("pt-BR");
+  return then.toLocaleDateString(I18N.intlLocale);
 }
 
 let reviewPeriod = "all";
@@ -3267,7 +3267,7 @@ async function loadReviews() {
         <span>${r.client_name} <span class="stars">${starString(r.rating)}</span></span>
         <span class="review-meta">${timeAgo(r.created_at)}</span>
       </div>
-      <div class="review-meta">${r.service_name} com ${r.barber_name}</div>
+      <div class="review-meta">${t("{s} com {b}", { s: r.service_name, b: r.barber_name })}</div>
       ${r.comment ? `<div class="review-comment">"${r.comment}"</div>` : ""}
     </div>
   `
@@ -4048,7 +4048,7 @@ async function loadCampaigns() {
         <div style="font-weight:700; font-size:13px;">${escapeHtml(c.name)}</div>
         <div style="font-size:12px; color:var(--text-secondary); margin-top:3px;">${escapeHtml(c.message_template)}</div>
         <div style="font-size:11px; color:var(--text-muted); margin-top:5px;">
-          Inativos há ${c.inactive_days_threshold}+ dias · ${c.sent_count} enviada(s) · ${new Date(c.created_at).toLocaleDateString("pt-BR")}
+          Inativos há ${c.inactive_days_threshold}+ dias · ${c.sent_count} enviada(s) · ${new Date(c.created_at).toLocaleDateString(I18N.intlLocale)}
         </div>
       </div>
     </div>
@@ -4533,7 +4533,7 @@ async function renderAgenda() {
     gridEnd.setDate(gridEnd.getDate() + (6 - gridEnd.getDay()));
 
     title.textContent = "Agenda do mês";
-    rangeLabel.textContent = monthStart.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+    rangeLabel.textContent = monthStart.toLocaleDateString(I18N.intlLocale, { month: "long", year: "numeric" });
 
     const params = new URLSearchParams({ start: toDateStr(gridStart), end: toDateStr(gridEnd) });
     if (agendaBarberId) params.set("professionalId", agendaBarberId);
@@ -5446,7 +5446,7 @@ async function loadCashSessionHistory(accountId) {
 /* ---------------- Log de auditoria ---------------- */
 function timeAgoFull(dateStr) {
   const then = parseServerDate(dateStr);
-  return then.toLocaleString("pt-BR");
+  return then.toLocaleString(I18N.intlLocale);
 }
 
 async function loadAuditLog() {
@@ -5495,7 +5495,7 @@ async function loadBackups() {
     <div class="item-row">
       <div>
         <div class="item-info">${b.name}</div>
-        <div class="item-meta">${formatBytes(b.sizeBytes)} · ${new Date(b.createdAt).toLocaleString("pt-BR")}</div>
+        <div class="item-meta">${formatBytes(b.sizeBytes)} · ${new Date(b.createdAt).toLocaleString(I18N.intlLocale)}</div>
       </div>
     </div>
   `
@@ -6032,16 +6032,16 @@ async function loadWhatsappConnectStatus() {
   loadFacebookSdk(config.app_id).catch((err) => console.error("[WHATSAPP CONNECT] Falha ao pré-carregar SDK do Facebook:", err));
 
   const status = await (await fetch("/api/manage/whatsapp/connect/status")).json();
-  hint.textContent = WHATSAPP_STATUS_LABEL[status.status] || WHATSAPP_STATUS_LABEL.not_connected;
+  hint.textContent = t(WHATSAPP_STATUS_LABEL[status.status] || WHATSAPP_STATUS_LABEL.not_connected);
   // "error" já significa NÚMERO CONECTADO (ver comentário abaixo em
   // showConnectFlow) — mostra telefone e selo de Coexistência aqui também,
   // senão o dono via só o aviso de template sem saber qual número está
   // conectado por trás.
   if ((status.status === "connected" || status.status === "pending_templates" || status.status === "error") && status.display_phone) {
-    hint.textContent += ` Número: ${status.display_phone}`;
+    hint.textContent += " " + t("Número: {0}", { 0: status.display_phone });
   }
   if ((status.status === "connected" || status.status === "pending_templates" || status.status === "error") && status.coexistence) {
-    hint.textContent += " Modo Coexistência ativo — seu WhatsApp Business App continua funcionando normalmente no celular.";
+    hint.textContent += " " + t("Modo Coexistência ativo — seu WhatsApp Business App continua funcionando normalmente no celular.");
   }
 
   // "error" NÃO é "desconectado" — é setado só quando um Message Template é
@@ -6241,7 +6241,7 @@ async function loadWhatsappConnectStatus() {
 const STATUS_LABEL_BILLING = { trialing: "Em teste grátis", active: "Ativa", past_due: "Pagamento pendente", canceled: "Cancelada" };
 const PLAN_BADGE_TEXT = { starter: "STARTER", pro: "PRO" };
 
-function fmtDate(d) { return d ? new Date(d).toLocaleDateString("pt-BR") : "—"; }
+function fmtDate(d) { return d ? new Date(d).toLocaleDateString(I18N.intlLocale) : "—"; }
 
 // Classe/texto do "selo" de plano — usado tanto no header (sempre visível)
 // quanto no card de Cobrança (pill ao lado do texto de status).
@@ -6865,7 +6865,7 @@ function refreshChartsTheme() {
 function updateTimestamp() {
   const now = new Date();
   document.getElementById("last-updated").textContent =
-    "Última atualização: " + now.toLocaleTimeString("pt-BR");
+    "Última atualização: " + now.toLocaleTimeString(I18N.intlLocale);
 }
 
 /* ---------------- Alertas (estoque baixo + escalonamentos) ---------------- */
@@ -7007,7 +7007,7 @@ async function loadAlerts() {
           <div class="item-info">
             <div><svg class="icon"><use href="#icon-alert-octagon"></use></svg> ${e.client_name || e.client_phone}</div>
             <div class="hint">${e.reason}</div>
-            <div class="hint">${new Date(e.created_at).toLocaleString("pt-BR")}</div>
+            <div class="hint">${new Date(e.created_at).toLocaleString(I18N.intlLocale)}</div>
           </div>
           <button class="icon-btn resolve-escalation-btn" data-id="${e.id}">Marcar resolvido</button>
         </div>

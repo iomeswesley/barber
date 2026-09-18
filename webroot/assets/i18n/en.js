@@ -123,7 +123,6 @@
   "Reenviar código": "Resend code",
   "Prefiro conversar com a IA": "I'd rather chat with the AI",
   "Quero excluir meus dados": "I want to delete my data",
-  "{1} com {2}": "{1} with {2}",
   "Nova data": "New date",
   "Ver horários": "See available times",
   "Confirmar novo horário": "Confirm new time",
@@ -250,5 +249,6 @@
   "Deixe o WhatsApp da sua barbearia trabalhar sozinho": "Let your barbershop's WhatsApp work on its own",
   "Teste grátis por 14 dias, sem cartão de crédito. Cancele quando quiser.": "Free 14-day trial, no credit card. Cancel anytime.",
   "Criar conta da barbearia": "Create barbershop account",
-  "barber.bot · agendamento por WhatsApp com IA": "barber.bot · WhatsApp booking with AI"
+  "barber.bot · agendamento por WhatsApp com IA": "barber.bot · WhatsApp booking with AI",
+  "{s} com {b}": "{s} with {b}"
 };

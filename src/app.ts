@@ -180,6 +180,23 @@ export function createApp() {
   // diferentes conforme o modo (src/ no dev via tsx, dist/src/ compilado),
   // mas o processo sempre roda a partir da raiz do projeto em todos os
   // ambientes (dev, npm start, função serverless do Vercel).
+  // Região do deploy pro frontend (moeda, país, fuso, locale padrão) — o HTML é
+  // estático, então isto é um script gerado a partir de APP_*. Lido por
+  // assets/i18n.js. Sem cache: trocar a env var tem que refletir na hora.
+  app.get("/assets/region.js", (_req, res) => {
+    res
+      .type("application/javascript")
+      .set("Cache-Control", "no-cache")
+      .send(
+        `window.APP_REGION=${JSON.stringify({
+          locale: env.APP_DEFAULT_LOCALE,
+          country: env.APP_DEFAULT_COUNTRY,
+          currency: env.APP_DEFAULT_CURRENCY,
+          timezone: env.APP_TIMEZONE,
+        })};`
+      );
+  });
+
   // Fora do Brasil as páginas legais são as versões GDPR (fr/en no mesmo
   // arquivo) — a LGPD (privacidade.html/termos.html) não vale na UE. Precisa
   // vir ANTES do express.static, senão o arquivo brasileiro responde primeiro.

@@ -123,7 +123,6 @@
   "Reenviar código": "Renvoyer le code",
   "Prefiro conversar com a IA": "Je préfère discuter avec l'IA",
   "Quero excluir meus dados": "Je souhaite supprimer mes données",
-  "{1} com {2}": "{1} avec {2}",
   "Nova data": "Nouvelle date",
   "Ver horários": "Voir les créneaux",
   "Confirmar novo horário": "Confirmer le nouveau créneau",
@@ -251,5 +250,6 @@
   "Deixe o WhatsApp da sua barbearia trabalhar sozinho": "Laissez le WhatsApp de votre barbershop travailler tout seul",
   "Teste grátis por 14 dias, sem cartão de crédito. Cancele quando quiser.": "Essai gratuit de 14 jours, sans carte bancaire. Résiliable à tout moment.",
   "Criar conta da barbearia": "Créer le compte du barbershop",
-  "barber.bot · agendamento por WhatsApp com IA": "barber.bot · prise de rendez-vous par WhatsApp avec IA"
+  "barber.bot · agendamento por WhatsApp com IA": "barber.bot · prise de rendez-vous par WhatsApp avec IA",
+  "{s} com {b}": "{s} avec {b}"
 };

@@ -35,6 +35,34 @@
   }
 
   var lang = detect();
+
+  // Região do deploy (moeda, país, fuso): /assets/region.js é gerado pelo
+  // servidor a partir de APP_* (ver src/app.ts). Carregado aqui, síncrono, pra
+  // não exigir uma tag extra em cada página; lido só sob demanda (getters no
+  // final), porque esse script roda logo depois deste.
+  if (!window.APP_REGION) document.write('<script src="/assets/region.js"><\/script>');
+  function region() {
+    return window.APP_REGION || { locale: "pt-BR", country: "BR", currency: "BRL", timezone: "America/Sao_Paulo" };
+  }
+  var symbolCache = null;
+  function currencySymbol() {
+    var cur = region().currency;
+    if (symbolCache && symbolCache.cur === cur) return symbolCache.sym;
+    var sym = cur;
+    try {
+      var parts = new Intl.NumberFormat("en", { style: "currency", currency: cur, currencyDisplay: "narrowSymbol" }).formatToParts(0);
+      for (var i = 0; i < parts.length; i++) if (parts[i].type === "currency") sym = parts[i].value;
+    } catch (e) {}
+    if (cur === "BRL") sym = "R$";
+    symbolCache = { cur: cur, sym: sym };
+    return sym;
+  }
+  // Textos com "R$" (rótulos, mockups) viram o símbolo da moeda do deploy —
+  // só age fora do Brasil, onde o rótulo em português estaria errado.
+  function fixCurrency(str) {
+    var sym = currencySymbol();
+    return sym === "R$" ? str : str.replace(/R\$/g, sym);
+  }
   var root = document.documentElement;
   var script = document.currentScript;
   var scope = (script && script.getAttribute("data-scope")) || "public";
@@ -44,6 +72,7 @@
 
   var dict = {}; // chave normalizada -> tradução
   var patterns = null; // [{re, out, len}] compilado sob demanda
+  var active = false; // vira true no boot, quando já se sabe idioma e região
 
   function norm(s) {
     return String(s).replace(/\s+/g, " ").trim();
@@ -56,6 +85,11 @@
     patterns = [];
     for (var key in dict) {
       if (!/\{\d+\}/.test(key)) continue;
+      // Padrão com pouco texto fixo (ex: "{1} com {2}") casaria com qualquer
+      // frase do usuário que contenha esse trecho e a reescreveria (achado no
+      // teste do painel: mensagens de cliente viravam "... avec ..."). Só
+      // vale padrão com pelo menos 4 caracteres fixos; o resto usa t() no JS.
+      if (key.replace(/\{\d+\}/g, "").replace(/\s+/g, "").length < 4) continue;
       var re = "^" + escapeRe(key).replace(/\\\{(\d+)\\\}/g, "(.+?)") + "$";
       // Ordem em que cada {n} aparece na chave = índice do grupo capturado
       // (a numeração pode começar em {1} ou pular números).
@@ -72,8 +106,34 @@
   }
 
   // Traduz uma string; devolve a original se não houver tradução.
+  // Monta o dicionário e decide se o motor está ativo. Idempotente e chamado
+  // sob demanda: scripts da página podem chamar t() antes do DOMContentLoaded,
+  // e os dicionários (scripts síncronos do <head>) já estão carregados então.
+  var built = false;
+  function buildDict() {
+    if (built) return;
+    built = true;
+    var d = window.I18N_DICT || {};
+    dict = {};
+    var sets = [d[lang], d[lang + "-errors"], d[lang + "-app"], d[lang + "-app2"]];
+    for (var i = 0; i < sets.length; i++) {
+      if (!sets[i]) continue;
+      for (var k in sets[i]) dict[norm(k)] = sets[i][k];
+    }
+    patterns = null;
+    // Ativo = traduz (idioma != pt-BR) OU corrige o símbolo da moeda (deploy
+    // fora do Brasil, mesmo em português).
+    active = pending || currencySymbol() !== "R$";
+  }
+
   function tr(str) {
-    if (lang === "pt-BR" || typeof str !== "string") return str;
+    if (typeof str !== "string") return str;
+    buildDict();
+    if (lang === "pt-BR") return /R\$/.test(str) ? fixCurrency(str) : str;
+    var out = trDict(str);
+    return /R\$/.test(out) ? fixCurrency(out) : out;
+  }
+  function trDict(str) {
     var m = /^(\s*)([\s\S]*?)(\s*)$/.exec(str);
     var core = norm(m[2]);
     if (!core) return str;
@@ -126,7 +186,18 @@
     if (out !== v) node.nodeValue = out;
   }
 
+  // Atributos (placeholder etc.) valem também em <textarea>/<input>: só o
+  // CONTEÚDO de textarea/script/style é intocável, não seus atributos.
+  function attrSkipped(el) {
+    for (; el && el.nodeType === 1; el = el.parentNode) {
+      var tag = el.tagName.toUpperCase();
+      if (tag === "SCRIPT" || tag === "STYLE" || tag === "NOSCRIPT" || el.hasAttribute("data-no-i18n") || el.getAttribute("translate") === "no") return true;
+    }
+    return false;
+  }
+
   function translateElementAttrs(el) {
+    if (attrSkipped(el)) return;
     for (var i = 0; i < ATTRS.length; i++) {
       var a = el.getAttribute(ATTRS[i]);
       if (a) {
@@ -137,7 +208,8 @@
   }
 
   function translateSubtree(node) {
-    if (lang === "pt-BR" || !node) return;
+    buildDict();
+    if (!active || !node) return;
     if (node.nodeType === 3) {
       if (!skipped(node.parentNode)) translateTextNode(node);
       return;
@@ -174,7 +246,7 @@
     translateElementAttrs(node);
     var withAttrs = node.querySelectorAll ? node.querySelectorAll("[placeholder],[title],[aria-label],[alt]") : [];
     for (var m2 = 0; m2 < withAttrs.length; m2++) {
-      if (!skipped(withAttrs[m2])) translateElementAttrs(withAttrs[m2]);
+      translateElementAttrs(withAttrs[m2]);
     }
   }
 
@@ -186,7 +258,7 @@
         if (r.type === "characterData") {
           if (!skipped(r.target.parentNode)) translateTextNode(r.target);
         } else if (r.type === "attributes") {
-          if (!skipped(r.target)) translateElementAttrs(r.target);
+          translateElementAttrs(r.target);
         } else {
           for (var j = 0; j < r.addedNodes.length; j++) translateSubtree(r.addedNodes[j]);
         }
@@ -246,20 +318,16 @@
     // Dicionário síncrono (bloqueia o parser, de propósito): garante que existe
     // antes do DOMContentLoaded. Só carrega pra idioma != pt-BR.
     var base = "/assets/i18n/" + lang;
-    document.write('<script src="' + base + ".js?v=" + VERSION + '"><\/script>');
-    if (scope === "app") document.write('<script src="' + base + "-app.js?v=" + VERSION + '"><\/script>');
+    // fr.js (páginas públicas) e fr-errors.js (mensagens de erro da API, que
+    // aparecem em qualquer página) sempre; o painel carrega também fr-app*.js.
+    var parts = ["", "-errors"];
+    if (scope === "app") parts.push("-app", "-app2");
+    for (var pi = 0; pi < parts.length; pi++) document.write('<script src="' + base + parts[pi] + ".js?v=" + VERSION + '"><\/script>');
   }
 
   function boot() {
-    var d = window.I18N_DICT || {};
-    dict = {};
-    var sets = [d[lang], d[lang + "-app"]];
-    for (var i = 0; i < sets.length; i++) {
-      if (!sets[i]) continue;
-      for (var k in sets[i]) dict[norm(k)] = sets[i][k];
-    }
-    patterns = null;
-    if (pending) {
+    buildDict();
+    if (active) {
       translateSubtree(document.body);
       if (document.title) document.title = tr(document.title);
       startObserver();
@@ -286,7 +354,7 @@
     };
   }
 
-  window.I18N = {
+  var api = {
     lang: lang,
     langs: LANGS,
     intlLocale: INTL[lang],
@@ -294,6 +362,18 @@
     t: t,
     setLang: setLang,
     apply: translateSubtree,
+    // Formata dinheiro na moeda da região do deploy (nunca fixo em BRL).
+    fmtCurrency: function (value, fractionDigits) {
+      var o = { style: "currency", currency: region().currency };
+      if (fractionDigits !== undefined) o.maximumFractionDigits = fractionDigits;
+      return new Intl.NumberFormat(INTL[lang], o).format(value || 0);
+    },
   };
+  // Lidos sob demanda: region.js só termina de carregar depois deste script.
+  Object.defineProperty(api, "currency", { get: function () { return region().currency; } });
+  Object.defineProperty(api, "currencySymbol", { get: currencySymbol });
+  Object.defineProperty(api, "country", { get: function () { return region().country; } });
+  Object.defineProperty(api, "timezone", { get: function () { return region().timezone; } });
+  window.I18N = api;
   window.t = t;
 })();

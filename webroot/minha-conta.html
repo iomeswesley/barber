@@ -99,7 +99,7 @@
 </div>
 
 <script>
-function currency(v) { return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v || 0); }
+function currency(v) { return new Intl.NumberFormat(I18N.intlLocale, { style: "currency", currency: I18N.currency, maximumFractionDigits: 0 }).format(v || 0); }
 
 let currentPhone = "";
 let currentShopId = "";
@@ -122,7 +122,7 @@ function hideError() {
 function apptCardHtml(a) {
   return `
     <div class="appt-card" data-appt-id="${a.id}">
-      <div class="appt-client">${a.service_name} com ${a.barber_name}</div>
+      <div class="appt-client">${t("{s} com {b}", { s: a.service_name, b: a.barber_name })}</div>
       <div class="appt-meta">${a.date} · ${a.start_time} – ${a.end_time} · ${currency(a.price_cents / 100)}</div>
       <div class="appt-actions">
         <button class="secondary" data-open-reschedule="${a.id}">Remarcar</button>
@@ -207,7 +207,7 @@ function wireApptCard(id) {
 function historyCardHtml(a, isMostRecent) {
   return `
     <div class="history-card" data-history-id="${a.id}">
-      <div class="appt-client">${a.service_name} com ${a.barber_name}</div>
+      <div class="appt-client">${t("{s} com {b}", { s: a.service_name, b: a.barber_name })}</div>
       <div class="appt-meta">${a.date} · ${a.start_time} – ${a.end_time} · ${currency(a.price_cents / 100)}</div>
       ${isMostRecent ? `<div class="appt-actions"><button class="secondary" data-repeat-open="${a.id}" data-barber="${a.barber_id}" data-service="${a.service_id}">Reagendar igual ao último</button></div>` : ""}
       <div class="reschedule-panel" id="repeat-${a.id}">

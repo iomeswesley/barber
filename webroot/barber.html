@@ -386,7 +386,7 @@
 </div>
 
 <script>
-function currency(v) { return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v || 0); }
+function currency(v) { return new Intl.NumberFormat(I18N.intlLocale, { style: "currency", currency: I18N.currency, maximumFractionDigits: 0 }).format(v || 0); }
 function escapeHtml(str) {
   return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
@@ -780,7 +780,7 @@ async function renderMyAgenda() {
     const monthEnd = new Date(year, month + 1, 0);
     const gridStart = new Date(monthStart); gridStart.setDate(gridStart.getDate() - gridStart.getDay());
     const gridEnd = new Date(monthEnd); gridEnd.setDate(gridEnd.getDate() + (6 - gridEnd.getDay()));
-    rangeLabel.textContent = monthStart.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+    rangeLabel.textContent = monthStart.toLocaleDateString(I18N.intlLocale, { month: "long", year: "numeric" });
 
     const params = new URLSearchParams({ start: toDateStr(gridStart), end: toDateStr(gridEnd) });
     const appts = await (await fetch(`/api/dashboard/my-calendar?${params}`)).json();

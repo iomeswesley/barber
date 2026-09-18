@@ -72,7 +72,7 @@
 </div>
 
 <script>
-function currency(v) { return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v || 0); }
+function currency(v) { return new Intl.NumberFormat(I18N.intlLocale, { style: "currency", currency: I18N.currency, maximumFractionDigits: 0 }).format(v || 0); }
 
 const params = new URLSearchParams(location.search);
 const planId = params.get("plan");
