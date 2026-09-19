@@ -322,6 +322,7 @@
 
   /* ---- módulos compartilhados (profileModal, tour) ---- */
   "Trocar foto": "Changer la photo",
+  "Idioma": "Langue",
   "Informe um nome.": "Indiquez un nom.",
   "Erro ao salvar.": "Erreur lors de l'enregistrement.",
   "Pular tour": "Passer la visite",

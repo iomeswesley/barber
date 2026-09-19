@@ -322,6 +322,7 @@
 
   /* ---- módulos compartilhados ---- */
   "Trocar foto": "Change photo",
+  "Idioma": "Language",
   "Informe um nome.": "Enter a name.",
   "Erro ao salvar.": "Error saving.",
   "Pular tour": "Skip tour",

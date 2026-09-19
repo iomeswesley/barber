@@ -24,12 +24,21 @@ function ensureProfileModalRoot() {
         <label>Nome</label>
         <input type="text" id="profile-modal-name" />
       </div>
+      <div class="form-field" style="margin-top:12px;">
+        <label>Idioma</label>
+        <div data-lang-switch class="profile-modal-lang"></div>
+      </div>
       <div class="modal-actions" style="margin-top:18px;">
         <button class="btn-secondary" id="profile-modal-cancel">Cancelar</button>
         <button class="btn-primary" id="profile-modal-save">Salvar</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
+  if (window.I18N) {
+    window.I18N.mountSwitchers();
+    const langSelect = overlay.querySelector(".lang-switch-select");
+    if (langSelect) langSelect.style.width = "100%";
+  }
   // Mesmo truque do client-modal-overlay em admin.html: força um reflow logo
   // após inserir no DOM, senão a transição de entrada não anima na 1ª abertura.
   void overlay.offsetHeight;

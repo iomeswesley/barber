@@ -362,6 +362,8 @@
     t: t,
     setLang: setLang,
     apply: translateSubtree,
+    // Pra telas montadas depois do boot (ex.: popup "Minha conta" do painel).
+    mountSwitchers: mountSwitchers,
     // Formata dinheiro na moeda da região do deploy (nunca fixo em BRL).
     fmtCurrency: function (value, fractionDigits) {
       var o = { style: "currency", currency: region().currency };
