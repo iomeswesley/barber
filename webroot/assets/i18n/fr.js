@@ -83,6 +83,8 @@
   /* ---- confirmação de horário / assinatura ---- */
   "Confirmar horário": "Confirmer le rendez-vous",
   "Assinatura necessária": "Abonnement requis",
+  "Seu período de teste terminou. Escolha um plano pra continuar usando o painel:": "Votre période d'essai est terminée. Choisissez une formule pour continuer à utiliser le tableau de bord :",
+  "O acesso desta conta está suspenso: o período de teste terminou ou a assinatura foi cancelada.": "L'accès à ce compte est suspendu : la période d'essai est terminée ou l'abonnement a été résilié.",
   "A assinatura desta conta está cancelada.": "L'abonnement de ce compte est résilié.",
   "Fale com o dono ou administrador pra escolher um plano e reativar o acesso ao painel.": "Contactez le propriétaire ou l'administrateur pour choisir une formule et réactiver l'accès au tableau de bord.",
   "A assinatura desta conta está cancelada. Escolha um plano pra continuar usando o painel:": "L'abonnement de ce compte est résilié. Choisissez une formule pour continuer à utiliser le tableau de bord :",

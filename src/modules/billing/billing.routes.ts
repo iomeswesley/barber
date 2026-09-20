@@ -6,6 +6,7 @@ import { stripe, stripeConfigured, PLAN_LABELS, PLAN_LIMITS, PLAN_PRICE_CENTS, t
 import { captureError } from "@/lib/errorReporting.js";
 import {
   getSubscription,
+  isBillingBlocked,
   createCheckoutSession,
   changePlan,
   createPortalSession,
@@ -20,13 +21,24 @@ export const billingRouter = Router();
 
 const VALID_PLANS: PlanId[] = ["starter", "pro"];
 
+// Fonte única de "está travado?" pro frontend (billingGate.js e
+// billing-required.html). Aberta a dono E profissional: o front não pode
+// reinterpretar `status` por conta própria — trial vencido segue "trialing" no
+// banco até o cron das 8h, mas isBillingBlocked já bloqueia na hora; se as duas
+// telas divergirem, painel↔billing-required entram em loop de redirect.
+billingRouter.get("/api/billing/gate", requireAuth, async (req, res) => {
+  res.json({ blocked: await isBillingBlocked(req.session.user!.businessId) });
+});
+
 billingRouter.get("/api/billing/status", requireAuth, requireOwner, async (req, res) => {
-  const [sub, shop] = await Promise.all([
+  const [sub, shop, blocked] = await Promise.all([
     getSubscription(req.session.user!.businessId),
     getBarbershop(req.session.user!.businessId),
+    isBillingBlocked(req.session.user!.businessId),
   ]);
   res.json({
     configured: stripeConfigured,
+    blocked,
     status: sub?.status || null,
     plan: sub?.plan || null,
     trial_ends_at: sub?.trialEndsAt || null,

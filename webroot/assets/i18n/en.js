@@ -83,6 +83,8 @@
   /* ---- confirmação de horário / assinatura ---- */
   "Confirmar horário": "Confirm appointment",
   "Assinatura necessária": "Subscription required",
+  "Seu período de teste terminou. Escolha um plano pra continuar usando o painel:": "Your trial has ended. Pick a plan to keep using the dashboard:",
+  "O acesso desta conta está suspenso: o período de teste terminou ou a assinatura foi cancelada.": "This account's access is suspended: the trial has ended or the subscription was cancelled.",
   "A assinatura desta conta está cancelada.": "This account's subscription is cancelled.",
   "Fale com o dono ou administrador pra escolher um plano e reativar o acesso ao painel.": "Contact the owner or administrator to pick a plan and restore access to the dashboard.",
   "A assinatura desta conta está cancelada. Escolha um plano pra continuar usando o painel:": "This account's subscription is cancelled. Pick a plan to keep using the dashboard:",

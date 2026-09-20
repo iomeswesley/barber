@@ -34,10 +34,12 @@
     return res;
   };
 
-  fetch("/api/billing/status")
+  // /gate (não /status): responde pra dono e profissional e usa o mesmo
+  // critério do servidor (trial vencido também trava, não só "canceled").
+  fetch("/api/billing/gate")
     .then((res) => (res.ok ? res.json() : null))
     .then((data) => {
-      if (data && data.status === "canceled") goToBillingRequired();
+      if (data && data.blocked === true) goToBillingRequired();
     })
     .catch(() => {});
 })();

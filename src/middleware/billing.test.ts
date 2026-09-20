@@ -69,6 +69,32 @@ describe("requireBillingOk (bloqueio real por assinatura cancelada)", () => {
     expect(res.body.error).toBe("billing_blocked");
   });
 
+  // Regressão (20/09): o front decidia "travado?" olhando `status === "canceled"`,
+  // mas trial vencido segue "trialing" até o cron — painel (402) e
+  // billing-required.html (não travado) se mandavam um pro outro num loop de
+  // redirect. /api/billing/gate é a fonte única: mesmo critério do servidor.
+  it("/api/billing/gate concorda com o bloqueio: trial vencido = blocked, trial vigente = liberado", async () => {
+    const agent = await loginAgent();
+
+    await prisma.subscription.upsert({
+      where: { businessId: business.id },
+      update: { status: "trialing", trialEndsAt: new Date(Date.now() - 60_000) },
+      create: { businessId: business.id, status: "trialing", trialEndsAt: new Date(Date.now() - 60_000) },
+    });
+    const expired = await agent.get("/api/billing/gate");
+    expect(expired.status).toBe(200);
+    expect(expired.body.blocked).toBe(true);
+    expect((await agent.get("/api/dashboard/summary")).status).toBe(402);
+
+    await prisma.subscription.update({
+      where: { businessId: business.id },
+      data: { trialEndsAt: new Date(Date.now() + 86_400_000) },
+    });
+    const active = await agent.get("/api/billing/gate");
+    expect(active.body.blocked).toBe(false);
+    expect((await agent.get("/api/dashboard/summary")).status).not.toBe(402);
+  });
+
   it("canceled bloqueia rotas de painel com 402", async () => {
     await prisma.subscription.upsert({
       where: { businessId: business.id },
