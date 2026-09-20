@@ -323,6 +323,8 @@
   /* ---- módulos compartilhados ---- */
   "Trocar foto": "Change photo",
   "Idioma": "Language",
+  "Starter — {0}/mês (até 2 barbeiros)": "Starter — {0}/month (up to 2 barbers)",
+  "Pro — {0}/mês (barbeiros ilimitados)": "Pro — {0}/month (unlimited barbers)",
   "Informe um nome.": "Enter a name.",
   "Erro ao salvar.": "Error saving.",
   "Pular tour": "Skip tour",

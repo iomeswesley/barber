@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import { env, vertical } from "@/config/env.js";
+import { formatMoney } from "@/lib/locale.js";
 
 // Opcional: sem STRIPE_SECRET_KEY, a aba de cobrança fica visível (mostra
 // status do trial) mas os botões de assinar/gerenciar ficam desabilitados
@@ -17,18 +18,23 @@ export const PLAN_LIMITS: Record<PlanId, number | null> = {
   pro: null,
 };
 
-export const PLAN_LABELS: Record<PlanId, string> = {
-  starter: `Starter — R$ 99/mês (até 2 ${vertical.professionalPlural})`,
-  pro: `Pro — R$ 149/mês (${vertical.professionalPlural} ilimitados)`,
-};
+// Preço de tabela por moeda do deploy (cada região tem o seu deploy, então
+// APP_DEFAULT_CURRENCY decide). BRL mantém o histórico; qualquer outra moeda
+// (EUR, USD) usa a tabela internacional. O valor real cobrado é o do Price
+// configurado no Stripe (STRIPE_PRICE_*) — estes números só alimentam rótulos,
+// landing e estimativa de MRR, e têm que bater com o que existe lá.
+const PRICES_BRL: Record<PlanId, number> = { starter: 9900, pro: 14900 };
+const PRICES_INTERNATIONAL: Record<PlanId, number> = { starter: 7900, pro: 9900 };
 
-// Usado só pra estimar MRR no painel de superadmin — não é o valor real
-// cobrado no Stripe (que pode ter sido alterado direto no Dashboard sem
-// atualizar aqui, como já aconteceu). Manter em sincronia manual com
-// PLAN_LABELS acima e com o texto de preços em webroot/index.html.
-export const PLAN_PRICE_CENTS: Record<PlanId, number> = {
-  starter: 9900,
-  pro: 14900,
+// Usado só pra estimar MRR no painel de superadmin e mostrar preço na UI — não
+// é o valor real cobrado no Stripe (que pode ter sido alterado direto no
+// Dashboard sem atualizar aqui, como já aconteceu). Manter em sincronia manual
+// com o Price do Stripe.
+export const PLAN_PRICE_CENTS: Record<PlanId, number> = env.APP_DEFAULT_CURRENCY === "BRL" ? PRICES_BRL : PRICES_INTERNATIONAL;
+
+export const PLAN_LABELS: Record<PlanId, string> = {
+  starter: `Starter — ${formatMoney(PLAN_PRICE_CENTS.starter, env.APP_DEFAULT_CURRENCY, env.APP_DEFAULT_LOCALE)}/mês (até 2 ${vertical.professionalPlural})`,
+  pro: `Pro — ${formatMoney(PLAN_PRICE_CENTS.pro, env.APP_DEFAULT_CURRENCY, env.APP_DEFAULT_LOCALE)}/mês (${vertical.professionalPlural} ilimitados)`,
 };
 
 export function priceIdForPlan(plan: string): string | undefined {

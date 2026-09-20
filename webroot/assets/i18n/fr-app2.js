@@ -323,6 +323,8 @@
   /* ---- módulos compartilhados (profileModal, tour) ---- */
   "Trocar foto": "Changer la photo",
   "Idioma": "Langue",
+  "Starter — {0}/mês (até 2 barbeiros)": "Starter — {0}/mois (jusqu'à 2 barbiers)",
+  "Pro — {0}/mês (barbeiros ilimitados)": "Pro — {0}/mois (barbiers illimités)",
   "Informe um nome.": "Indiquez un nom.",
   "Erro ao salvar.": "Erreur lors de l'enregistrement.",
   "Pular tour": "Passer la visite",

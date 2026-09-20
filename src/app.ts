@@ -4,6 +4,7 @@ import connectPgSimple from "connect-pg-simple";
 import helmet from "helmet";
 import path from "node:path";
 import { env, isProduction } from "@/config/env.js";
+import { PLAN_PRICE_CENTS } from "@/lib/stripe.js";
 import { errorHandler, notFoundHandler } from "@/middleware/errorHandler.js";
 import "@/middleware/session.js";
 import "@/middleware/rawBody.js";
@@ -193,6 +194,7 @@ export function createApp() {
           country: env.APP_DEFAULT_COUNTRY,
           currency: env.APP_DEFAULT_CURRENCY,
           timezone: env.APP_TIMEZONE,
+          planPriceCents: PLAN_PRICE_CENTS,
         })};`
       );
   });

@@ -599,7 +599,7 @@
         <div class="card price-card">
           <span class="plan-tag">Teste grátis</span>
           <h3>Experimente sem compromisso</h3>
-          <div class="price-amount">R$ 0<span>/14 dias</span></div>
+          <div class="price-amount" data-plan-price="trial">R$ 0<span>/14 dias</span></div>
           <div class="price-note">Depois, escolha Starter ou Pro.</div>
           <ul class="price-list">
             <li><span class="ico"><svg class="icon" style="width:14px;height:14px;"><use href="#icon-check"></use></svg></span>Acesso completo ao painel e à IA</li>
@@ -615,7 +615,7 @@
           <span class="popular-badge">Mais escolhido</span>
           <span class="plan-tag">Starter</span>
           <h3>Pra barbearias de até 2 barbeiros</h3>
-          <div class="price-amount">R$ 99<span>/mês</span></div>
+          <div class="price-amount" data-plan-price="starter">R$ 99<span>/mês</span></div>
           <div class="price-note">Até 2 barbeiros ativos.</div>
           <ul class="price-list">
             <li><span class="ico"><svg class="icon" style="width:14px;height:14px;"><use href="#icon-check"></use></svg></span>Atendimento por IA no WhatsApp</li>
@@ -629,7 +629,7 @@
         <div class="card price-card">
           <span class="plan-tag">Pro</span>
           <h3>Barbeiros ilimitados</h3>
-          <div class="price-amount">R$ 149<span>/mês</span></div>
+          <div class="price-amount" data-plan-price="pro">R$ 149<span>/mês</span></div>
           <div class="price-note">Ideal pra barbearias em crescimento.</div>
           <ul class="price-list">
             <li><span class="ico"><svg class="icon" style="width:14px;height:14px;"><use href="#icon-check"></use></svg></span>Tudo do Starter, sem limite de barbeiros</li>
@@ -704,6 +704,18 @@
   </footer>
 
   <script>
+    // ---- Preço dos planos vem do servidor (region.js): fora do Brasil o HTML
+    // em R$ não vale, então troca só o texto do valor (o <span>/mês fica). ----
+    (function fillPlanPrices() {
+      var region = window.APP_REGION;
+      if (!region || region.currency === 'BRL' || !region.planPriceCents || !window.I18N) return;
+      document.querySelectorAll('[data-plan-price]').forEach(function (el) {
+        var key = el.getAttribute('data-plan-price');
+        var cents = key === 'trial' ? 0 : region.planPriceCents[key];
+        if (cents != null && el.firstChild) el.firstChild.nodeValue = window.I18N.fmtCurrency(cents / 100, 0);
+      });
+    })();
+
     // ---- Compensa o header virar position:fixed (ver comentário no CSS de
     // header.topbar) — sem esse padding-top, o conteúdo do <main> nasceria
     // escondido atrás do header. Recalcula no load/resize porque a altura
