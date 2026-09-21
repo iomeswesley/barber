@@ -366,6 +366,31 @@ Objetivo do usuário: vender no Brasil e em Luxemburgo (fr + en). Plano completo
 - **GDPR**: `webroot/privacy-eu.html` e `terms-eu.html` (fr/en no mesmo arquivo, servidos no lugar de `privacidade.html`/`termos.html` quando `APP_DEFAULT_COUNTRY !== "BR"`) são **rascunhos com campos `[a completar]`** — precisam de revisão jurídica antes de publicar.
 - **Pendências reais**: preços em EUR (`PLAN_LABELS`/`PLAN_PRICE_CENTS` em `src/lib/stripe.ts` e a landing ainda mostram R$); `Client.phone` continua `@unique` global; a landing/`ajuda.html` mencionam LGPD em pt (o dicionário troca por RGPD/GDPR nos outros idiomas); aprovação dos templates fr/en na Meta só acontece quando um negócio real conectar.
 
+### Sessão de 19-21/09: loop de "assinatura necessária", popup do WhatsApp, preço por moeda, portes pro odonto
+
+- **Loop infinito "Assinatura necessária" (trial vencido) — corrigido.** `isBillingBlocked` bloqueia trial vencido NA HORA
+  (13/09), mas o status no banco segue `trialing` até o cron das 8h. `billing-required.html` só aceitava
+  `status === "canceled"`, via `trialing`, mandava de volta pro painel, que dava 402 e redirecionava de novo — loop
+  rápido de reload. O profissional caía no mesmo loop com assinatura cancelada de verdade (`/billing/status` é
+  `requireOwner`, dava 403). **Fonte única: `GET /api/billing/gate` (dono e profissional) → `{ blocked }`**, com o
+  mesmo critério do servidor; `billingGate.js` e `billing-required.html` usam só isso. Teste de regressão em
+  `middleware/billing.test.ts`. **Lição**: nunca reinterprete `status` no front — pergunte ao servidor se está travado.
+- **Popup de conexão do WhatsApp (Embedded Signup)**: o timer que desarmava a tentativa era de 3min — quem conecta a
+  primeira vez (portfólio empresarial, SMS, QR) passa disso e o FINISH tardio era descartado em silêncio ("comigo funciona,
+  com o cliente não"). Agora 10min, o handler continua armado depois do prazo e o alerta "não detectamos" só aparece se
+  NENHUM sinal do popup chegou. O HTML não é cache (`max-age=0, must-revalidate`) — não era cache do navegador.
+- **Seletor de idioma no popup "Minha conta"** (`profileModal.js` + `I18N.mountSwitchers`) — logado não havia como trocar.
+- **Preço por moeda** (`src/lib/stripe.ts`): BRL 99/149; qualquer outra moeda 79/99. `region.js` expõe `planPriceCents` e a
+  landing preenche o valor fora do BR (`data-plan-price`). O valor cobrado de verdade é o do Price do Stripe
+  (`STRIPE_PRICE_STARTER/PRO`) — cada deploy regional aponta pros seus. Preços de R$ 1 (teste) ficaram em produtos
+  separados (`prod_UxPf…`/`prod_UxPg…`); as env vars voltaram pros originais (`price_1TueU8…` R$ 99, `price_1TueXY…` R$ 149).
+- **Cupom**: "hoje" em fuso local (`localDateStr`), não UTC — cupom "válido até hoje" expirava às 21h em Brasília.
+- **Portado pro `odonto-saas` (21/09)**: fix do timer/5 eventos FINISH do Embedded Signup, `deregister` ao desconectar,
+  `/billing/gate` + bloqueio imediato de trial, banner de trial, cupom, debounce de 20s + transcrição (Groq) + anexo de
+  áudio/vídeo, exclusão de worktrees no vitest.
+- Pendente: `GROQ_API_KEY` na Vercel (áudio cai no aviso de "só texto" sem ela). Chave é secreta — o dono cadastra
+  (`npx vercel env add GROQ_API_KEY production` + redeploy), nunca colar no chat.
+
 ## Login de demonstração
 
 Senha `barbearia123` para todos. Dono: `barbearia-vintage.dono` (3 barbeiros — `carlos`, `rafael`, `diego`) ou `barbearia-solo.dono` (barbeiro único — `marcos`, pra testar o modo barbeiro-único vs múltiplos; criada por `scripts/seed-solo-barbershop.ts`, seguro rodar de novo).
