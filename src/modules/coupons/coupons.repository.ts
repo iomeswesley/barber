@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma.js";
+import { localDateStr } from "@/lib/time.js";
 import { dateOnly } from "@/lib/time.js";
 
 export function getCoupons(businessId: number, { includeInactive = false } = {}) {
@@ -60,7 +61,9 @@ export function couponIsValidNow(coupon: {
   usedCount: number;
 }): { valid: boolean; reason?: string } {
   if (!coupon.active) return { valid: false, reason: "Cupom inativo" };
-  const today = new Date().toISOString().slice(0, 10);
+  // "Hoje" no fuso do servidor (TZ), não em UTC — toISOString() já virava o dia
+  // seguinte às 21h em Brasília e expirava cupom "válido até hoje" cedo demais.
+  const today = localDateStr(new Date());
   if (coupon.validFrom && today < coupon.validFrom.toISOString().slice(0, 10)) return { valid: false, reason: "Cupom ainda não começou a valer" };
   if (coupon.validTo && today > coupon.validTo.toISOString().slice(0, 10)) return { valid: false, reason: "Cupom expirado" };
   if (coupon.usageLimit != null && coupon.usedCount >= coupon.usageLimit) return { valid: false, reason: "Cupom esgotado" };
