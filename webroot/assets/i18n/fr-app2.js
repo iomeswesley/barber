@@ -323,6 +323,7 @@
   /* ---- módulos compartilhados (profileModal, tour) ---- */
   "Trocar foto": "Changer la photo",
   "Idioma": "Langue",
+  "Não detectamos a conclusão da conexão com o WhatsApp. Se o popup da Meta não abriu ou fechou sozinho, tente de novo — e confira se não há bloqueador de pop-up no navegador. Se o problema continuar, fale com o suporte.": "Nous n'avons pas détecté la fin de la connexion WhatsApp. Si la fenêtre Meta ne s'est pas ouverte ou s'est fermée toute seule, réessayez — et vérifiez que votre navigateur ne bloque pas les pop-ups. Si le problème persiste, contactez le support.",
   "Starter — {0}/mês (até 2 barbeiros)": "Starter — {0}/mois (jusqu'à 2 barbiers)",
   "Pro — {0}/mês (barbeiros ilimitados)": "Pro — {0}/mois (barbiers illimités)",
   "Informe um nome.": "Indiquez un nom.",

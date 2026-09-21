@@ -6130,13 +6130,28 @@ async function loadWhatsappConnectStatus() {
       // assistente que mandaria isso já não existe mais. Sem esse timeout o
       // botão ficaria travado pra sempre em "Aguardando...". Zerado sempre
       // que a finalização acontece de verdade (sucesso ou cancelamento real).
+      // Quem está fazendo a primeira conexão (criar o portfólio empresarial,
+      // confirmar o número por SMS/ligação, escanear QR no Coexistence) leva
+      // bem mais que 3min — quem já fez antes (ex.: o dono do sistema
+      // testando) termina em 1min, por isso "comigo funciona, com o cliente
+      // não". O timer NÃO desarma finalizeWhatsappSignup de propósito: se o
+      // FINISH + code chegarem depois do prazo (popup ainda aberto), a
+      // conexão ainda é salva em vez de ser descartada em silêncio — só a
+      // interface volta ao normal pra permitir uma nova tentativa.
       const stuckTimer = setTimeout(() => {
         if (finalizeWhatsappSignup === null) return; // já finalizou por outro caminho
-        finalizeWhatsappSignup = null;
         btn.disabled = false;
         btn.textContent = "Conectar meu WhatsApp";
         setWhatsappProgressStep(null);
-      }, 3 * 60 * 1000);
+        // Só avisa se NENHUM sinal chegou (popup bloqueado, fechado, ou sem
+        // acesso ao App da Meta). Se já chegou code ou FINISH, o assistente
+        // está andando — não faz sentido dizer que não foi detectado.
+        if (!whatsappSignupCode && !whatsappSignupData) {
+          showAlertModal(
+            "Não detectamos a conclusão da conexão com o WhatsApp. Se o popup da Meta não abriu ou fechou sozinho, tente de novo — e confira se não há bloqueador de pop-up no navegador. Se o problema continuar, fale com o suporte."
+          );
+        }
+      }, 10 * 60 * 1000);
 
       const finalize = async () => {
         if (whatsappSignupCancelled) {
