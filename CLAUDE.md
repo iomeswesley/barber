@@ -388,6 +388,8 @@ Objetivo do usuário: vender no Brasil e em Luxemburgo (fr + en). Plano completo
 - **Portado pro `odonto-saas` (21/09)**: fix do timer/5 eventos FINISH do Embedded Signup, `deregister` ao desconectar,
   `/billing/gate` + bloqueio imediato de trial, banner de trial, cupom, debounce de 20s + transcrição (Groq) + anexo de
   áudio/vídeo, exclusão de worktrees no vitest.
+  Também o status `disconnected` (separado de `error`) e o rastreio de conexão em todos os pontos de envio
+  (`withWhatsappConnectionTracking`), mais os alertas de operador — ver a seção de 21/09 do odonto-saas.
 - Pendente: `GROQ_API_KEY` na Vercel (áudio cai no aviso de "só texto" sem ela). Chave é secreta — o dono cadastra
   (`npx vercel env add GROQ_API_KEY production` + redeploy), nunca colar no chat.
 
