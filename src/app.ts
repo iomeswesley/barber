@@ -214,7 +214,7 @@ export function createApp() {
   // startReminderScheduler(), que não sobrevive entre invocações serverless.
   // O Vercel envia "Authorization: Bearer <CRON_SECRET>" automaticamente
   // quando CRON_SECRET está configurado nas env vars do projeto.
-  app.post("/api/cron/reminders", async (req, res) => {
+  app.all("/api/cron/reminders", async (req, res) => {
     if (env.CRON_SECRET && req.headers.authorization !== `Bearer ${env.CRON_SECRET}`) {
       return res.status(401).json({ error: "unauthorized" });
     }
@@ -236,7 +236,7 @@ export function createApp() {
   // Backup diário compatível com serverless (ver src/jobs/serverlessBackup.ts)
   // — substitui o backup local via pg_dump (src/jobs/backup.ts), que não
   // funciona na Vercel. Mesmo esquema de autenticação do cron acima.
-  app.post("/api/cron/backup", async (req, res) => {
+  app.all("/api/cron/backup", async (req, res) => {
     if (env.CRON_SECRET && req.headers.authorization !== `Bearer ${env.CRON_SECRET}`) {
       return res.status(401).json({ error: "unauthorized" });
     }
